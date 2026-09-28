@@ -12,8 +12,8 @@ const ignoreClientError = () => {};
  * Pool with an `error` listener: idle clients emit `error` when Postgres restarts, and an unhandled
  * `error` event would crash the process instead of letting `/health` report degraded.
  */
-export const createPgPool = (connectionString: string): pg.Pool => {
-  const pool = new pg.Pool({ connectionString, max: 2 });
+export const createPgPool = (connectionString: string, max = 2): pg.Pool => {
+  const pool = new pg.Pool({ connectionString, max });
   pool.on('error', ignoreClientError);
   return pool;
 };

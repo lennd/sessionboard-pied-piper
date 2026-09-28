@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "test": "vitest run test/health.test.ts test/checks.test.ts",
-    "test:integration": "vitest run test/health.integration.test.ts",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {
@@ -16,9 +16,12 @@
     "vitest": "^5.0.2"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@node-rs/argon2": "^2.2.1",
     "fastify": "^5.12.5",
     "ioredis": "^6.0.0",
     "neo4j-driver": "^6.2.0",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "zod": "^4.6.5"
   }
 }

@@ -35,7 +35,7 @@ describe('GET /health', () => {
 });
 
 describe('loadConfig', () => {
-  it('defaults to local ports', () => {
+  it('defaults to local development values', () => {
     expect(loadConfig({})).toEqual({
       port: 4040,
       databaseUrl: 'postgres://rdi:rdi@localhost:5548/rdi',
@@ -43,10 +43,23 @@ describe('loadConfig', () => {
       neo4jUser: 'neo4j',
       neo4jPassword: 'rdi-dev-password',
       redisUrl: 'redis://localhost:6391',
+      nodeEnv: 'development',
+      appUrl: 'http://localhost:5177',
+      devRoutes: false,
+      cookieSecure: true,
+      rateLimitPrefix: 'rl',
+      rateLimitsEnabled: true,
+      dbEnsure: false,
     });
   });
 
   it('reads overrides from env', () => {
-    expect(loadConfig({ API_PORT: '5000', REDIS_URL: 'redis://x:1' })).toMatchObject({ port: 5000, redisUrl: 'redis://x:1' });
+    expect(loadConfig({ API_PORT: '5000', REDIS_URL: 'redis://x:1', RDI_DEV_ROUTES: 'true', RATE_LIMITS: 'off' })).toMatchObject({
+      port: 5000, redisUrl: 'redis://x:1', devRoutes: true, rateLimitsEnabled: false,
+    });
+  });
+
+  it('never enables dev routes or disables rate limits in production', () => {
+    expect(loadConfig({ NODE_ENV: 'production', RDI_DEV_ROUTES: 'true', RATE_LIMITS: 'off' })).toMatchObject({ devRoutes: false, rateLimitsEnabled: true });
   });
 });
