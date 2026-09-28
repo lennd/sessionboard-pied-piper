@@ -13,7 +13,7 @@ import { frameAt } from './engine/frame';
 import { stepPhase } from './engine/phase';
 import { resequenceCursor } from './engine/resequence';
 import { risksByNode } from './engine/risks';
-import { CodeDrawer } from './panels/CodeDrawer';
+import { CodeDrawer, type CodeRef } from './panels/CodeDrawer';
 import { ExplorerPanel } from './panels/ExplorerPanel';
 import { Footer } from './panels/Footer';
 import { Inspector } from './panels/Inspector';
@@ -27,9 +27,9 @@ const NO_SCENES: Scene[] = [];
 
 export type ChatContext = { openScene(scene: Scene): void; selected: { label: string; graphRef: string } | null; scene: Scene };
 
-type WorkspaceProps = { chat?: (ctx: ChatContext) => ReactNode; extraScenes?: Scene[]; theme?: ThemeId; onTheme?: (theme: ThemeId) => void; onLanguage?: (language: UiLanguage) => void; initialLevel?: Level; homeHref?: string };
+type WorkspaceProps = { chat?: (ctx: ChatContext) => ReactNode; loadCode?: (code: CodeRef) => Promise<string>; extraScenes?: Scene[]; theme?: ThemeId; onTheme?: (theme: ThemeId) => void; onLanguage?: (language: UiLanguage) => void; initialLevel?: Level; homeHref?: string };
 
-export const Workspace = ({ chat, extraScenes = NO_SCENES, theme: controlledTheme, onTheme, onLanguage, initialLevel = DEFAULT_LEVEL, homeHref }: WorkspaceProps = {}) => {
+export const Workspace = ({ chat, loadCode, extraScenes = NO_SCENES, theme: controlledTheme, onTheme, onLanguage, initialLevel = DEFAULT_LEVEL, homeHref }: WorkspaceProps = {}) => {
   const { language } = useI18n();
   const [chatScenes, setChatScenes] = useState<Scene[]>([]);
   const [sidebar, setSidebar] = useState<'explorer' | 'chat'>('explorer');
@@ -128,7 +128,7 @@ export const Workspace = ({ chat, extraScenes = NO_SCENES, theme: controlledThem
             onOpenCode={(id) => dispatchRaw({ type: 'openCode', nodeId: id })} onOpenStep={(id) => dispatchRaw({ type: 'toggleStep', stepId: id })}
             onSelectRisk={(id) => dispatchRaw({ type: 'selectRisk', riskId: id })}
           />
-          {codeNode && <CodeDrawer node={codeNode} onClose={() => dispatchRaw({ type: 'closeCode' })} />}
+          {codeNode && <CodeDrawer node={codeNode} loadCode={loadCode} onClose={() => dispatchRaw({ type: 'closeCode' })} />}
         </main>
         <Inspector
           frame={frame} selectedNode={selectedNode} risksForNode={selectedNode ? byNode.get(selectedNode.id) ?? [] : []}

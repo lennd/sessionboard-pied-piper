@@ -1,7 +1,9 @@
 import { validateScene, type Scene } from '@rdi/scene';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nProvider';
+import type { CodeRef } from '../../workspace/panels/CodeDrawer';
 import { Workspace } from '../../workspace/Workspace';
 import { ApiError, apiFetch } from '../api';
 import { ChatPanel } from '../chat/ChatPanel';
@@ -24,12 +26,18 @@ const fetchSystemMap = async (orgId: string): Promise<Scene | null> => {
   }
 };
 
+const codeLoader = (orgId: string) => async (code: CodeRef) => {
+  const query = new URLSearchParams({ repo: code.repo, path: code.path, start: String(code.startLine), end: String(code.endLine) });
+  return (await apiFetch<{ snippet: string }>(`/orgs/${orgId}/code?${query.toString()}`)).snippet;
+};
+
 export const ExplorePage = () => {
   const { orgId = '' } = useParams();
   const { data: session } = useSession();
   const updateMe = useUpdateMe();
   const { setLanguage, t, language } = useI18n();
   const systemMap = useQuery({ queryKey: ['system-map', orgId], queryFn: () => fetchSystemMap(orgId), staleTime: MAP_STALE_MS, retry: false, enabled: Boolean(orgId) });
+  const loadCode = useMemo(() => codeLoader(orgId), [orgId]);
   if (!session) return null;
   const org = session.orgs.find((o) => o.id === orgId);
   if (!org) return <Navigate to="/" replace />;
@@ -38,6 +46,7 @@ export const ExplorePage = () => {
     <>
       {systemMap.isError && <p className="alert error" role="alert" data-testid="system-map-error" style={ERROR_STYLE}>{t('explore.mapError')}</p>}
       <Workspace
+        loadCode={loadCode}
         chat={(ctx) => <ChatPanel orgId={org.id} ctx={ctx} language={effectiveExplanationLanguage(session.user, org, language)} />}
       extraScenes={systemMap.data ? [systemMap.data] : []}
       theme={effectiveTheme(session.user, org)}
