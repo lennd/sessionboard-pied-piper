@@ -13,6 +13,8 @@ export type Config = {
   rateLimitsEnabled: boolean;
   dbEnsure: boolean;
   trustProxy: boolean | number | string;
+  demoRepos: boolean;
+  github: { appId: string; privateKey: string; slug: string; webhookSecret: string; stateSecret: string } | null;
 };
 
 const DEFAULTS = {
@@ -30,6 +32,7 @@ const DEFAULTS = {
   RATE_LIMITS: 'on',
   DB_ENSURE: 'false',
   TRUST_PROXY: 'false',
+  DEMO_REPOS: 'true',
 };
 
 const PRODUCTION = 'production';
@@ -39,6 +42,12 @@ const parseTrustProxy = (value: string): boolean | number | string => {
   if (value === 'true') return true;
   if (value === 'false' || value === '') return false;
   return HOP_COUNT.test(value) ? Number(value) : value;
+};
+
+const readGithub = (env: NodeJS.ProcessEnv): Config['github'] => {
+  const { GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_SLUG, GITHUB_WEBHOOK_SECRET, GITHUB_STATE_SECRET } = env;
+  if (!GITHUB_APP_ID || !GITHUB_APP_PRIVATE_KEY || !GITHUB_APP_SLUG || !GITHUB_WEBHOOK_SECRET || !GITHUB_STATE_SECRET) return null;
+  return { appId: GITHUB_APP_ID, privateKey: GITHUB_APP_PRIVATE_KEY.replace(/\\n/g, '\n'), slug: GITHUB_APP_SLUG, webhookSecret: GITHUB_WEBHOOK_SECRET, stateSecret: GITHUB_STATE_SECRET };
 };
 
 export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
@@ -60,5 +69,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     rateLimitsEnabled: production || read('RATE_LIMITS') !== 'off',
     dbEnsure: read('DB_ENSURE') === 'true',
     trustProxy: parseTrustProxy(read('TRUST_PROXY')),
+    demoRepos: !production && read('DEMO_REPOS') !== 'false',
+    github: readGithub(env),
   };
 };

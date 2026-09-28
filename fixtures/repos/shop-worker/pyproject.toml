@@ -1,0 +1,4 @@
+[project]
+name = "shop-worker"
+version = "0.1.0"
+dependencies = ["bullmq", "requests", "psycopg"]

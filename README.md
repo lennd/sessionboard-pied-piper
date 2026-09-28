@@ -21,3 +21,10 @@ Spec: `docs/superpowers/specs/2026-09-28-repository-designer-ide-design.md`.
 
 The API applies database migrations on start. With `RDI_DEV_ROUTES=true` (never in production) it also serves
 `/api/dev/mailbox?to=<email>` so you can read verification, reset and invitation emails locally.
+
+### Indexing
+
+`npm run dev` also starts `apps/worker`, which consumes the `index-repo` BullMQ queue. Without GitHub App settings
+(`GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_SLUG`, `GITHUB_WEBHOOK_SECRET`, `GITHUB_STATE_SECRET`) the
+Repositories screen offers the bundled demo repositories under `fixtures/repos`. The indexed graph lives in Neo4j
+(browser at http://localhost:7477) and the workspace opens an automatically generated **System map**.

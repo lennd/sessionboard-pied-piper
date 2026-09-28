@@ -27,3 +27,25 @@ export const upsertRepo = async (
       [input.orgId, input.fullName, input.defaultBranch, input.languages, input.status, JSON.stringify(input.stages), input.error ?? null, input.lastSyncedAt ?? null],
     )
   ).rows[0]!;
+
+export const PENDING_STAGES: RepoStage[] = (['clone', 'parse', 'detect', 'summarize', 'link'] as const).map((name) => ({ name, status: 'pending' }));
+
+export const findRepo = async (db: Db, orgId: string, repoId: string): Promise<RepoRow | null> =>
+  (await db.query<RepoRow>('select * from repos where org_id = $1 and id = $2', [orgId, repoId])).rows[0] ?? null;
+
+export const insertPendingRepo = async (db: Db, input: { orgId: string; fullName: string; defaultBranch: string; installationRowId: string | null }): Promise<RepoRow> =>
+  (
+    await db.query<RepoRow>(
+      `insert into repos (org_id, installation_id, full_name, default_branch, status, stages)
+       values ($1, $2, $3, $4, 'pending', $5)
+       on conflict (org_id, full_name) do update set status = 'pending', stages = excluded.stages, error = null
+       returning *`,
+      [input.orgId, input.installationRowId, input.fullName, input.defaultBranch, JSON.stringify(PENDING_STAGES)],
+    )
+  ).rows[0]!;
+
+export const resetRepoStages = async (db: Db, orgId: string, repoId: string): Promise<number> =>
+  (await db.query("update repos set status = 'pending', stages = $3, error = null where org_id = $1 and id = $2", [orgId, repoId, JSON.stringify(PENDING_STAGES)])).rowCount ?? 0;
+
+export const deleteRepoRow = async (db: Db, orgId: string, repoId: string): Promise<number> =>
+  (await db.query('delete from repos where org_id = $1 and id = $2', [orgId, repoId])).rowCount ?? 0;

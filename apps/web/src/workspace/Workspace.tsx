@@ -23,16 +23,21 @@ import './workspace.css';
 const DEFAULT_LEVEL: Level = 'architecture';
 const sceneFor = (language: string): Scene => sampleRegistry[`checkout-${language}`] ?? sampleRegistry['checkout-en'] ?? (sampleScenes[0] as Scene);
 
-type WorkspaceProps = { theme?: ThemeId; onTheme?: (theme: ThemeId) => void; onLanguage?: (language: UiLanguage) => void; initialLevel?: Level; homeHref?: string };
+const NO_SCENES: Scene[] = [];
 
-export const Workspace = ({ theme: controlledTheme, onTheme, onLanguage, initialLevel = DEFAULT_LEVEL, homeHref }: WorkspaceProps = {}) => {
+type WorkspaceProps = { extraScenes?: Scene[]; theme?: ThemeId; onTheme?: (theme: ThemeId) => void; onLanguage?: (language: UiLanguage) => void; initialLevel?: Level; homeHref?: string };
+
+export const Workspace = ({ extraScenes = NO_SCENES, theme: controlledTheme, onTheme, onLanguage, initialLevel = DEFAULT_LEVEL, homeHref }: WorkspaceProps = {}) => {
   const { language } = useI18n();
+  const scenes = useMemo(() => [...extraScenes, ...sampleScenes], [extraScenes]);
+  const registry = useMemo<Record<string, Scene>>(() => Object.fromEntries(scenes.map((s) => [s.id, s])), [scenes]);
+  const initialScene = extraScenes[0] ?? sceneFor(language);
   const [explorer, dispatchRaw] = useReducer(
-    (state: ReturnType<typeof initialExplorerState>, action: ExplorerAction) => reduceExplorer(state, action, sampleRegistry[state.sceneId] ?? sceneFor(language)),
+    (state: ReturnType<typeof initialExplorerState>, action: ExplorerAction) => reduceExplorer(state, action, registry[state.sceneId] ?? initialScene),
     undefined,
-    () => initialExplorerState(sceneFor(language).id, initialLevel),
+    () => initialExplorerState(initialScene.id, initialLevel),
   );
-  const scene = sampleRegistry[explorer.sceneId] ?? sceneFor(language);
+  const scene = registry[explorer.sceneId] ?? initialScene;
   const [player, dispatchPlayerRaw] = useReducer((s: typeof initialPlayerState, a: PlayerAction & { count: number }) => reducePlayer(s, a, a.count), initialPlayerState);
   const [localTheme, setLocalTheme] = useState<ThemeId>(() => resolveTheme(localStorage.getItem(THEME_STORAGE_KEY)));
   const theme = controlledTheme ?? localTheme;
@@ -77,7 +82,7 @@ export const Workspace = ({ theme: controlledTheme, onTheme, onLanguage, initial
 
   const loadScene = (id: string) => {
     previousFlat.current = [];
-    const next = sampleRegistry[id];
+    const next = registry[id];
     dispatchRaw({ type: 'loadScene', sceneId: id, level: explorer.level, mode: (next && availableModes(next)[0]) ?? 'walkthrough' });
     dispatchPlayer({ type: 'reset' });
   };
@@ -85,7 +90,7 @@ export const Workspace = ({ theme: controlledTheme, onTheme, onLanguage, initial
   return (
     <div className="ws">
       <TopBar
-        scenes={sampleScenes} scene={scene} level={explorer.level} mode={explorer.mode} scaleOverlay={explorer.scaleOverlay} theme={theme}
+        scenes={scenes} scene={scene} level={explorer.level} mode={explorer.mode} scaleOverlay={explorer.scaleOverlay} theme={theme}
         onSceneChange={loadScene} onLevel={(level) => dispatchRaw({ type: 'setLevel', level })} onMode={(mode) => dispatchRaw({ type: 'setMode', mode })}
         onToggleOverlay={() => dispatchRaw({ type: 'toggleScaleOverlay' })} onTheme={setTheme}
         onLanguage={onLanguage} homeHref={homeHref}

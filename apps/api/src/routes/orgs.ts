@@ -111,5 +111,9 @@ export const orgRoutes = (api: FastifyInstance, deps: AppDeps) => {
 
   api.get('/orgs/:orgId/repos', { preHandler: member }, async (req) => (await listRepos(deps.pool, req.member!.org.id)).map(publicRepo));
 
-  api.get('/orgs/:orgId/usage', { preHandler: member }, async (req) => ({ repos: await countRepos(deps.pool, req.member!.org.id), repoLimit: REPO_LIMIT, pieces: 0 }));
+  api.get('/orgs/:orgId/usage', { preHandler: member }, async (req) => ({
+    repos: await countRepos(deps.pool, req.member!.org.id),
+    repoLimit: REPO_LIMIT,
+    pieces: deps.graph ? await deps.graph.countOrgNodes(req.member!.org.id) : 0,
+  }));
 };

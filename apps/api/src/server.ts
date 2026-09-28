@@ -1,9 +1,12 @@
+import { createGraphStore } from '@rdi/graph';
+import { createGitHubClient } from '@rdi/providers';
 import { buildApp } from './app';
 import { createInfraChecks, createPgPool, createRedisClient } from './checks';
 import { loadConfig } from './config';
 import { ensureDatabase } from './db/ensureDatabase';
 import { runMigrations } from './db/migrate';
 import { createMailer } from './mail/mailer';
+import { createIndexQueue } from './queue/indexQueue';
 
 const APP_POOL_SIZE = 10;
 
@@ -14,6 +17,10 @@ const applied = await runMigrations(pool);
 if (applied.length > 0) console.log(`applied migrations: ${applied.join(', ')}`);
 const redis = createRedisClient(config.redisUrl);
 const mailer = createMailer(config);
+const graph = createGraphStore(config.neo4jUrl, config.neo4jUser, config.neo4jPassword);
+await graph.ensureSchema();
+const indexQueue = createIndexQueue(config.redisUrl);
+const github = config.github ? createGitHubClient({ appId: config.github.appId, privateKey: config.github.privateKey, slug: config.github.slug }) : null;
 const infra = createInfraChecks(config);
 
 const app = buildApp({
@@ -22,8 +29,10 @@ const app = buildApp({
     await infra.close();
     await pool.end();
     redis.disconnect();
+    await indexQueue.close();
+    await graph.close();
   },
-  deps: { config, pool, redis, mailer },
+  deps: { config, pool, redis, mailer, graph, indexQueue, github },
 });
 
 await app.listen({ port: config.port, host: '0.0.0.0' });

@@ -51,6 +51,8 @@ describe('loadConfig', () => {
       rateLimitsEnabled: true,
       dbEnsure: false,
       trustProxy: false,
+      demoRepos: true,
+      github: null,
     });
   });
 
@@ -69,5 +71,12 @@ describe('loadConfig', () => {
     expect(loadConfig({ TRUST_PROXY: '1' }).trustProxy).toBe(1);
     expect(loadConfig({ TRUST_PROXY: '10.0.0.0/8' }).trustProxy).toBe('10.0.0.0/8');
     expect(loadConfig({ TRUST_PROXY: 'false' }).trustProxy).toBe(false);
+  });
+
+  it('reads GitHub App settings only when complete and never offers demo repos in production', () => {
+    const env = { GITHUB_APP_ID: '1', GITHUB_APP_PRIVATE_KEY: 'k\\nk', GITHUB_APP_SLUG: 's', GITHUB_WEBHOOK_SECRET: 'w', GITHUB_STATE_SECRET: 'st' };
+    expect(loadConfig(env).github).toEqual({ appId: '1', privateKey: 'k\nk', slug: 's', webhookSecret: 'w', stateSecret: 'st' });
+    expect(loadConfig({ GITHUB_APP_ID: '1' }).github).toBeNull();
+    expect(loadConfig({ NODE_ENV: 'production', DEMO_REPOS: 'true' }).demoRepos).toBe(false);
   });
 });

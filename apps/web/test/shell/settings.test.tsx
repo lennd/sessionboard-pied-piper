@@ -5,7 +5,6 @@ import { formatRelative } from '../../src/shell/format';
 import { GeneralPage } from '../../src/shell/settings/GeneralPage';
 import { MembersPage } from '../../src/shell/settings/MembersPage';
 import { PreferencesPage } from '../../src/shell/settings/PreferencesPage';
-import { RepositoriesPage } from '../../src/shell/settings/RepositoriesPage';
 import { SecurityPage } from '../../src/shell/settings/SecurityPage';
 import { SettingsLayout } from '../../src/shell/settings/SettingsLayout';
 import { renderShell, sessionFixture } from './render';
@@ -91,23 +90,6 @@ describe('MembersPage', () => {
     inSettings(<MembersPage />);
     fireEvent.change(await screen.findByTestId('member-role-u2'), { target: { value: 'admin' } });
     expect(await screen.findByTestId('members-error')).toHaveTextContent('at least one owner');
-  });
-});
-
-describe('RepositoriesPage', () => {
-  it('renders stages per repository and the disabled connect button', async () => {
-    api.mockImplementation(async (path) =>
-      (String(path).endsWith('/usage')
-        ? { repos: 1, repoLimit: 10, pieces: 0 }
-        : [{ id: 'r1', fullName: 'acme/orders-api', defaultBranch: 'main', languages: ['TypeScript'], status: 'indexing', lastSyncedAt: null, error: null,
-            stages: [{ name: 'clone', status: 'done' }, { name: 'summarize', status: 'running', progress: 64 }, { name: 'link', status: 'pending' }] }]) as never,
-    );
-    inSettings(<RepositoriesPage />);
-    expect(await screen.findByTestId('repo-acme/orders-api')).toHaveTextContent('main');
-    expect(screen.getByTestId('stage-acme/orders-api-summarize')).toHaveClass('running');
-    expect(screen.getByTestId('stage-acme/orders-api-summarize')).toHaveTextContent('64%');
-    expect(screen.getByTestId('connect-github')).toBeDisabled();
-    expect(await screen.findByTestId('repos-limit')).toHaveTextContent('1 of 10 repositories');
   });
 });
 

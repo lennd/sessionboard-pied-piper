@@ -19,6 +19,14 @@ export default defineConfig({
         RATE_LIMITS: 'off',
       },
     },
+    {
+      command: 'npm run dev',
+      cwd: '../worker',
+      wait: { stdout: /worker listening on queue/ },
+      reuseExistingServer: false,
+      timeout: 90_000,
+      env: { DATABASE_URL: 'postgres://rdi:rdi@localhost:5548/rdi_e2e', REDIS_URL: 'redis://localhost:6391/2' },
+    },
     { command: 'npm run dev', url: 'http://localhost:5177', reuseExistingServer: false, timeout: 60_000 },
   ],
 });
