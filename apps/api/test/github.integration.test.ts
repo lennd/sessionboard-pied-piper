@@ -12,6 +12,7 @@ beforeAll(async () => {
       installationToken: async () => 'ghs_x',
       listInstallationRepos: async () => [{ fullName: 'acme/api', defaultBranch: 'main', private: true }],
       getInstallation: async () => ({ accountLogin: 'acme' }),
+      listPullFiles: async () => [],
       installUrl: (state: string) => `https://github.com/apps/repo-designer/installations/new?state=${state}`,
     },
   });
