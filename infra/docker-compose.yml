@@ -1,0 +1,34 @@
+name: rdi
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: rdi
+      POSTGRES_PASSWORD: rdi
+      POSTGRES_DB: rdi
+    ports: ["5548:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rdi -d rdi"]
+      interval: 3s
+      retries: 20
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: neo4j/rdi-dev-password
+    ports: ["7477:7474", "7690:7687"]
+    volumes: [neo4jdata:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p rdi-dev-password 'RETURN 1' || exit 1"]
+      interval: 5s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    ports: ["6391:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      retries: 20
+volumes:
+  pgdata:
+  neo4jdata:
