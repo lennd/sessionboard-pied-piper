@@ -36,6 +36,11 @@ describe('buildRepoGraph', () => {
     expect(web.nodes.find((n) => n.id === 'file:shop-web:src/api.ts')!.props.outbound).toEqual(['POST /api/orders', 'GET /api/orders/${}']);
     expect(new Set(web.nodes.map((n) => n.id)).size).toBe(web.nodes.length);
   });
+
+  it('records where each endpoint is declared', async () => {
+    const g = await graphFor('shop-api');
+    expect(g.nodes.find((n) => n.id === 'ep:shop-api:POST /api/orders')!.props).toMatchObject({ method: 'POST', path: '/api/orders', file: 'src/server.ts', line: 6 });
+  });
 });
 
 describe('templated hosts', () => {

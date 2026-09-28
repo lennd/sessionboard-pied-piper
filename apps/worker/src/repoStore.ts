@@ -27,3 +27,26 @@ export const saveProgress = async (
     [repoId, update.status, JSON.stringify(update.stages), update.languages ?? null, update.error ?? null, update.lastSyncedAt ?? null],
   );
 };
+
+const SOURCE_BATCH = 200;
+
+export const replaceSourceFiles = async (pool: pg.Pool, repoId: string, files: { path: string; language: string; content: string }[]): Promise<void> => {
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    await client.query('delete from source_files where repo_id = $1', [repoId]);
+    for (let i = 0; i < files.length; i += SOURCE_BATCH) {
+      const batch = files.slice(i, i + SOURCE_BATCH);
+      await client.query(
+        'insert into source_files (repo_id, path, language, content) select $1, * from unnest($2::text[], $3::text[], $4::text[])',
+        [repoId, batch.map((f) => f.path), batch.map((f) => f.language), batch.map((f) => f.content)],
+      );
+    }
+    await client.query('commit');
+  } catch (error) {
+    await client.query('rollback');
+    throw error;
+  } finally {
+    client.release();
+  }
+};

@@ -5,7 +5,7 @@ import type { GraphStore } from '@rdi/graph';
 import { buildRepoGraph, describeDetections, detect, parseRepository, walkRepository, type Detections, type FileFacts, type RepoGraph, type WalkResult } from '@rdi/indexer';
 import { materialize, type CloneSource } from '@rdi/providers';
 import type pg from 'pg';
-import { listLiveRepoIds, loadRepo, saveProgress, type IndexableRepo, type Stage, type StageName } from './repoStore';
+import { listLiveRepoIds, loadRepo, replaceSourceFiles, saveProgress, type IndexableRepo, type Stage, type StageName } from './repoStore';
 
 type PipelineDeps = { pool: pg.Pool; graph: GraphStore; workDir: string; resolveSource: (repo: IndexableRepo) => Promise<CloneSource> };
 
@@ -39,7 +39,10 @@ export const runIndexJob = async (deps: PipelineDeps, repoId: string): Promise<'
     }, ({ walk: w }) => `${w.files.length} files · ${w.totalLoc} LOC${w.truncated ? TRUNCATED_NOTE : ''}`);
     const detections = await stage('detect', async (): Promise<Detections> => detect(facts), describeDetections);
     const graph = await stage('summarize', async (): Promise<RepoGraph> => buildRepoGraph({ orgId: repo.orgId, repoId: repo.id, fullName: repo.fullName, walk, facts, detections }), (g) => `${g.nodes.length} pieces`);
-    await stage('link', async () => deps.graph.commitRepoGraph(repo.orgId, repo.id, graph, await listLiveRepoIds(deps.pool, repo.orgId)), (links) => `${links} cross-repo links`);
+    await stage('link', async () => {
+      await replaceSourceFiles(deps.pool, repo.id, walk.files);
+      return deps.graph.commitRepoGraph(repo.orgId, repo.id, graph, await listLiveRepoIds(deps.pool, repo.orgId));
+    }, (links) => `${links} cross-repo links`);
     if (!(await loadRepo(deps.pool, repo.id))) {
       await deps.graph.pruneOrg(repo.orgId, await listLiveRepoIds(deps.pool, repo.orgId));
       return 'missing';
@@ -47,6 +50,7 @@ export const runIndexJob = async (deps: PipelineDeps, repoId: string): Promise<'
     await save('ready', { languages: walk.languages, error: null, lastSyncedAt: new Date() });
     return 'ready';
   } catch (error) {
+    if (!(await loadRepo(deps.pool, repo.id))) return 'missing';
     const failed = stages.find((s) => s.status === 'running');
     if (failed) failed.status = 'error';
     const message = error instanceof Error ? error.message : String(error);

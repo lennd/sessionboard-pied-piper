@@ -85,7 +85,7 @@ export const buildRepoGraph = (input: {
   }
   for (const ep of detections.endpoints) {
     const id = endpointId(repoId, ep.method, ep.path);
-    addNode({ id, label: 'Endpoint', name: `${ep.method} ${ep.path}`, summary: summarize.endpoint(ep.method, ep.path, ep.file), repoId, props: { method: ep.method, path: ep.path } });
+    addNode({ id, label: 'Endpoint', name: `${ep.method} ${ep.path}`, summary: summarize.endpoint(ep.method, ep.path, ep.file), repoId, props: { method: ep.method, path: ep.path, file: ep.file, line: ep.line } });
     addEdge(service, id, 'CONTAINS');
     addEdge(id, fileId(repoId, ep.file), 'HANDLES');
   }

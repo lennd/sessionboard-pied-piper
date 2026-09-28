@@ -96,4 +96,12 @@ describe('runIndexJob', () => {
     expect((await graph.readOrgGraph(orgId)).nodes.filter((n) => n.repoId === api)).toHaveLength(nodes);
     expect((await graph.readOrgGraph(orgId)).edges.filter((e) => e.type === 'CALLS_HTTP')).toHaveLength(2);
   });
+
+  it('stores the indexed source files of each repository', async () => {
+    const api = (await pool.query<{ id: string }>("select id from repos where org_id = $1 and full_name = 'acme-demo/shop-api'", [orgId])).rows[0]!.id;
+    const files = (await pool.query<{ path: string; language: string; content: string }>('select path, language, content from source_files where repo_id = $1 order by path', [api])).rows;
+    expect(files.map((f) => f.path)).toEqual(['src/db.ts', 'src/orders.ts', 'src/server.ts']);
+    expect(files[2]).toMatchObject({ language: 'typescript' });
+    expect(files[2]!.content).toContain("app.post('/api/orders'");
+  });
 });
