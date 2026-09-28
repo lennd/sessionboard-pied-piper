@@ -53,19 +53,19 @@ describe('simulateLoad', () => {
     const r = simulateLoad(scene(), 80, 10);
     expect(r.nodes.queue!.saturated).toBe(true);
     expect(r.nodes.queue!.throughputRps).toBe(60);
-    expect(r.nodes.queue!.queueDepth).toBe(200);
-    expect(r.nodes.queue!.latencyMs).toBeCloseTo(3338.333, 2);
+    expect(r.nodes.queue!.queueDepth).toBeCloseTo(218.05, 5);
+    expect(r.nodes.queue!.latencyMs).toBeCloseTo(3433.333, 2);
     expect(r.nodes.worker!.arrivalRps).toBe(60);
-    expect(r.nodes.worker!.queueDepth).toBe(100);
-    expect(r.nodes.worker!.latencyMs).toBeCloseTo(2100, 5);
+    expect(r.nodes.worker!.queueDepth).toBeCloseTo(118.05, 5);
+    expect(r.nodes.worker!.latencyMs).toBeCloseTo(4000, 5);
     expect(r.bottlenecks).toEqual(['queue', 'worker']);
   });
 
   it('caps queue depth at maxDepth', () => {
     const r = simulateLoad(scene(), 200, 100);
-    expect(r.nodes.api!.queueDepth).toBe(10_000);
+    expect(r.nodes.api!.queueDepth).toBeCloseTo(10_018.05, 5);
     expect(r.nodes.queue!.queueDepth).toBe(1000);
-    expect(r.nodes.queue!.latencyMs).toBeCloseTo(16_671.667, 2);
+    expect(r.nodes.queue!.latencyMs).toBeCloseTo(100 + ((1000 - 18.05) / 60) * 1000, 2);
   });
 
   it('returns finite values at rps 0', () => {
@@ -92,6 +92,18 @@ describe('simulateLoad', () => {
     const r = simulateLoad(s, 40);
     expect(r.ignoredEdges).toEqual(['w-a']);
     expect(r.nodes.api!.arrivalRps).toBe(40);
+  });
+
+  it('never lowers latency or queue depth as traffic rises across capacity', () => {
+    const s = scene();
+    const series = Array.from({ length: 121 }, (_, i) => simulateLoad(s, i));
+    ['api', 'queue', 'worker', 'db'].forEach((id) =>
+      series.slice(1).forEach((r, i) => {
+        const prev = series[i]!.nodes[id]!;
+        expect(r.nodes[id]!.latencyMs).toBeGreaterThanOrEqual(prev.latencyMs);
+        expect(r.nodes[id]!.queueDepth).toBeGreaterThanOrEqual(prev.queueDepth);
+      }),
+    );
   });
 
   it('rejects invalid rps', () => {

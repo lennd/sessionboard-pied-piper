@@ -19,6 +19,8 @@ export type LoadResult = {
 };
 
 const HOT_THRESHOLD = 0.8;
+const MAX_STEADY_UTILIZATION = 0.95;
+const MS_PER_SECOND = 1000;
 const DEFAULT_ELAPSED_SECONDS = 10;
 
 const findBackEdges = (scene: Scene): Set<string> => {
@@ -63,8 +65,9 @@ const topologicalOrder = (scene: Scene, edges: Scene['edges']): string[] => {
 /**
  * Deterministic steady-state estimate of how `rps` flows through a scene.
  * Back edges (cycles) are ignored; entry nodes receive `rps`; fan-out duplicates and fan-in sums
- * throughput. Below capacity uses M/M/1 approximations; above capacity the backlog grows for
- * `elapsedSeconds`, capped by the queue's `maxDepth`. Results are estimates, not measurements.
+ * throughput. Below capacity uses M/M/1 approximations with utilization capped at 0.95; at or above
+ * capacity a backlog grows for `elapsedSeconds` on top of that capped baseline (total depth capped by
+ * the queue's `maxDepth`), so latency and depth never drop as traffic rises. Results are estimates.
  */
 export const simulateLoad = (scene: Scene, rps: number, elapsedSeconds = DEFAULT_ELAPSED_SECONDS): LoadResult => {
   if (!Number.isFinite(rps) || rps < 0) throw new RangeError(`rps must be a finite number >= 0, got ${rps}`);
@@ -85,11 +88,14 @@ export const simulateLoad = (scene: Scene, rps: number, elapsedSeconds = DEFAULT
     const baseLatency = config?.latencyMs ?? 0;
     const utilization = Number.isFinite(capacity) ? arrival / capacity : 0;
     const saturated = arrival >= capacity;
-
-    const queueDepth = saturated
-      ? Math.min((arrival - capacity) * elapsedSeconds, queue?.maxDepth ?? Number.POSITIVE_INFINITY)
-      : (utilization * utilization) / (1 - utilization);
-    const latencyMs = saturated ? baseLatency + (queueDepth / capacity) * 1000 : baseLatency / (1 - utilization);
+    const steadyUtilization = Math.min(utilization, MAX_STEADY_UTILIZATION);
+    const steadyDepth = (steadyUtilization * steadyUtilization) / (1 - steadyUtilization);
+    const steadyLatency = baseLatency / (1 - steadyUtilization);
+    const backlog = saturated ? (arrival - capacity) * elapsedSeconds : 0;
+    const queueDepth = Math.min(steadyDepth + backlog, queue?.maxDepth ?? Number.POSITIVE_INFINITY);
+    const latencyMs = saturated
+      ? steadyLatency + (Math.max(0, queueDepth - steadyDepth) / capacity) * MS_PER_SECOND
+      : steadyLatency;
 
     nodes[id] = {
       arrivalRps: arrival,
