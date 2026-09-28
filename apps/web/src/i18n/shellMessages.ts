@@ -1,4 +1,6 @@
 export const shellEn = {
+  'usage.agentTokens': '{used} of {budget} tokens this month',
+  'usage.agentOff': 'Agent not configured',
   'chat.title': 'Ask about your system',
   'chat.placeholder': 'Ask how something works, what a change affects, where the risks are…',
   'chat.send': 'Send',
@@ -178,6 +180,8 @@ export type ShellKey = keyof typeof shellEn;
 type ShellCatalog = Record<ShellKey, string>;
 
 export const shellEs: ShellCatalog = {
+  'usage.agentTokens': '{used} de {budget} tokens este mes',
+  'usage.agentOff': 'Agente no configurado',
   'chat.title': 'Preguntá sobre tu sistema',
   'chat.placeholder': 'Preguntá cómo funciona algo, qué afecta un cambio, dónde están los riesgos…',
   'chat.send': 'Enviar',
@@ -354,6 +358,8 @@ export const shellEs: ShellCatalog = {
 };
 
 export const shellPt: ShellCatalog = {
+  'usage.agentTokens': '{used} de {budget} tokens este mês',
+  'usage.agentOff': 'Agente não configurado',
   'chat.title': 'Pergunte sobre o seu sistema',
   'chat.placeholder': 'Pergunte como algo funciona, o que uma mudança afeta, onde estão os riscos…',
   'chat.send': 'Enviar',
