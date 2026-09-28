@@ -1,7 +1,9 @@
+import { shellEn, shellEs, shellPt } from './shellMessages';
+
 export const UI_LANGUAGES = ['en', 'es', 'pt'] as const;
 export type UiLanguage = (typeof UI_LANGUAGES)[number];
 
-const en = {
+const workspaceEn = {
   'app.name': 'Repository Designer',
   'scene.label': 'Scene',
   'scene.regenerate': 'Regenerate in {language}',
@@ -90,10 +92,12 @@ const en = {
   'piece.inside': '{count} inside',
 } as const;
 
+const en = { ...workspaceEn, ...shellEn } as const;
+
 export type MessageKey = keyof typeof en;
 type Catalog = Partial<Record<MessageKey, string>>;
 
-const es: Catalog = {
+const esWorkspace: Catalog = {
   'app.name': 'Repository Designer',
   'scene.label': 'Escena',
   'scene.regenerate': 'Regenerar en {language}',
@@ -182,7 +186,9 @@ const es: Catalog = {
   'piece.inside': '{count} adentro',
 };
 
-const pt: Catalog = {
+const es: Catalog = { ...esWorkspace, ...shellEs };
+
+const ptWorkspace: Catalog = {
   'app.name': 'Repository Designer',
   'scene.label': 'Cena',
   'scene.regenerate': 'Regenerar em {language}',
@@ -270,6 +276,8 @@ const pt: Catalog = {
   'canvas.error': 'Não foi possível organizar a cena: {error}',
   'piece.inside': '{count} dentro',
 };
+
+const pt: Catalog = { ...ptWorkspace, ...shellPt };
 
 export const messages: Record<UiLanguage, Catalog> & { en: typeof en } = { en, es, pt };
 
