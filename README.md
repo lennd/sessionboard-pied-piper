@@ -18,3 +18,6 @@ Spec: `docs/superpowers/specs/2026-09-28-repository-designer-ide-design.md`.
     npm run infra:up
     npm run dev
     npm test
+
+The API applies database migrations on start. With `RDI_DEV_ROUTES=true` (never in production) it also serves
+`/api/dev/mailbox?to=<email>` so you can read verification, reset and invitation emails locally.
