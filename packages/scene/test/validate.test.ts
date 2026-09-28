@@ -84,6 +84,21 @@ describe('validateScene', () => {
     expect(errorsOf(scene)).toContain('groups.1.nodeIds.0: node "api" already belongs to group "g1"');
   });
 
+  it('rejects group ids that collide with node ids or other groups', () => {
+    const scene = {
+      ...base(),
+      groups: [
+        { id: 'api', label: 'A', nodeIds: ['client'] },
+        { id: 'g', label: 'B', nodeIds: ['api'] },
+        { id: 'g', label: 'C', nodeIds: [] as string[] },
+      ],
+    };
+    scene.groups[2]!.nodeIds = ['client'];
+    expect(errorsOf(scene)).toEqual(
+      expect.arrayContaining(['groups.0.id: id "api" is already used by a node', 'groups.2.id: duplicate group id "g"']),
+    );
+  });
+
   it('rejects a scene that zooms into itself', () => {
     expect(errorsOf({ ...base(), zoom: { api: 's1' } })).toContain('zoom.api: a scene cannot zoom into itself');
   });

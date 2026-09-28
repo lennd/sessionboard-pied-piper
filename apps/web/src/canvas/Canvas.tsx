@@ -14,13 +14,14 @@ const edgeTypes = { scene: SceneEdge };
 type CanvasProps = { scene: Scene; frame: Frame; progress: number; load?: LoadResult; onZoom: (nodeId: string) => void };
 
 export const Canvas = ({ scene, frame, progress, load, onZoom }: CanvasProps) => {
-  const layout = useSceneLayout(scene);
+  const { layout, error } = useSceneLayout(scene);
   const flow = useMemo(
     () => (layout ? toFlow({ scene, layout, frame, progress, load }) : null),
     [scene, layout, frame, progress, load],
   );
   const handleDoubleClick: NodeMouseHandler = (_event, node) => onZoom(node.id);
 
+  if (error) return <div className="canvas canvas--error">Could not lay out this scene: {error}</div>;
   if (!flow) return <div className="canvas canvas--loading">Laying out…</div>;
 
   return (

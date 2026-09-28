@@ -31,7 +31,8 @@ button:disabled { opacity: 0.4; cursor: default; }
 .breadcrumb button + button::before { content: '› '; color: var(--muted); }
 
 .canvas { position: relative; min-height: 0; }
-.canvas--loading { display: grid; place-items: center; color: var(--muted); }
+.canvas--loading, .canvas--error { display: grid; place-items: center; color: var(--muted); }
+.canvas--error { color: var(--danger); }
 .scene-group { background: rgba(110, 168, 254, 0.05); border: 1px dashed var(--border); border-radius: 10px; }
 
 .scene-node { width: 200px; min-height: 72px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; transition: opacity 250ms, border-color 250ms, box-shadow 250ms, transform 250ms; }

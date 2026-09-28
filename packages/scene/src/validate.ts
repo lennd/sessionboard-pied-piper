@@ -29,6 +29,11 @@ const checkReferences = (scene: Scene): string[] => {
     if (!nodeIds.has(edge.to)) errors.push(`edges.${i}.to: unknown node "${edge.to}"`);
   });
 
+  collectDuplicates(scene.groups, 'group', 'groups', errors);
+  scene.groups.forEach((group, g) => {
+    if (nodeIds.has(group.id)) errors.push(`groups.${g}.id: id "${group.id}" is already used by a node`);
+  });
+
   const owner = new Map<string, string>();
   scene.groups.forEach((group, g) =>
     group.nodeIds.forEach((id, i) => {
