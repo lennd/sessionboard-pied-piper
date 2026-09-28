@@ -6,6 +6,7 @@ import { registerAuth } from './http/auth';
 import type { AppDeps } from './http/deps';
 import { authRoutes } from './routes/auth';
 import { devRoutes } from './routes/dev';
+import { meRoutes } from './routes/me';
 
 const DEFAULT_CHECK_TIMEOUT_MS = 3000;
 const HTTP_OK = 200;
@@ -54,6 +55,7 @@ export const buildApp = ({ checks, onClose, checkTimeoutMs = DEFAULT_CHECK_TIMEO
       async (api) => {
         registerAuth(api, deps);
         authRoutes(api, deps);
+        meRoutes(api, deps);
         if (deps.config.devRoutes) devRoutes(api, deps);
       },
       { prefix: '/api' },
