@@ -1,0 +1,24 @@
+{
+  "name": "@rdi/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "test": "vitest run test/health.test.ts",
+    "test:integration": "vitest run test/health.integration.test.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "vitest": "^5.0.2"
+  },
+  "dependencies": {
+    "fastify": "^5.12.5",
+    "ioredis": "^6.0.0",
+    "neo4j-driver": "^6.2.0",
+    "pg": "^8.23.0"
+  }
+}
