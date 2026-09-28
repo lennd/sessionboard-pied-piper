@@ -10,6 +10,10 @@ export const issueEmailToken = async (db: Db, userId: string, kind: EmailTokenKi
   return token;
 };
 
+export const invalidateEmailTokens = async (db: Db, userId: string, kind: EmailTokenKind, now: Date): Promise<void> => {
+  await db.query('update email_tokens set used_at = $3 where user_id = $1 and kind = $2 and used_at is null', [userId, kind, now]);
+};
+
 export const consumeEmailToken = async (db: Db, token: string, kind: EmailTokenKind, now: Date): Promise<string | null> =>
   (
     await db.query<{ user_id: string }>(

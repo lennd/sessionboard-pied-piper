@@ -3,7 +3,7 @@ import { createInfraChecks, createPgPool, createRedisClient } from './checks';
 import { loadConfig } from './config';
 import { ensureDatabase } from './db/ensureDatabase';
 import { runMigrations } from './db/migrate';
-import { createDevMailer } from './mail/mailer';
+import { createMailer } from './mail/mailer';
 
 const APP_POOL_SIZE = 10;
 
@@ -13,7 +13,7 @@ const pool = createPgPool(config.databaseUrl, APP_POOL_SIZE);
 const applied = await runMigrations(pool);
 if (applied.length > 0) console.log(`applied migrations: ${applied.join(', ')}`);
 const redis = createRedisClient(config.redisUrl);
-const mailer = createDevMailer();
+const mailer = createMailer(config);
 const infra = createInfraChecks(config);
 
 const app = buildApp({

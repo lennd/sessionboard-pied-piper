@@ -66,11 +66,37 @@ describe('sign-in and sign-out', () => {
   });
 });
 
+describe('rate limits cannot be bypassed', () => {
+  it('ignores spoofed X-Forwarded-For when proxies are not trusted', async () => {
+    const codes = [];
+    for (let i = 0; i < 6; i++) {
+      codes.push((await post('/api/auth/signup', { email: uniqueEmail(), name: 'A', password: PASSWORD }, { 'x-forwarded-for': `10.0.0.${i}` })).statusCode);
+    }
+    expect(codes).toEqual([201, 201, 201, 201, 201, 429]);
+  });
+
+  it('limits forgot requests per IP', async () => {
+    const codes = [];
+    for (let i = 0; i < 11; i++) codes.push((await post('/api/auth/forgot', { email: uniqueEmail() })).statusCode);
+    expect(codes.slice(0, 10).every((c) => c === 200)).toBe(true);
+    expect(codes[10]).toBe(429);
+  });
+});
+
 describe('password reset', () => {
   it('forgot always answers 200 and only mails existing users', async () => {
     const unknown = uniqueEmail();
     expect((await post('/api/auth/forgot', { email: unknown })).statusCode).toBe(200);
     expect(ctx.mailer.inbox(unknown)).toEqual([]);
+  });
+
+  it('invalidates every other reset link after a reset', async () => {
+    const s = await signupVerified(ctx);
+    await post('/api/auth/forgot', { email: s.email });
+    await post('/api/auth/forgot', { email: s.email });
+    const [first, second] = ctx.mailer.inbox(s.email).filter((m) => m.kind === 'reset').map((m) => tokenFromLink(m.link!));
+    expect((await post('/api/auth/reset', { token: second, password: 'brand new passphrase' })).statusCode).toBe(200);
+    expect((await post('/api/auth/reset', { token: first, password: 'attacker passphrase 1' })).json()).toEqual({ error: { code: 'invalid_token' } });
   });
 
   it('resets once and signs out every session', async () => {

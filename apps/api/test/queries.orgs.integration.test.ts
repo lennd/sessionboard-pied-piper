@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createPgPool } from '../src/checks';
 import { createInvitation, findInvitationByToken, invitationStatus, listPendingInvitations, markInvitationAccepted, renewInvitation, revokeInvitation } from '../src/db/queries/invitations';
-import { addMember, countOwners, createOrg, findMemberByEmail, findMembership, getMemberRole, listMembers, listOrgsForUser, removeMember, setRole, slugify, updateOrg } from '../src/db/queries/orgs';
+import { addMember, changeRoleGuarded, countOwners, createOrg, removeMemberGuarded, findMemberByEmail, findMembership, getMemberRole, listMembers, listOrgsForUser, removeMember, setRole, slugify, updateOrg } from '../src/db/queries/orgs';
 import { countRepos, listRepos, upsertRepo } from '../src/db/queries/repos';
 import { insertUser } from '../src/db/queries/users';
 import { TEST_DATABASE_URL } from './setup/env';
@@ -46,6 +46,25 @@ describe('orgs and memberships', () => {
     expect((await listMembers(pool, org.id)).map((m) => m.email)).toEqual(['ana@acme.com', 'leo@acme.com']);
     expect(await removeMember(pool, org.id, leo.id)).toBe(1);
     expect(await findMembership(pool, org.id, leo.id)).toBeNull();
+  });
+});
+
+describe('last owner guard under concurrency', () => {
+  it('never leaves an org without owners when owners demote each other at once', async () => {
+    const ana = await makeUser('ana@acme.com');
+    const leo = await makeUser('leo@acme.com');
+    const org = await createOrg(pool, { name: 'Acme', ownerId: ana.id });
+    await addMember(pool, org.id, leo.id, 'owner');
+    const results = await Promise.all([changeRoleGuarded(pool, org.id, ana.id, 'admin'), changeRoleGuarded(pool, org.id, leo.id, 'admin')]);
+    expect(results.sort()).toEqual(['last_owner', 'ok']);
+    expect(await countOwners(pool, org.id)).toBe(1);
+  });
+
+  it('guards removal of the last owner', async () => {
+    const ana = await makeUser('ana@acme.com');
+    const org = await createOrg(pool, { name: 'Acme', ownerId: ana.id });
+    expect(await removeMemberGuarded(pool, org.id, ana.id)).toBe('last_owner');
+    expect(await countOwners(pool, org.id)).toBe(1);
   });
 });
 

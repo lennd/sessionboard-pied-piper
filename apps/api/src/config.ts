@@ -12,6 +12,7 @@ export type Config = {
   rateLimitPrefix: string;
   rateLimitsEnabled: boolean;
   dbEnsure: boolean;
+  trustProxy: boolean | number | string;
 };
 
 const DEFAULTS = {
@@ -28,9 +29,17 @@ const DEFAULTS = {
   RATE_LIMIT_PREFIX: 'rl',
   RATE_LIMITS: 'on',
   DB_ENSURE: 'false',
+  TRUST_PROXY: 'false',
 };
 
 const PRODUCTION = 'production';
+const HOP_COUNT = /^\d+$/;
+
+const parseTrustProxy = (value: string): boolean | number | string => {
+  if (value === 'true') return true;
+  if (value === 'false' || value === '') return false;
+  return HOP_COUNT.test(value) ? Number(value) : value;
+};
 
 export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
   const read = (key: keyof typeof DEFAULTS) => env[key] ?? DEFAULTS[key];
@@ -46,9 +55,10 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     nodeEnv,
     appUrl: read('APP_URL'),
     devRoutes: !production && read('RDI_DEV_ROUTES') === 'true',
-    cookieSecure: read('COOKIE_SECURE') !== 'false',
+    cookieSecure: production || read('COOKIE_SECURE') !== 'false',
     rateLimitPrefix: read('RATE_LIMIT_PREFIX'),
     rateLimitsEnabled: production || read('RATE_LIMITS') !== 'off',
     dbEnsure: read('DB_ENSURE') === 'true',
+    trustProxy: parseTrustProxy(read('TRUST_PROXY')),
   };
 };

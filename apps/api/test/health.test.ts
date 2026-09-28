@@ -50,6 +50,7 @@ describe('loadConfig', () => {
       rateLimitPrefix: 'rl',
       rateLimitsEnabled: true,
       dbEnsure: false,
+      trustProxy: false,
     });
   });
 
@@ -59,7 +60,14 @@ describe('loadConfig', () => {
     });
   });
 
-  it('never enables dev routes or disables rate limits in production', () => {
-    expect(loadConfig({ NODE_ENV: 'production', RDI_DEV_ROUTES: 'true', RATE_LIMITS: 'off' })).toMatchObject({ devRoutes: false, rateLimitsEnabled: true });
+  it('never enables dev routes, disables rate limits or insecure cookies in production', () => {
+    expect(loadConfig({ NODE_ENV: 'production', RDI_DEV_ROUTES: 'true', RATE_LIMITS: 'off', COOKIE_SECURE: 'false' })).toMatchObject({ devRoutes: false, rateLimitsEnabled: true, cookieSecure: true });
+  });
+
+  it('parses proxy trust as boolean, hop count or address list', () => {
+    expect(loadConfig({ TRUST_PROXY: 'true' }).trustProxy).toBe(true);
+    expect(loadConfig({ TRUST_PROXY: '1' }).trustProxy).toBe(1);
+    expect(loadConfig({ TRUST_PROXY: '10.0.0.0/8' }).trustProxy).toBe('10.0.0.0/8');
+    expect(loadConfig({ TRUST_PROXY: 'false' }).trustProxy).toBe(false);
   });
 });

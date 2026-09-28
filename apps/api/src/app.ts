@@ -1,5 +1,5 @@
 import cookie from '@fastify/cookie';
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import { ZodError } from 'zod';
 import type { Check } from './checks';
 import { registerAuth } from './http/auth';
@@ -28,7 +28,8 @@ const withTimeout = (check: Check, ms: number): Promise<void> =>
   });
 
 export const buildApp = ({ checks, onClose, checkTimeoutMs = DEFAULT_CHECK_TIMEOUT_MS, deps }: BuildAppOptions): FastifyInstance => {
-  const app = Fastify({ logger: false, trustProxy: true });
+  const options: FastifyServerOptions = { logger: false, trustProxy: (deps?.config.trustProxy ?? false) as FastifyServerOptions['trustProxy'] };
+  const app = Fastify(options);
 
   app.get('/health', async (_request, reply) => {
     const entries = await Promise.all(

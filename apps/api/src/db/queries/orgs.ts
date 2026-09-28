@@ -69,6 +69,39 @@ export const setRole = async (db: Db, orgId: string, userId: string, role: Role)
 export const removeMember = async (db: Db, orgId: string, userId: string): Promise<number> =>
   (await db.query('delete from memberships where org_id = $1 and user_id = $2', [orgId, userId])).rowCount ?? 0;
 
+type GuardResult = 'ok' | 'last_owner' | 'not_found';
+
+const withOwnerLock = async (pool: pg.Pool, orgId: string, userId: string, act: (client: pg.PoolClient, owners: string[], role: Role) => Promise<void>, demotes: (role: Role) => boolean): Promise<GuardResult> => {
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const owners = (await client.query<{ user_id: string }>("select user_id from memberships where org_id = $1 and role = 'owner' for update", [orgId])).rows.map((r) => r.user_id);
+    const role = (await client.query<{ role: Role }>('select role from memberships where org_id = $1 and user_id = $2 for update', [orgId, userId])).rows[0]?.role;
+    if (!role) {
+      await client.query('rollback');
+      return 'not_found';
+    }
+    if (role === 'owner' && demotes(role) && owners.length <= 1) {
+      await client.query('rollback');
+      return 'last_owner';
+    }
+    await act(client, owners, role);
+    await client.query('commit');
+    return 'ok';
+  } catch (error) {
+    await client.query('rollback');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+export const changeRoleGuarded = (pool: pg.Pool, orgId: string, userId: string, next: Role): Promise<GuardResult> =>
+  withOwnerLock(pool, orgId, userId, async (client) => { await client.query('update memberships set role = $3 where org_id = $1 and user_id = $2', [orgId, userId, next]); }, () => next !== 'owner');
+
+export const removeMemberGuarded = (pool: pg.Pool, orgId: string, userId: string): Promise<GuardResult> =>
+  withOwnerLock(pool, orgId, userId, async (client) => { await client.query('delete from memberships where org_id = $1 and user_id = $2', [orgId, userId]); }, () => true);
+
 export const addMember = async (db: Db, orgId: string, userId: string, role: Role): Promise<void> => {
   await db.query('insert into memberships (org_id, user_id, role) values ($1, $2, $3) on conflict do nothing', [orgId, userId, role]);
 };

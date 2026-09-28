@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { hashPassword, passwordProblem, verifyPassword } from '../auth/password';
 import { LEVEL_IDS, THEME_IDS, UI_LANGUAGES } from '../domain/constants';
+import { invalidateEmailTokens } from '../db/queries/emailTokens';
 import { listUserSessions, revokeByPublicId, revokeUserSessions } from '../db/queries/sessions';
 import { updatePassword, updateUser, type UserPatch } from '../db/queries/users';
 import { clearSessionCookie, fail, isUuid, requireAuth } from '../http/auth';
@@ -40,6 +41,7 @@ export const meRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const problem = passwordProblem(body.newPassword);
     if (problem) return fail(reply, 400, 'weak_password', { reason: problem });
     await updatePassword(deps.pool, req.auth!.user.id, await hashPassword(body.newPassword));
+    await invalidateEmailTokens(deps.pool, req.auth!.user.id, 'reset', nowOf(deps));
     await revokeUserSessions(deps.pool, req.auth!.user.id, nowOf(deps), req.auth!.session.id_hash);
     return { ok: true };
   });

@@ -25,5 +25,8 @@ describe('safeNext', () => {
     expect(safeNext('//evil.com')).toBe('/');
     expect(safeNext('https://evil.com')).toBe('/');
     expect(safeNext(null)).toBe('/');
+    expect(safeNext('/\\evil.com')).toBe('/');
+    expect(safeNext('/\t/evil.com')).toBe('/');
+    expect(safeNext('/orgs/1?x=1#y')).toBe('/orgs/1?x=1#y');
   });
 });

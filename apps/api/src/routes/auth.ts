@@ -4,7 +4,7 @@ import { hashPassword, passwordProblem, verifyPassword } from '../auth/password'
 import { createRateLimiter } from '../auth/rateLimit';
 import { randomToken } from '../auth/tokens';
 import { RESET_TTL_MINUTES, VERIFY_TTL_MINUTES } from '../domain/constants';
-import { consumeEmailToken, issueEmailToken } from '../db/queries/emailTokens';
+import { consumeEmailToken, invalidateEmailTokens, issueEmailToken } from '../db/queries/emailTokens';
 import { createSession, revokeSession, revokeUserSessions } from '../db/queries/sessions';
 import { findUserByEmail, insertUser, markVerified, updatePassword, type UserRow } from '../db/queries/users';
 import { clearSessionCookie, fail, requireAuth, setSessionCookie } from '../http/auth';
@@ -51,7 +51,7 @@ export const authRoutes = (api: FastifyInstance, deps: AppDeps) => {
 
   api.post('/auth/signup', async (req, reply) => {
     const body = signupSchema.parse(req.body);
-    if (await limited(reply, `signup:ip:${req.ip}`, 5, HOUR)) return reply;
+    if ((await limited(reply, `signup:ip:${req.ip}`, 5, HOUR)) || (await limited(reply, `signup:email:${body.email}`, 5, HOUR))) return reply;
     const problem = passwordProblem(body.password);
     if (problem) return fail(reply, 400, 'weak_password', { reason: problem });
     if (await findUserByEmail(deps.pool, body.email)) return fail(reply, 409, 'email_taken');
@@ -70,7 +70,7 @@ export const authRoutes = (api: FastifyInstance, deps: AppDeps) => {
 
   api.post('/auth/resend-verification', async (req, reply) => {
     const { email } = emailOnly.parse(req.body);
-    if (await limited(reply, `resend:email:${email}`, 3, HOUR)) return reply;
+    if ((await limited(reply, `resend:ip:${req.ip}`, 10, HOUR)) || (await limited(reply, `resend:email:${email}`, 3, HOUR))) return reply;
     const user = await findUserByEmail(deps.pool, email);
     if (user && !user.email_verified_at) await sendVerification(user);
     return { ok: true };
@@ -96,7 +96,7 @@ export const authRoutes = (api: FastifyInstance, deps: AppDeps) => {
 
   api.post('/auth/forgot', async (req, reply) => {
     const { email } = emailOnly.parse(req.body);
-    if (await limited(reply, `forgot:email:${email}`, 5, HOUR)) return reply;
+    if ((await limited(reply, `forgot:ip:${req.ip}`, 10, HOUR)) || (await limited(reply, `forgot:email:${email}`, 5, HOUR))) return reply;
     const user = await findUserByEmail(deps.pool, email);
     if (user) {
       const token = await issueEmailToken(deps.pool, user.id, 'reset', RESET_TTL_MINUTES, nowOf(deps));
@@ -113,6 +113,7 @@ export const authRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const userId = await consumeEmailToken(deps.pool, body.token, 'reset', now);
     if (!userId) return fail(reply, 400, 'invalid_token');
     await updatePassword(deps.pool, userId, await hashPassword(body.password));
+    await invalidateEmailTokens(deps.pool, userId, 'reset', now);
     await markVerified(deps.pool, userId, now);
     await revokeUserSessions(deps.pool, userId, now);
     return { ok: true };

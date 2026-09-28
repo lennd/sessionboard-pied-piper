@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { REPO_LIMIT, THEME_IDS, UI_LANGUAGES } from '../domain/constants';
 import { can, type Role } from '../domain/roles';
 import { createInvitation, listPendingInvitations, renewInvitation, revokeInvitation } from '../db/queries/invitations';
-import { countOwners, createOrg, findMemberByEmail, getMemberRole, listMembers, listOrgsForUser, removeMember, setRole, updateOrg, type OrgPatch } from '../db/queries/orgs';
+import { changeRoleGuarded, createOrg, findMemberByEmail, getMemberRole, listMembers, listOrgsForUser, removeMemberGuarded, updateOrg, type OrgPatch } from '../db/queries/orgs';
 import { countRepos, listRepos } from '../db/queries/repos';
 import { fail, isUuid, requireAction, requireAuth, requireMember } from '../http/auth';
 import { nowOf, type AppDeps } from '../http/deps';
@@ -90,8 +90,9 @@ export const orgRoutes = (api: FastifyInstance, deps: AppDeps) => {
     if (!target) return reply;
     const orgId = req.member!.org.id;
     if ((target.role === 'owner' || role === 'owner') && req.member!.role !== 'owner') return fail(reply, 403, 'forbidden');
-    if (target.role === 'owner' && role !== 'owner' && (await countOwners(deps.pool, orgId)) === 1) return fail(reply, 409, 'last_owner');
-    await setRole(deps.pool, orgId, target.userId, role);
+    const result = await changeRoleGuarded(deps.pool, orgId, target.userId, role);
+    if (result === 'last_owner') return fail(reply, 409, 'last_owner');
+    if (result === 'not_found') return fail(reply, 404, 'not_found');
     return { userId: target.userId, role };
   });
 
@@ -102,8 +103,9 @@ export const orgRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const orgId = req.member!.org.id;
     if (!self && !can(req.member!.role, 'members.manage')) return fail(reply, 403, 'forbidden');
     if (target.role === 'owner' && !self && req.member!.role !== 'owner') return fail(reply, 403, 'forbidden');
-    if (target.role === 'owner' && (await countOwners(deps.pool, orgId)) === 1) return fail(reply, 409, 'last_owner');
-    await removeMember(deps.pool, orgId, target.userId);
+    const result = await removeMemberGuarded(deps.pool, orgId, target.userId);
+    if (result === 'last_owner') return fail(reply, 409, 'last_owner');
+    if (result === 'not_found') return fail(reply, 404, 'not_found');
     return reply.code(204).send();
   });
 

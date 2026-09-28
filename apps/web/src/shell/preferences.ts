@@ -16,4 +16,12 @@ export const effectiveTheme = (user: SessionUser, org: SessionOrg | null): Theme
 export const effectiveLevel = (user: SessionUser): Level =>
   user.initialLevel && (LEVELS as readonly string[]).includes(user.initialLevel) ? user.initialLevel : DEFAULT_LEVEL;
 
-export const safeNext = (next: string | null): string => (next && next.startsWith('/') && !next.startsWith('//') ? next : '/');
+export const safeNext = (next: string | null, origin: string = window.location.origin): string => {
+  if (!next || !next.startsWith('/')) return '/';
+  try {
+    const url = new URL(next, origin);
+    return url.origin === origin ? `${url.pathname}${url.search}${url.hash}` : '/';
+  } catch {
+    return '/';
+  }
+};
