@@ -14,6 +14,9 @@ export const loadRepo = async (pool: pg.Pool, repoId: string): Promise<Indexable
   return row ? { id: row.id, orgId: row.org_id, fullName: row.full_name, defaultBranch: row.default_branch, githubInstallationId: row.gh ? Number(row.gh) : null } : null;
 };
 
+export const listLiveRepoIds = async (pool: pg.Pool, orgId: string): Promise<string[]> =>
+  (await pool.query<{ id: string }>('select id from repos where org_id = $1', [orgId])).rows.map((r) => r.id);
+
 export const saveProgress = async (
   pool: pg.Pool,
   repoId: string,

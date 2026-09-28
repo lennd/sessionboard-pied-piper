@@ -1,4 +1,5 @@
 export const shellEn = {
+  'explore.mapError': 'The system map could not be generated. Showing the sample scenes instead.',
   'repos.add': 'Add repository',
   'repos.addButton': 'Add',
   'repos.noneAvailable': 'Every available repository is already added.',
@@ -157,6 +158,7 @@ export type ShellKey = keyof typeof shellEn;
 type ShellCatalog = Record<ShellKey, string>;
 
 export const shellEs: ShellCatalog = {
+  'explore.mapError': 'No se pudo generar el mapa del sistema. Se muestran las escenas de ejemplo.',
   'repos.add': 'Agregar repositorio',
   'repos.addButton': 'Agregar',
   'repos.noneAvailable': 'Ya agregaste todos los repositorios disponibles.',
@@ -312,6 +314,7 @@ export const shellEs: ShellCatalog = {
 };
 
 export const shellPt: ShellCatalog = {
+  'explore.mapError': 'Não foi possível gerar o mapa do sistema. Mostrando as cenas de exemplo.',
   'repos.add': 'Adicionar repositório',
   'repos.addButton': 'Adicionar',
   'repos.noneAvailable': 'Todos os repositórios disponíveis já foram adicionados.',

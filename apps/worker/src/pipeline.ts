@@ -1,10 +1,11 @@
+import { randomUUID } from 'node:crypto';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { relinkOrg, type GraphStore } from '@rdi/graph';
+import type { GraphStore } from '@rdi/graph';
 import { buildRepoGraph, describeDetections, detect, parseRepository, walkRepository, type Detections, type FileFacts, type RepoGraph, type WalkResult } from '@rdi/indexer';
 import { materialize, type CloneSource } from '@rdi/providers';
 import type pg from 'pg';
-import { loadRepo, saveProgress, type IndexableRepo, type Stage, type StageName } from './repoStore';
+import { listLiveRepoIds, loadRepo, saveProgress, type IndexableRepo, type Stage, type StageName } from './repoStore';
 
 type PipelineDeps = { pool: pg.Pool; graph: GraphStore; workDir: string; resolveSource: (repo: IndexableRepo) => Promise<CloneSource> };
 
@@ -15,7 +16,7 @@ export const runIndexJob = async (deps: PipelineDeps, repoId: string): Promise<'
   const repo = await loadRepo(deps.pool, repoId);
   if (!repo) return 'missing';
   const stages: Stage[] = STAGE_NAMES.map((name) => ({ name, status: 'pending' }));
-  const dir = join(deps.workDir, repo.id);
+  const dir = join(deps.workDir, `${repo.id}-${randomUUID()}`);
   const save = (status: 'indexing' | 'ready' | 'error', extra: { languages?: string[]; error?: string | null; lastSyncedAt?: Date } = {}) =>
     saveProgress(deps.pool, repo.id, { status, stages: stages.map((s) => ({ ...s })), ...extra });
   const stage = async <T>(name: StageName, work: () => Promise<T>, detail?: (result: T) => string): Promise<T> => {
@@ -38,10 +39,11 @@ export const runIndexJob = async (deps: PipelineDeps, repoId: string): Promise<'
     }, ({ walk: w }) => `${w.files.length} files · ${w.totalLoc} LOC${w.truncated ? TRUNCATED_NOTE : ''}`);
     const detections = await stage('detect', async (): Promise<Detections> => detect(facts), describeDetections);
     const graph = await stage('summarize', async (): Promise<RepoGraph> => buildRepoGraph({ orgId: repo.orgId, repoId: repo.id, fullName: repo.fullName, walk, facts, detections }), (g) => `${g.nodes.length} pieces`);
-    await stage('link', async () => {
-      await deps.graph.writeRepoGraph(repo.orgId, repo.id, graph);
-      return relinkOrg(deps.graph, repo.orgId);
-    }, (links) => `${links} cross-repo links`);
+    await stage('link', async () => deps.graph.commitRepoGraph(repo.orgId, repo.id, graph, await listLiveRepoIds(deps.pool, repo.orgId)), (links) => `${links} cross-repo links`);
+    if (!(await loadRepo(deps.pool, repo.id))) {
+      await deps.graph.pruneOrg(repo.orgId, await listLiveRepoIds(deps.pool, repo.orgId));
+      return 'missing';
+    }
     await save('ready', { languages: walk.languages, error: null, lastSyncedAt: new Date() });
     return 'ready';
   } catch (error) {

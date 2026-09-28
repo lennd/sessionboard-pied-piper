@@ -1,4 +1,3 @@
-import { relinkOrg } from '@rdi/graph';
 import { buildSystemMap } from '@rdi/indexer';
 import { DEMO_REPOS } from '@rdi/providers';
 import type { FastifyInstance } from 'fastify';
@@ -66,10 +65,7 @@ export const repoRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const orgId = req.member!.org.id;
     if (!isUuid(repoId) || !(await findRepo(deps.pool, orgId, repoId))) return fail(reply, 404, 'not_found');
     await deleteRepoRow(deps.pool, orgId, repoId);
-    if (deps.graph) {
-      await deps.graph.deleteRepo(orgId, repoId);
-      await relinkOrg(deps.graph, orgId);
-    }
+    if (deps.graph) await deps.graph.pruneOrg(orgId, (await listRepos(deps.pool, orgId)).map((r) => r.id));
     return reply.code(204).send();
   });
 

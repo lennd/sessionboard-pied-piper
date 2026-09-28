@@ -28,9 +28,19 @@ describe('ExplorePage', () => {
     await waitFor(() => expect(screen.getByTestId('workspace')).toHaveTextContent('samples-only'));
   });
 
-  it('ignores invalid scenes from the server', async () => {
-    api.mockResolvedValue({ id: 'system-map' } as never);
+  it('reports invalid scenes and server failures instead of silently showing the samples', async () => {
+    api.mockImplementation(async (path) => (String(path).endsWith('/system-map') ? { id: 'system-map' } : sessionFixture()) as never);
     renderShell(<ExplorePage />, { route: '/orgs/o1/explore', path: '/orgs/:orgId/explore', session: sessionFixture() });
-    await waitFor(() => expect(screen.getByTestId('workspace')).toHaveTextContent('samples-only'));
+    expect(await screen.findByTestId('system-map-error')).toHaveTextContent('could not be generated');
+    expect(screen.getByTestId('workspace')).toHaveTextContent('samples-only');
+  });
+
+  it('reports server errors while generating the map', async () => {
+    api.mockImplementation(async (path) => {
+      if (String(path).endsWith('/system-map')) throw new ApiError(500, 'internal');
+      return sessionFixture() as never;
+    });
+    renderShell(<ExplorePage />, { route: '/orgs/o1/explore', path: '/orgs/:orgId/explore', session: sessionFixture() });
+    expect(await screen.findByTestId('system-map-error')).toBeInTheDocument();
   });
 });

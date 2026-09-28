@@ -73,4 +73,34 @@ describe('graph store', () => {
     expect(await store.countOrgNodes(b)).toBe(0);
     expect((await store.readOrgGraph(b)).nodes).toEqual([]);
   });
+
+  it('commits a repository atomically with relinking, pruning repositories that no longer exist', async () => {
+    const org = newOrg();
+    const [web, api] = [`${org}-web`, `${org}-api`];
+    await store.commitRepoGraph(org, web, await graphOf(org, 'shop-web', web), [web, api]);
+    expect(await store.commitRepoGraph(org, api, await graphOf(org, 'shop-api', api), [web, api])).toBe(2);
+    expect((await store.readOrgGraph(org)).edges.filter((e) => e.type === 'CALLS_HTTP')).toHaveLength(2);
+    expect(await store.pruneOrg(org, [web])).toBe(0);
+    const after = await store.readOrgGraph(org);
+    expect(after.nodes.some((n) => n.repoId === api)).toBe(false);
+    expect(after.edges.some((e) => e.type === 'CALLS_HTTP')).toBe(false);
+  });
+
+  it('never writes a repository that is not live (deleted while indexing)', async () => {
+    const org = newOrg();
+    const api = `${org}-api`;
+    expect(await store.commitRepoGraph(org, api, await graphOf(org, 'shop-api', api), [])).toBe(0);
+    expect(await store.countOrgNodes(org)).toBe(0);
+  });
+
+  it('keeps every cross-repo link when repositories of one org commit concurrently', async () => {
+    const org = newOrg();
+    const [web, api] = [`${org}-web`, `${org}-api`];
+    const [gWeb, gApi] = [await graphOf(org, 'shop-web', web), await graphOf(org, 'shop-api', api)];
+    for (let round = 0; round < 5; round++) {
+      await store.pruneOrg(org, []);
+      await Promise.all([store.commitRepoGraph(org, web, gWeb, [web, api]), store.commitRepoGraph(org, api, gApi, [web, api])]);
+      expect((await store.readOrgGraph(org)).edges.filter((e) => e.type === 'CALLS_HTTP')).toHaveLength(2);
+    }
+  });
 });

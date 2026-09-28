@@ -3,7 +3,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createGraphStore } from '@rdi/graph';
+import { createGraphStore, type GraphStore } from '@rdi/graph';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runIndexJob } from '../src/pipeline';
@@ -65,5 +65,35 @@ describe('runIndexJob', () => {
 
   it('reports missing repositories', async () => {
     expect(await runIndexJob(deps(), randomUUID())).toBe('missing');
+  });
+
+  it('leaves no graph data when the repository is deleted while it is being indexed', async () => {
+    const id = await addRepo('acme-demo/deleted-api');
+    const resolve = createSourceResolver({ fixturesDir: FIXTURES, github: null });
+    const deletingResolver = async (repo: Parameters<typeof resolve>[0]) => {
+      await pool.query('delete from repos where id = $1', [repo.id]);
+      return resolve({ ...repo, fullName: 'acme-demo/shop-api' });
+    };
+    expect(await runIndexJob({ ...deps(), resolveSource: deletingResolver }, id)).toBe('missing');
+    expect((await graph.readOrgGraph(orgId)).nodes.some((n) => n.repoId === id)).toBe(false);
+  });
+
+  it('keeps the previous graph and its links when the link stage fails', async () => {
+    const before = (await graph.readOrgGraph(orgId)).edges.filter((e) => e.type === 'CALLS_HTTP').length;
+    expect(before).toBe(2);
+    const api = (await pool.query<{ id: string }>("select id from repos where org_id = $1 and full_name = 'acme-demo/shop-api'", [orgId])).rows[0]!.id;
+    const failing: GraphStore = { ...graph, commitRepoGraph: async () => { throw new Error('neo4j unavailable'); } };
+    expect(await runIndexJob({ ...deps(), graph: failing }, api)).toBe('error');
+    const row = await repoRow(api);
+    expect(row.stages[4]).toMatchObject({ name: 'link', status: 'error', detail: 'neo4j unavailable' });
+    expect((await graph.readOrgGraph(orgId)).edges.filter((e) => e.type === 'CALLS_HTTP')).toHaveLength(2);
+  });
+
+  it('runs two jobs for the same repository without clobbering each other', async () => {
+    const api = (await pool.query<{ id: string }>("select id from repos where org_id = $1 and full_name = 'acme-demo/shop-api'", [orgId])).rows[0]!.id;
+    const nodes = (await graph.readOrgGraph(orgId)).nodes.filter((n) => n.repoId === api).length;
+    expect(await Promise.all([runIndexJob(deps(), api), runIndexJob(deps(), api)])).toEqual(['ready', 'ready']);
+    expect((await graph.readOrgGraph(orgId)).nodes.filter((n) => n.repoId === api)).toHaveLength(nodes);
+    expect((await graph.readOrgGraph(orgId)).edges.filter((e) => e.type === 'CALLS_HTTP')).toHaveLength(2);
   });
 });

@@ -10,7 +10,7 @@ export const createIndexQueue = (redisUrl: string): IndexQueue => {
   const queue = new Queue<IndexJobData>(INDEX_QUEUE, { connection });
   return {
     async enqueue(job) {
-      await queue.add(job.reason, job, { jobId: `${job.repoId}-${Date.now()}`, removeOnComplete: true, removeOnFail: 100 });
+      await queue.add(job.reason, job, { jobId: job.repoId, removeOnComplete: true, removeOnFail: true });
     },
     async close() {
       await queue.close();

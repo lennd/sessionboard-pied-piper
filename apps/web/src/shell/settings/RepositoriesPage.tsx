@@ -125,7 +125,7 @@ export const RepositoriesPage = () => {
                 <td style={{ textAlign: 'right' }}>
                   {canManage && (
                     <div className="row" style={{ justifyContent: 'flex-end' }}>
-                      <GhostButton data-testid={`repo-reindex-${r.fullName}`} onClick={() => void run(() => apiFetch(`/orgs/${org.id}/repos/${r.id}/reindex`, { method: 'POST', body: {} }))}>{t('repos.reindex')}</GhostButton>
+                      <GhostButton data-testid={`repo-reindex-${r.fullName}`} disabled={BUSY.has(r.status)} onClick={() => void run(() => apiFetch(`/orgs/${org.id}/repos/${r.id}/reindex`, { method: 'POST', body: {} }))}>{t('repos.reindex')}</GhostButton>
                       <GhostButton className="btn-danger" data-testid={`repo-remove-${r.fullName}`} onClick={() => void run(() => apiFetch(`/orgs/${org.id}/repos/${r.id}`, { method: 'DELETE' }))}>{t('repos.remove')}</GhostButton>
                     </div>
                   )}

@@ -2,15 +2,16 @@ import type { Db } from './users';
 
 export type InstallationRow = { id: string; org_id: string; installation_id: string; account_login: string };
 
-export const upsertInstallation = async (db: Db, input: { orgId: string; installationId: number; accountLogin: string }): Promise<InstallationRow> =>
+export const bindInstallation = async (db: Db, input: { orgId: string; installationId: number; accountLogin: string }): Promise<InstallationRow | null> =>
   (
     await db.query<InstallationRow>(
       `insert into github_installations (org_id, installation_id, account_login) values ($1, $2, $3)
-       on conflict (installation_id) do update set org_id = excluded.org_id, account_login = excluded.account_login
+       on conflict (installation_id) do update set account_login = excluded.account_login
+       where github_installations.org_id = excluded.org_id
        returning id, org_id, installation_id::text, account_login`,
       [input.orgId, input.installationId, input.accountLogin],
     )
-  ).rows[0]!;
+  ).rows[0] ?? null;
 
 export const findInstallationForOrg = async (db: Db, orgId: string): Promise<InstallationRow | null> =>
   (await db.query<InstallationRow>('select id, org_id, installation_id::text, account_login from github_installations where org_id = $1 order by created_at desc limit 1', [orgId])).rows[0] ?? null;

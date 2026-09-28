@@ -91,3 +91,15 @@ describe('system map and usage', () => {
     await ctx.graph.deleteRepo(org.id, `${org.id}-api`);
   });
 });
+
+describe('graph pruning on delete', () => {
+  it('removes graph data of repositories that no longer exist in the database', async () => {
+    const { owner, org } = await setup();
+    const web = (await call(owner, 'POST', `/api/orgs/${org.id}/repos`, { fullName: 'acme-demo/shop-web' })).json();
+    const ghostId = '00000000-0000-4000-8000-000000000001';
+    await writeFixtureGraph(org.id, ghostId, 'shop-api');
+    expect((await call(owner, 'DELETE', `/api/orgs/${org.id}/repos/${web.id}`)).statusCode).toBe(204);
+    expect(await ctx.graph.countOrgNodes(org.id)).toBe(0);
+  });
+});
+

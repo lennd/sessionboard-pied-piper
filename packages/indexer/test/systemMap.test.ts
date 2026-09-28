@@ -1,6 +1,6 @@
 import { validateScene } from '@rdi/scene';
 import { describe, expect, it } from 'vitest';
-import { buildSystemMap, linkInputsFromGraph, linkRepos, type OrgGraph } from '../src/index';
+import { buildSystemMap, linkInputsFromGraph, linkRepos, type GraphEdge, type GraphNode, type OrgGraph } from '../src/index';
 import { graphFor } from './fixtures';
 
 const orgGraph = async (): Promise<OrgGraph> => {
@@ -53,3 +53,35 @@ describe('buildSystemMap', () => {
     expect(scene.steps.length).toBeLessThanOrEqual(12);
   });
 });
+
+describe('large organizations', () => {
+  it('stays within the scene limits by folding endpoints and capping shared pieces', () => {
+    const nodes: GraphNode[] = [];
+    const edges: GraphEdge[] = [];
+    const longRepo = `acme/${'x'.repeat(200)}`;
+    for (let s = 0; s < 10; s++) {
+      const svc = `svc:r${s}`;
+      nodes.push({ id: svc, label: 'Service', name: `service-${s}`, summary: 'y'.repeat(5000), repoId: `r${s}`, props: { repo: longRepo } });
+      nodes.push({ id: `file:r${s}:a.ts`, label: 'File', name: 'a.ts', summary: '', repoId: `r${s}`, props: {} });
+      edges.push({ from: svc, to: `file:r${s}:a.ts`, type: 'CONTAINS', props: {} });
+      for (let e = 0; e < 40; e++) {
+        const ep = `ep:r${s}:GET /r/${e}`;
+        nodes.push({ id: ep, label: 'Endpoint', name: `GET /r/${e}`, summary: 'endpoint', repoId: `r${s}`, props: {} });
+        edges.push({ from: svc, to: ep, type: 'CONTAINS', props: {} });
+      }
+    }
+    for (let q = 0; q < 60; q++) {
+      nodes.push({ id: `table:o:t${q}`, label: 'Table', name: `t${q}`, summary: 'table', repoId: null, props: {} });
+      edges.push({ from: 'file:r0:a.ts', to: `table:o:t${q}`, type: 'WRITES', props: {} });
+    }
+    edges.push({ from: 'file:r1:a.ts', to: 'ep:r0:GET /r/39', type: 'CALLS_HTTP', props: {} });
+    const scene = buildSystemMap({ nodes, edges })!;
+    expect(scene.nodes.length).toBeLessThanOrEqual(150);
+    expect(scene.nodes.every((n) => n.summary.length <= 2000 && (n.repo ?? '').length <= 120)).toBe(true);
+    const label = new Map(scene.nodes.map((n) => [n.id, n.label]));
+    const parent = new Map(scene.nodes.map((n) => [n.id, n.parent]));
+    const service0 = scene.nodes.find((n) => n.label === 'service-0')!.id;
+    expect(scene.edges.some((e) => label.get(e.from) === 'service-1' && (e.to === service0 || parent.get(e.to) === service0))).toBe(true);
+  });
+});
+

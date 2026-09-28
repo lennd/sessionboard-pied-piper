@@ -8,10 +8,13 @@ export const SYSTEM_MAP_ID = 'system-map';
 const MAX_ID = 100;
 const MAX_LABEL = 110;
 const MAX_STEPS = 12;
+const MAX_SUMMARY = 2000;
+const MAX_ENDPOINTS_PER_SERVICE = 8;
+const MAX_SHARED_PER_KIND = 15;
 const EDGE_ORDER: EdgeKind[] = ['sync', 'async', 'write', 'read', 'calls'];
 
 const sceneId = (id: string) => (id.length <= MAX_ID ? id : `${id.slice(0, 80)}#${createHash('sha1').update(id).digest('hex').slice(0, 12)}`);
-const clip = (text: string) => (text.length <= MAX_LABEL ? text : `${text.slice(0, MAX_LABEL - 1)}…`);
+const clip = (text: string, max = MAX_LABEL) => (text.length <= max ? text : `${text.slice(0, max - 1)}…`);
 
 type SceneEdgeDraft = { from: string; to: string; kind: EdgeKind; label?: string };
 
@@ -34,18 +37,30 @@ export const buildSystemMap = (graph: OrgGraph): Scene | null => {
   const include = (node: GraphNode, role: 'compute' | 'channel' | 'storage' | 'external', kind: string, parent?: string) => {
     included.add(node.id);
     nodes.push({
-      id: sceneId(node.id), label: clip(node.name), role, kind, summary: node.summary || node.name,
+      id: sceneId(node.id), label: clip(node.name), role, kind, summary: clip(node.summary || node.name, MAX_SUMMARY),
       ...(parent ? { parent: sceneId(parent) } : {}),
-      ...(node.label === 'Service' && typeof node.props.repo === 'string' ? { repo: node.props.repo } : {}),
+      ...(node.label === 'Service' && typeof node.props.repo === 'string' ? { repo: clip(node.props.repo) } : {}),
     });
   };
-  for (const svc of services) include(svc, 'compute', 'service');
-  for (const node of graph.nodes) {
-    if (node.label === 'Endpoint' && serviceOfEndpoint.has(node.id)) include(node, 'compute', 'HTTP endpoint', serviceOfEndpoint.get(node.id));
-    if (node.label === 'Queue') include(node, 'channel', 'queue');
-    if (node.label === 'Table') include(node, 'storage', 'table');
-    if (node.label === 'External') include(node, 'external', 'external API');
+  const degree = new Map<string, number>();
+  for (const e of graph.edges) {
+    if (e.type === 'CONTAINS') continue;
+    degree.set(e.to, (degree.get(e.to) ?? 0) + 1);
+    degree.set(e.from, (degree.get(e.from) ?? 0) + 1);
   }
+  const busiest = (items: GraphNode[], limit: number) =>
+    [...items].sort((a, b) => (degree.get(b.id) ?? 0) - (degree.get(a.id) ?? 0) || a.name.localeCompare(b.name)).slice(0, limit);
+  const ofLabel = (label: GraphNode['label']) => graph.nodes.filter((n) => n.label === label);
+
+  for (const svc of services) include(svc, 'compute', 'service');
+  for (const svc of services) {
+    const endpoints = ofLabel('Endpoint').filter((n) => serviceOfEndpoint.get(n.id) === svc.id);
+    for (const ep of busiest(endpoints, MAX_ENDPOINTS_PER_SERVICE)) include(ep, 'compute', 'HTTP endpoint', svc.id);
+  }
+  for (const node of busiest(ofLabel('Queue'), MAX_SHARED_PER_KIND)) include(node, 'channel', 'queue');
+  for (const node of busiest(ofLabel('Table'), MAX_SHARED_PER_KIND)) include(node, 'storage', 'table');
+  for (const node of busiest(ofLabel('External'), MAX_SHARED_PER_KIND)) include(node, 'external', 'external API');
+  const folded = (id: string) => (included.has(id) ? id : serviceOfEndpoint.get(id) ?? id);
 
   const drafts = new Map<string, SceneEdgeDraft>();
   const addEdge = (from: string | undefined, to: string | undefined, kind: EdgeKind, label?: string) => {
@@ -61,7 +76,7 @@ export const buildSystemMap = (graph: OrgGraph): Scene | null => {
       case 'WRITES': addEdge(svc, e.to, 'write'); break;
       case 'READS': addEdge(svc, e.to, 'read'); break;
       case 'CALLS': addEdge(svc, e.to, 'calls'); break;
-      case 'CALLS_HTTP': addEdge(svc, e.to, 'sync', byId.get(e.to)?.name); break;
+      case 'CALLS_HTTP': addEdge(svc, folded(e.to), 'sync', byId.get(e.to)?.name); break;
     }
   }
   const edgeList = [...drafts.values()].map((d, i) => ({ id: `e${i + 1}`, from: sceneId(d.from), to: sceneId(d.to), kind: d.kind, ...(d.label ? { label: clip(d.label) } : {}) }));

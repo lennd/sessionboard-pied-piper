@@ -71,13 +71,14 @@ describe('RepositoriesPage', () => {
     mockApi({
       integrations: { github: { configured: false, installation: null }, demo: { available: true } },
       available: [],
-      repos: [repo('acme-demo/shop-api', 'indexing', [{ name: 'clone', status: 'done' }, { name: 'summarize', status: 'running', progress: 64 }])],
+      repos: [repo('acme-demo/shop-api', 'indexing', [{ name: 'clone', status: 'done' }, { name: 'summarize', status: 'running', progress: 64 }]), repo('acme-demo/shop-web', 'ready', [])],
     }, onMutation);
     render();
     expect(await screen.findByTestId('stage-acme-demo/shop-api-summarize')).toHaveTextContent('64%');
     expect(screen.getByText('Every available repository is already added.')).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('repo-reindex-acme-demo/shop-api'));
-    await waitFor(() => expect(onMutation).toHaveBeenCalledWith('/orgs/o1/repos/acme-demo/shop-api/reindex', { method: 'POST', body: {} }));
+    expect(screen.getByTestId('repo-reindex-acme-demo/shop-api')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('repo-reindex-acme-demo/shop-web'));
+    await waitFor(() => expect(onMutation).toHaveBeenCalledWith('/orgs/o1/repos/acme-demo/shop-web/reindex', { method: 'POST', body: {} }));
     fireEvent.click(screen.getByTestId('repo-remove-acme-demo/shop-api'));
     expect(await screen.findByTestId('repos-error')).toHaveTextContent('permission');
   });

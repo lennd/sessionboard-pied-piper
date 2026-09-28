@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { RepoGraph } from '../src/index';
+import { buildRepoGraph, detect, linkInputsFromGraph, linkRepos, parseFile, type RepoGraph } from '../src/index';
 import { graphFor } from './fixtures';
 
 const edge = (g: RepoGraph, type: string) => g.edges.filter((e) => e.type === type).map((e) => `${e.from} -> ${e.to}`);
@@ -37,3 +37,17 @@ describe('buildRepoGraph', () => {
     expect(new Set(web.nodes.map((n) => n.id)).size).toBe(web.nodes.length);
   });
 });
+
+describe('templated hosts', () => {
+  it('treats URLs with a templated host as internal calls instead of failing', async () => {
+    const content = "export const load = () => fetch(`http://localhost:${process.env.PORT}/api/orders/${id}`);\n";
+    const facts = [await parseFile({ path: 'src/client.ts', language: 'typescript', loc: 1, content })];
+    const walk = { files: [], totalLoc: 1, truncated: false, languages: ['TypeScript'], packageName: 'client' };
+    const g = buildRepoGraph({ orgId: 'org-1', repoId: 'client', fullName: 'acme/client', walk, facts, detections: detect(facts) });
+    expect(g.nodes.some((n) => n.label === 'External')).toBe(false);
+    const api = await graphFor('shop-api');
+    const links = linkRepos(linkInputsFromGraph([...g.nodes, ...api.nodes]));
+    expect(links.map((l) => l.to)).toEqual(['ep:shop-api:GET /api/orders/:id']);
+  });
+});
+

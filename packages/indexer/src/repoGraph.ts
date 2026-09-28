@@ -23,6 +23,18 @@ export const externalId = (orgId: string, host: string) => `ext:${orgId}:${host}
 
 const SCRIPT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
 const ABSOLUTE_URL = /^https?:\/\//i;
+const TEMPLATED = /[${}]/;
+
+/** Host of an absolute URL with a literal host; null for relative URLs and templated or unparseable hosts. */
+const externalHost = (url: string): string | null => {
+  if (!ABSOLUTE_URL.test(url)) return null;
+  try {
+    const { host } = new URL(url);
+    return TEMPLATED.test(host) ? null : host;
+  } catch {
+    return null;
+  }
+};
 
 const resolveImport = (from: string, specifier: string, known: Set<string>): string | null => {
   if (!specifier.startsWith('.')) return null;
@@ -55,7 +67,7 @@ export const buildRepoGraph = (input: {
 
   const outboundByFile = new Map<string, string[]>();
   for (const call of detections.outbound) {
-    if (ABSOLUTE_URL.test(call.url)) continue;
+    if (externalHost(call.url)) continue;
     outboundByFile.set(call.file, [...(outboundByFile.get(call.file) ?? []), `${call.method} ${call.url}`]);
   }
 
@@ -88,8 +100,8 @@ export const buildRepoGraph = (input: {
     addEdge(fileId(repoId, t.file), id, t.access === 'write' ? 'WRITES' : 'READS');
   }
   for (const call of detections.outbound) {
-    if (!ABSOLUTE_URL.test(call.url)) continue;
-    const host = new URL(call.url).host;
+    const host = externalHost(call.url);
+    if (!host) continue;
     const id = externalId(orgId, host);
     addNode({ id, label: 'External', name: host, summary: summarize.external(host), repoId: null, props: {} });
     addEdge(fileId(repoId, call.file), id, 'CALLS', { method: call.method });
