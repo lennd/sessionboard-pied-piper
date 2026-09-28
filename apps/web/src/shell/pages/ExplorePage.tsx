@@ -4,8 +4,9 @@ import { Navigate, useParams } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nProvider';
 import { Workspace } from '../../workspace/Workspace';
 import { ApiError, apiFetch } from '../api';
+import { ChatPanel } from '../chat/ChatPanel';
 import { Splash } from '../components/Splash';
-import { effectiveLevel, effectiveTheme } from '../preferences';
+import { effectiveExplanationLanguage, effectiveLevel, effectiveTheme } from '../preferences';
 import { useSession, useUpdateMe } from '../session';
 
 const NOT_FOUND = 404;
@@ -27,7 +28,7 @@ export const ExplorePage = () => {
   const { orgId = '' } = useParams();
   const { data: session } = useSession();
   const updateMe = useUpdateMe();
-  const { setLanguage, t } = useI18n();
+  const { setLanguage, t, language } = useI18n();
   const systemMap = useQuery({ queryKey: ['system-map', orgId], queryFn: () => fetchSystemMap(orgId), staleTime: MAP_STALE_MS, retry: false, enabled: Boolean(orgId) });
   if (!session) return null;
   const org = session.orgs.find((o) => o.id === orgId);
@@ -37,6 +38,7 @@ export const ExplorePage = () => {
     <>
       {systemMap.isError && <p className="alert error" role="alert" data-testid="system-map-error" style={ERROR_STYLE}>{t('explore.mapError')}</p>}
       <Workspace
+        chat={(ctx) => <ChatPanel orgId={org.id} ctx={ctx} language={effectiveExplanationLanguage(session.user, org, language)} />}
       extraScenes={systemMap.data ? [systemMap.data] : []}
       theme={effectiveTheme(session.user, org)}
       onTheme={(theme) => updateMe.mutate({ theme })}

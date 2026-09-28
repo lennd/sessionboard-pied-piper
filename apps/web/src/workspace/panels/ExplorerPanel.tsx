@@ -1,4 +1,5 @@
 import type { FlatStep, Scene, SceneIndex, SceneRisk, VisibleModel } from '@rdi/scene';
+import type { ReactNode } from 'react';
 import { useI18n } from '../../i18n/I18nProvider';
 import type { ExplorerState, Mode } from '../engine/explorerState';
 import { buildExplorerTree } from './explorerTree';
@@ -12,6 +13,7 @@ type ExplorerPanelProps = {
   numbering: Map<string, string>; byNode: Map<string, SceneRisk[]>;
   onSelectNode: (id: string) => void; onToggleExpand: (id: string) => void; onSeek: (index: number) => void;
   onToggleStep: (id: string) => void; onSelectRisk: (id: string) => void; onSetMode: (mode: Mode) => void;
+  chatSlot?: ReactNode; sidebar?: 'explorer' | 'chat'; onSidebar?: (sidebar: 'explorer' | 'chat') => void;
 };
 
 const ACTIVITY: { mode: Mode; glyph: string }[] = [
@@ -22,18 +24,25 @@ const ACTIVITY: { mode: Mode; glyph: string }[] = [
 
 export const ExplorerPanel = (p: ExplorerPanelProps) => {
   const { t } = useI18n();
+  const sidebar = p.sidebar ?? 'explorer';
   const items = buildExplorerTree(p.scene, p.index, p.model, p.byNode);
   const selectedRep = p.explorer.selectedNodeId ? p.model.representative.get(p.explorer.selectedNodeId) : null;
 
   return (
     <>
       <nav className="ws-activity" aria-label={t('explorer.title')}>
+        {p.chatSlot !== undefined && (
+          <button type="button" data-testid="activity-chat" aria-pressed={sidebar === 'chat'} title={t('chat.title')} onClick={() => p.onSidebar?.('chat')}>✦</button>
+        )}
         {ACTIVITY.filter(({ mode }) => availableModes(p.scene).includes(mode)).map(({ mode, glyph }) => (
-          <button key={mode} type="button" data-testid={`activity-${mode}`} aria-pressed={p.explorer.mode === mode} title={t(`mode.${mode}`)} onClick={() => p.onSetMode(mode)}>
+          <button key={mode} type="button" data-testid={`activity-${mode}`} aria-pressed={sidebar === 'explorer' && p.explorer.mode === mode} title={t(`mode.${mode}`)} onClick={() => p.onSetMode(mode)}>
             {glyph}
           </button>
         ))}
       </nav>
+      {sidebar === 'chat' ? (
+        <aside className="ws-explorer ws-chat" data-testid="chat-panel-host">{p.chatSlot}</aside>
+      ) : (
       <aside className="ws-explorer">
         <div className="sec-title">{t('explorer.title')} · {t(`level.${p.explorer.level}`)}</div>
         <div className="tree">
@@ -74,6 +83,7 @@ export const ExplorerPanel = (p: ExplorerPanelProps) => {
           </>
         )}
       </aside>
+      )}
     </>
   );
 };
