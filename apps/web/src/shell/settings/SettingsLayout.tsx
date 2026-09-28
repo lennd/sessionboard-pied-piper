@@ -26,8 +26,8 @@ export const SettingsLayout = () => {
 
   const signOut = async () => {
     await apiFetch('/auth/logout', { method: 'POST', body: {} }).catch(() => undefined);
+    await Promise.resolve(navigate('/login', { replace: true }));
     clearSession(client);
-    navigate('/login', { replace: true });
   };
   const item = ([slug, key]: [string, MessageKey]) => (
     <NavLink key={slug} to={`/orgs/${org.id}/settings/${slug}`} data-testid={`nav-${slug}`} className={({ isActive }) => (isActive ? 'shell-nav-item is-active' : 'shell-nav-item')}>

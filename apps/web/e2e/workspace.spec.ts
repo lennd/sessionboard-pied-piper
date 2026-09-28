@@ -2,7 +2,10 @@ import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('rdi.uiLanguage', 'en'));
+  const demo = await page.request.post('/api/dev/demo-session', { data: {} });
+  expect(demo.ok()).toBe(true);
   await page.goto('/');
+  await expect(page).toHaveURL(/\/orgs\/[^/]+\/explore$/);
   await page.getByTestId('scene-select').selectOption('checkout-en');
   await expect(page.getByTestId('node-worker')).toBeVisible();
 });
