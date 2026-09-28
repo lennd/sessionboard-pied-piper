@@ -36,7 +36,6 @@ export const Canvas = ({ scene, frame, progress, load, onZoom }: CanvasProps) =>
           zoomOnDoubleClick={false}
           nodesDraggable={false}
           fitView
-          proOptions={{ hideAttribution: true }}
         >
           <Background />
           <Controls showInteractive={false} />
