@@ -15,7 +15,7 @@ describe('toFlow', () => {
     const workerIndex = nodes.findIndex((n) => n.id === 'worker');
     expect(groupIndex).toBeLessThan(workerIndex);
     expect(nodes[workerIndex]).toMatchObject({ parentId: 'g-api', extent: 'parent', type: 'scene' });
-    expect(nodes[groupIndex]!.type).toBe('group');
+    expect(nodes[groupIndex]!.type).toBe('sceneGroup');
   });
 
   it('marks focused, highlighted and dimmed nodes, zoomability and annotations', async () => {

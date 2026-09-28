@@ -5,6 +5,11 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByTestId('node-worker')).toBeVisible();
 });
 
+test('labels repository groups', async ({ page }) => {
+  await expect(page.getByTestId('group-g-api')).toHaveText('web-api');
+  await expect(page.getByTestId('group-g-web')).toHaveText('web-ui');
+});
+
 test('steps through the flow with a travelling token and synced narration', async ({ page }) => {
   await page.getByTestId('player-next').click();
   await expect(page.getByTestId('player-counter')).toHaveText('2 / 6');

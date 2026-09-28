@@ -31,7 +31,7 @@ export const toFlow = ({ scene, layout, frame, progress, load }: ToFlowInput): {
     const box = layout.groups[g.id] ?? { x: 0, y: 0, width: 0, height: 0 };
     return {
       id: g.id,
-      type: 'group',
+      type: 'sceneGroup',
       position: { x: box.x, y: box.y },
       data: { label: g.label },
       style: { width: box.width, height: box.height },

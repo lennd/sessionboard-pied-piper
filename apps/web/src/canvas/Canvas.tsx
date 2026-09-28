@@ -4,11 +4,12 @@ import '@xyflow/react/dist/style.css';
 import { useMemo } from 'react';
 import type { Frame } from '../engine/frame';
 import { SceneEdge } from './SceneEdge';
+import { SceneGroup } from './SceneGroup';
 import { SceneNode } from './SceneNode';
 import { toFlow } from './toFlow';
 import { useSceneLayout } from './useSceneLayout';
 
-const nodeTypes = { scene: SceneNode };
+const nodeTypes = { scene: SceneNode, sceneGroup: SceneGroup };
 const edgeTypes = { scene: SceneEdge };
 
 type CanvasProps = { scene: Scene; frame: Frame; progress: number; load?: LoadResult; onZoom: (nodeId: string) => void };
