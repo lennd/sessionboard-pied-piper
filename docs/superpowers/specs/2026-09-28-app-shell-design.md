@@ -1,6 +1,6 @@
 # App Shell — Accounts, Tenant, Repositories, Preferences, UI Language
 
-Extends: `docs/superpowers/specs/2026-09-28-repository-designer-ide-design.md` (SaaS product, `org_id` everywhere). Companion spec: `2026-09-28-scene-v2-progressive-disclosure-design.md`. Validated mockup: `.superpowers/brainstorm/68801-1790614588/content/app-shell-v1-1.html`.
+Extends: `docs/superpowers/specs/2026-09-28-repository-designer-ide-design.md` (SaaS product, `org_id` everywhere). Companion spec: `2026-09-28-scene-v2-progressive-disclosure-design.md`. Validated mockups: screens/content `.superpowers/brainstorm/68801-1790614588/content/app-shell-v1-1.html`; visual style `shell-friendly-directions-v3.html` (option A, "Aurora").
 
 ## Context
 
@@ -15,7 +15,18 @@ The product needs the SaaS surfaces around the exploration experience: sign-in, 
 | Joining | "Create organization" (creator becomes owner) or accept an email invitation |
 | Languages | UI and explanations configurable separately; supported: `es`, `en`, `pt` (Portuguese, Brazilian) |
 | Settings precedence | user preference → organization default → system default (`en` UI / `en` explanations / `mission` theme / `architecture` level) |
-| Visual style | Mission control, same theme tokens as the exploration experience |
+| Visual style | **Aurora** for every shell surface (sign-in, onboarding, settings, repositories); the exploration workspace keeps Mission control. Shared brand: logo and accent green `#2dffa6` |
+
+## 0. Visual language — Aurora
+
+- **Palette**: near-black base `#070a12`; slowly drifting blurred gradient blobs in brand green `#2dffa6`, cyan `#18c3ff` and violet `#6d5efc`/`#8b7dff`; subtle grain overlay; text `#eef2ff`, secondary `#aab4d4`, tertiary `#8d97b8`.
+- **Surfaces**: frosted-glass panels (`rgba(255,255,255,.06)` fill, `rgba(255,255,255,.14)` border, `backdrop-filter: blur(18px)`, 20px radius, deep soft shadow); inputs 12px radius with a green focus ring (`0 0 0 4px rgba(45,255,166,.15)`).
+- **Type**: Inter (system fallback), tight tracking on headings; headline accent words use an animated green→cyan→violet gradient shimmer.
+- **Primary action**: green→cyan gradient button with a slow shimmer and a green glow; secondary actions are ghost pills.
+- **Logo**: three nodes joined by two links (the product's "flow" motif). On load the links draw in and the nodes pop in sequence; a small token then rides the links in a loop. Static version for favicon and small sizes.
+- **Motion**: panels rise in (16px, 0.8s ease-out); background blobs drift on a 14s loop; progress uses a travelling highlight; celebratory micro-moments (✨ when indexing finishes, first map ready). Every animation honours `prefers-reduced-motion: reduce` (blobs static, no shimmer, instant transitions).
+- **Illustration**: sign-in and empty states show a mini flow diagram (glass node pills + animated dashed link) that previews the product.
+- **Theming**: Aurora is the shell's only theme in phase 1; the user/org theme preference (mission, studio, paper, contrast) applies to the exploration workspace.
 
 ## 1. Accounts and sessions
 
@@ -57,7 +68,7 @@ Name, default UI language, default explanation language, default theme. Visible 
 
 ## 7. Screens
 
-1. **Sign in** — product pitch on the left; email, password, "Sign in", "Forgot password?", "Create organization", "I have an invitation", language picker.
+1. **Sign in** — Aurora background, animated logo, headline and mini flow illustration on the left; glass card on the right with email, password, "Sign in", "Forgot password?", "Create organization", "I have an invitation", language picker.
 2. **Sign up / accept invitation / verify email / reset password** — single-column forms in the same style.
 3. **Settings → General** (org), **Members**, **Repositories**, **Usage & limits** (read-only counters: repos, indexed pieces, agent budget — agent numbers arrive in plan 3), **Preferences** (user), **Security** (change password, active sessions with revoke).
 4. **Empty state** after creating an org: guided "Connect GitHub → pick repos → first map".

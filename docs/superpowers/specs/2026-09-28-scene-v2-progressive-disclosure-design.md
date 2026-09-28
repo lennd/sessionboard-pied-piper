@@ -25,7 +25,7 @@ Visual direction chosen in the brainstorming companion: **"Mission control"** (d
 | Topic | Decision |
 |---|---|
 | Visual direction | Mission control layout; themes switch tokens only (colors, fonts, radii) |
-| Themes | `mission` (default), `studio`, `paper` (light), `contrast` (high contrast, WCAG AAA) |
+| Themes | `mission` (default), `studio`, `paper` (light), `contrast` (high contrast, WCAG AAA) — workspace only; the surrounding shell uses the Aurora style (app-shell spec §0) and shares the logo and brand green |
 | Levels | Global selector: **System → Architecture → Components → Detail**, mapped onto the node hierarchy; any single piece can also be opened deeper without changing the global level |
 | Opening a step | Expands a node **in place**, revealing internal pieces; sub-steps walk them. Replaces "zoom into another scene". Unlimited nesting |
 | Generic node model | Abstract **roles** drive visuals + free-text **kind** written by the agent |
