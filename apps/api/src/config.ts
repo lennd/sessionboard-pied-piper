@@ -15,6 +15,7 @@ export type Config = {
   trustProxy: boolean | number | string;
   demoRepos: boolean;
   github: { appId: string; privateKey: string; slug: string; webhookSecret: string; stateSecret: string } | null;
+  agent: { enabled: boolean; fake: boolean; model: string; monthlyTokenBudget: number };
 };
 
 const DEFAULTS = {
@@ -33,6 +34,10 @@ const DEFAULTS = {
   DB_ENSURE: 'false',
   TRUST_PROXY: 'false',
   DEMO_REPOS: 'true',
+  AGENT_ENABLED: 'false',
+  RDI_FAKE_LLM: 'false',
+  AGENT_MODEL: 'claude-opus-5',
+  AGENT_MONTHLY_TOKEN_BUDGET: '2000000',
 };
 
 const PRODUCTION = 'production';
@@ -48,6 +53,12 @@ const readGithub = (env: NodeJS.ProcessEnv): Config['github'] => {
   const { GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_SLUG, GITHUB_WEBHOOK_SECRET, GITHUB_STATE_SECRET } = env;
   if (!GITHUB_APP_ID || !GITHUB_APP_PRIVATE_KEY || !GITHUB_APP_SLUG || !GITHUB_WEBHOOK_SECRET || !GITHUB_STATE_SECRET) return null;
   return { appId: GITHUB_APP_ID, privateKey: GITHUB_APP_PRIVATE_KEY.replace(/\\n/g, '\n'), slug: GITHUB_APP_SLUG, webhookSecret: GITHUB_WEBHOOK_SECRET, stateSecret: GITHUB_STATE_SECRET };
+};
+
+const readAgent = (env: NodeJS.ProcessEnv, production: boolean, read: (key: keyof typeof DEFAULTS) => string): Config['agent'] => {
+  const fake = !production && read('RDI_FAKE_LLM') === 'true';
+  const credentials = Boolean(env.ANTHROPIC_API_KEY || env.ANTHROPIC_AUTH_TOKEN);
+  return { enabled: fake || credentials || read('AGENT_ENABLED') === 'true', fake, model: read('AGENT_MODEL'), monthlyTokenBudget: Number(read('AGENT_MONTHLY_TOKEN_BUDGET')) };
 };
 
 export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
@@ -71,5 +82,6 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     trustProxy: parseTrustProxy(read('TRUST_PROXY')),
     demoRepos: !production && read('DEMO_REPOS') !== 'false',
     github: readGithub(env),
+    agent: readAgent(env, production, read),
   };
 };
