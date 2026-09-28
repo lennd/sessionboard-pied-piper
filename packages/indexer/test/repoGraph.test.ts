@@ -1,13 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildRepoGraph, detect, parseRepository, walkRepository, type RepoGraph } from '../src/index';
-import { fixture } from './fixtures';
+import type { RepoGraph } from '../src/index';
+import { graphFor } from './fixtures';
 
-const ORG = 'org-1';
-export const graphFor = async (repo: 'shop-web' | 'shop-api' | 'shop-worker', repoId = repo): Promise<RepoGraph> => {
-  const walk = await walkRepository(fixture(repo));
-  const facts = await parseRepository(walk.files);
-  return buildRepoGraph({ orgId: ORG, repoId, fullName: `acme-demo/${repo}`, walk, facts, detections: detect(facts) });
-};
 const edge = (g: RepoGraph, type: string) => g.edges.filter((e) => e.type === type).map((e) => `${e.from} -> ${e.to}`);
 
 describe('buildRepoGraph', () => {
