@@ -7,6 +7,7 @@ export type GitHubClient = {
   listInstallationRepos(installationId: number): Promise<GitHubRepo[]>;
   getInstallation(installationId: number): Promise<{ accountLogin: string }>;
   installUrl(state: string): string;
+  listPullFiles(installationId: number, fullName: string, number: number): Promise<{ filename: string; status: string; patch?: string }[]>;
 };
 
 const JWT_BACKDATE_SECONDS = 60;
@@ -51,6 +52,11 @@ export const createGitHubClient = (config: GitHubAppConfig, fetchImpl: typeof fe
     async getInstallation(installationId) {
       const body = await request<{ account: { login: string } }>(`/app/installations/${installationId}`, appAuth());
       return { accountLogin: body.account.login };
+    },
+    async listPullFiles(installationId, fullName, number) {
+      const token = await installationToken(installationId);
+      const files = await request<{ filename: string; status: string; patch?: string }[]>(`/repos/${fullName}/pulls/${number}/files?per_page=100`, `token ${token}`);
+      return files.map((f) => ({ filename: f.filename, status: f.status, ...(f.patch === undefined ? {} : { patch: f.patch }) }));
     },
     installUrl: (state) => `https://github.com/apps/${config.slug}/installations/new?state=${encodeURIComponent(state)}`,
   };

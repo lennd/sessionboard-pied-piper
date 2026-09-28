@@ -53,6 +53,7 @@ describe('loadConfig', () => {
       trustProxy: false,
       demoRepos: true,
       github: null,
+      agent: { enabled: false, fake: false, model: 'claude-opus-5', monthlyTokenBudget: 2_000_000, heartbeatMs: 15_000 },
     });
   });
 
@@ -71,6 +72,13 @@ describe('loadConfig', () => {
     expect(loadConfig({ TRUST_PROXY: '1' }).trustProxy).toBe(1);
     expect(loadConfig({ TRUST_PROXY: '10.0.0.0/8' }).trustProxy).toBe('10.0.0.0/8');
     expect(loadConfig({ TRUST_PROXY: 'false' }).trustProxy).toBe(false);
+  });
+
+  it('enables the agent from credentials and never uses the fake model in production', () => {
+    expect(loadConfig({ ANTHROPIC_API_KEY: 'k' }).agent.enabled).toBe(true);
+    expect(loadConfig({ AGENT_ENABLED: 'true', AGENT_MODEL: 'claude-sonnet-5' }).agent).toMatchObject({ enabled: true, model: 'claude-sonnet-5' });
+    expect(loadConfig({ RDI_FAKE_LLM: 'true' }).agent).toMatchObject({ enabled: true, fake: true });
+    expect(loadConfig({ NODE_ENV: 'production', RDI_FAKE_LLM: 'true' }).agent).toMatchObject({ enabled: false, fake: false });
   });
 
   it('reads GitHub App settings only when complete and never offers demo repos in production', () => {

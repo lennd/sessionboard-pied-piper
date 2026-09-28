@@ -55,4 +55,14 @@ describe('createGitHubClient', () => {
   it('builds token clone urls', () => {
     expect(githubCloneUrl('acme/api', 'ghs_x')).toBe('https://x-access-token:ghs_x@github.com/acme/api.git');
   });
+
+  it('lists the files of a pull request with an installation token', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(json({ token: 'ghs_pr' }, 201))
+      .mockResolvedValueOnce(json([{ filename: 'src/a.ts', status: 'modified', patch: '@@ -1 +1 @@', additions: 1 }]));
+    const client = createGitHubClient(config, fetchMock as unknown as typeof fetch);
+    expect(await client.listPullFiles(9, 'acme/api', 42)).toEqual([{ filename: 'src/a.ts', status: 'modified', patch: '@@ -1 +1 @@' }]);
+    expect(fetchMock.mock.calls[1]![0]).toBe('https://api.github.com/repos/acme/api/pulls/42/files?per_page=100');
+    expect(fetchMock.mock.calls[1]![1].headers.authorization).toBe('token ghs_pr');
+  });
 });

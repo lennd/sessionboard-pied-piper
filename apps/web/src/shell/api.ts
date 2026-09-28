@@ -12,6 +12,8 @@ export const setCsrfToken = (token: string | null): void => {
   csrfToken = token;
 };
 
+export const getCsrfToken = (): string | null => csrfToken;
+
 export const apiFetch = async <T>(path: string, init: { method?: Method; body?: unknown } = {}): Promise<T> => {
   const method = init.method ?? 'GET';
   const headers: Record<string, string> = {};

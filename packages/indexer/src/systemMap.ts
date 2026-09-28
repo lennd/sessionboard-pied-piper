@@ -11,6 +11,8 @@ const MAX_STEPS = 12;
 const MAX_SUMMARY = 2000;
 const MAX_ENDPOINTS_PER_SERVICE = 8;
 const MAX_SHARED_PER_KIND = 15;
+const CODE_CONTEXT_BEFORE = 2;
+const CODE_CONTEXT_AFTER = 12;
 const EDGE_ORDER: EdgeKind[] = ['sync', 'async', 'write', 'read', 'calls'];
 
 const sceneId = (id: string) => (id.length <= MAX_ID ? id : `${id.slice(0, 80)}#${createHash('sha1').update(id).digest('hex').slice(0, 12)}`);
@@ -34,13 +36,22 @@ export const buildSystemMap = (graph: OrgGraph): Scene | null => {
 
   const nodes: SceneInput['nodes'] = [];
   const included = new Set<string>();
-  const include = (node: GraphNode, role: 'compute' | 'channel' | 'storage' | 'external', kind: string, parent?: string) => {
+  const include = (node: GraphNode, role: 'compute' | 'channel' | 'storage' | 'external', kind: string, parent?: string, code?: SceneInput['nodes'][number]['code']) => {
     included.add(node.id);
     nodes.push({
-      id: sceneId(node.id), label: clip(node.name), role, kind, summary: clip(node.summary || node.name, MAX_SUMMARY),
+      id: sceneId(node.id), label: clip(node.name), role, kind, summary: clip(node.summary || node.name, MAX_SUMMARY), graphRef: node.id,
       ...(parent ? { parent: sceneId(parent) } : {}),
       ...(node.label === 'Service' && typeof node.props.repo === 'string' ? { repo: clip(node.props.repo) } : {}),
+      ...(code ? { code } : {}),
     });
+  };
+  const endpointCode = (ep: GraphNode, svc: GraphNode): SceneInput['nodes'][number]['code'] => {
+    const file = typeof ep.props.file === 'string' ? ep.props.file : null;
+    const line = typeof ep.props.line === 'number' ? ep.props.line : null;
+    const repo = typeof svc.props.repo === 'string' ? svc.props.repo : null;
+    if (!file || !line || !repo || !ep.repoId) return undefined;
+    const language = byId.get(`file:${ep.repoId}:${file}`)?.props.language;
+    return { repo: clip(repo), path: file, startLine: Math.max(1, line - CODE_CONTEXT_BEFORE), endLine: line + CODE_CONTEXT_AFTER, language: typeof language === 'string' ? language : 'text' };
   };
   const degree = new Map<string, number>();
   for (const e of graph.edges) {
@@ -55,7 +66,7 @@ export const buildSystemMap = (graph: OrgGraph): Scene | null => {
   for (const svc of services) include(svc, 'compute', 'service');
   for (const svc of services) {
     const endpoints = ofLabel('Endpoint').filter((n) => serviceOfEndpoint.get(n.id) === svc.id);
-    for (const ep of busiest(endpoints, MAX_ENDPOINTS_PER_SERVICE)) include(ep, 'compute', 'HTTP endpoint', svc.id);
+    for (const ep of busiest(endpoints, MAX_ENDPOINTS_PER_SERVICE)) include(ep, 'compute', 'HTTP endpoint', svc.id, endpointCode(ep, svc));
   }
   for (const node of busiest(ofLabel('Queue'), MAX_SHARED_PER_KIND)) include(node, 'channel', 'queue');
   for (const node of busiest(ofLabel('Table'), MAX_SHARED_PER_KIND)) include(node, 'storage', 'table');

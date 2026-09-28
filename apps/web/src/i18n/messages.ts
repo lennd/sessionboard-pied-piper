@@ -4,6 +4,7 @@ export const UI_LANGUAGES = ['en', 'es', 'pt'] as const;
 export type UiLanguage = (typeof UI_LANGUAGES)[number];
 
 const workspaceEn = {
+  'code.loading': 'Loading code…',
   'app.name': 'Repository Designer',
   'scene.label': 'Scene',
   'scene.regenerate': 'Regenerate in {language}',
@@ -98,6 +99,7 @@ export type MessageKey = keyof typeof en;
 type Catalog = Partial<Record<MessageKey, string>>;
 
 const esWorkspace: Catalog = {
+  'code.loading': 'Cargando código…',
   'app.name': 'Repository Designer',
   'scene.label': 'Escena',
   'scene.regenerate': 'Regenerar en {language}',
@@ -189,6 +191,7 @@ const esWorkspace: Catalog = {
 const es: Catalog = { ...esWorkspace, ...shellEs };
 
 const ptWorkspace: Catalog = {
+  'code.loading': 'Carregando código…',
   'app.name': 'Repository Designer',
   'scene.label': 'Cena',
   'scene.regenerate': 'Regenerar em {language}',

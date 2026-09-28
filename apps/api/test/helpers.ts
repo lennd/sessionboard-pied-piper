@@ -1,5 +1,6 @@
 import { createGraphStore } from '@rdi/graph';
 import type { GitHubClient } from '@rdi/providers';
+import type { LlmClient } from '../src/agent/llm';
 import type { LightMyRequestResponse } from 'fastify';
 import { buildApp } from '../src/app';
 import { createPgPool, createRedisClient } from '../src/checks';
@@ -11,9 +12,9 @@ import { TEST_DATABASE_URL, TEST_REDIS_URL } from './setup/env';
 const TABLES = ['repos', 'github_installations', 'invitations', 'email_tokens', 'sessions', 'memberships', 'orgs', 'users'];
 const RATE_PREFIX = 'rltest';
 
-export const createTestContext = async (options: { github?: Config['github']; githubClient?: GitHubClient } = {}) => {
+export const createTestContext = async (options: { github?: Config['github']; githubClient?: GitHubClient; llm?: LlmClient | null; heartbeatMs?: number } = {}) => {
   const base = loadConfig({ DATABASE_URL: TEST_DATABASE_URL, REDIS_URL: TEST_REDIS_URL, RDI_DEV_ROUTES: 'true', RATE_LIMIT_PREFIX: RATE_PREFIX });
-  const config: Config = { ...base, github: options.github ?? null };
+  const config: Config = { ...base, github: options.github ?? null, agent: { ...base.agent, heartbeatMs: options.heartbeatMs ?? base.agent.heartbeatMs } };
   const pool = createPgPool(config.databaseUrl, 5);
   const redis = createRedisClient(config.redisUrl);
   const mailer = createDevMailer(() => {});
@@ -21,7 +22,7 @@ export const createTestContext = async (options: { github?: Config['github']; gi
   await graph.ensureSchema();
   const jobs: IndexJobData[] = [];
   const indexQueue = { enqueue: async (job: IndexJobData) => { jobs.push(job); }, close: async () => {} };
-  const app = buildApp({ checks: {}, deps: { config, pool, redis, mailer, graph, indexQueue, github: options.githubClient ?? null } });
+  const app = buildApp({ checks: {}, deps: { config, pool, redis, mailer, graph, indexQueue, github: options.githubClient ?? null, llm: options.llm ?? null } });
   await app.ready();
   const reset = async () => {
     await pool.query(`truncate ${TABLES.join(', ')} cascade`);

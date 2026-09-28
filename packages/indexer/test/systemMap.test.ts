@@ -52,6 +52,14 @@ describe('buildSystemMap', () => {
     expect(scene.steps.every((s) => s.travel)).toBe(true);
     expect(scene.steps.length).toBeLessThanOrEqual(12);
   });
+
+  it('links pieces back to the graph and endpoints to their source', async () => {
+    const scene = buildSystemMap(await orgGraph())!;
+    const ep = scene.nodes.find((n) => n.label === 'POST /api/orders')!;
+    expect(ep.graphRef).toBe('ep:shop-api:POST /api/orders');
+    expect(ep.code).toEqual({ repo: 'acme-demo/shop-api', path: 'src/server.ts', startLine: 4, endLine: 18, language: 'typescript' });
+    expect(scene.nodes.find((n) => n.label === 'shop-api')!.graphRef).toBe('svc:shop-api');
+  });
 });
 
 describe('large organizations', () => {
