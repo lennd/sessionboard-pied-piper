@@ -1,12 +1,13 @@
 import type Anthropic from '@anthropic-ai/sdk';
-import type { LlmClient } from './llm';
+import { TRANSLATE_MARKER, type LlmClient } from './llm';
+
+export { TRANSLATE_MARKER };
 
 type Message = Anthropic.Beta.BetaMessage;
 type Param = Anthropic.Beta.BetaMessageParam;
 type SearchHit = { id: string; label: string; name: string; summary?: string };
 
 export const FAKE_MODEL = 'fake-scripted';
-export const TRANSLATE_MARKER = 'Target language:';
 const MAX_SCENE_PIECES = 5;
 const LANGUAGE_DIRECTIVE = /\(([a-z]{2,3}(?:-[A-Za-z0-9]+)*)\)\./;
 const ROLE_BY_LABEL: Record<string, string> = { Queue: 'channel', Table: 'storage', External: 'external', ConfigKey: 'data', File: 'logic' };

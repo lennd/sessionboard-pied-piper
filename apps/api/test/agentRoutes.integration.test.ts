@@ -123,3 +123,29 @@ describe('chatting', () => {
     }
   });
 });
+
+describe('translating scenes', () => {
+  it('stores a translated copy of a conversation scene and of the system map', async () => {
+    const { owner, org } = await setup();
+    await indexApi(org.id);
+    const conv = await newConversation(owner, org.id);
+    const original = events((await ask(owner, org.id, conv.id, { text: 'orders' })).body).find((e) => e.event === 'scene')!.data;
+    const res = await ctx.app.inject({ method: 'POST', url: `/api/orgs/${org.id}/scenes/${original.id}/translate`, headers: authed(owner), payload: { language: 'pt' } });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().scene).toMatchObject({ id: original.scene.id, language: 'pt' });
+    const row = (await ctx.pool.query('select source_scene_id, conversation_id from scenes where id = $1', [res.json().id])).rows[0];
+    expect(row).toEqual({ source_scene_id: original.id, conversation_id: conv.id });
+    const map = await ctx.app.inject({ method: 'POST', url: `/api/orgs/${org.id}/scenes/system-map/translate`, headers: authed(owner), payload: { language: 'es' } });
+    expect(map.json().scene).toMatchObject({ id: 'system-map', language: 'es' });
+  });
+
+  it('never translates another organization’s scene', async () => {
+    const { owner, org } = await setup();
+    await indexApi(org.id);
+    const conv = await newConversation(owner, org.id);
+    const original = events((await ask(owner, org.id, conv.id, { text: 'orders' })).body).find((e) => e.event === 'scene')!.data;
+    const stranger = await setup();
+    const res = await ctx.app.inject({ method: 'POST', url: `/api/orgs/${stranger.org.id}/scenes/${original.id}/translate`, headers: authed(stranger.owner), payload: { language: 'es' } });
+    expect(res.statusCode).toBe(404);
+  });
+});

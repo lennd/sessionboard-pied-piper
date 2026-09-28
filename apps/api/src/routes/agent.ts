@@ -1,12 +1,15 @@
 import type Anthropic from '@anthropic-ai/sdk';
+import { buildSystemMap, SYSTEM_MAP_ID } from '@rdi/indexer';
+import { validateScene } from '@rdi/scene';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { questionOf, SYSTEM_PROMPT, userTurn } from '../agent/prompt';
 import { runAgent, type AgentEvent } from '../agent/runAgent';
+import { translateScene, TranslateError } from '../agent/translate';
 import type { ToolContext } from '../agent/tools';
 import { createRateLimiter } from '../auth/rateLimit';
 import {
-  addUsage, appendMessages, createConversation, currentMonth, DEFAULT_CONVERSATION_TITLE, findConversation, findRepoInstallation, getUsage,
+  addUsage, appendMessages, createConversation, currentMonth, DEFAULT_CONVERSATION_TITLE, findConversation, findRepoInstallation, findScene, getUsage,
   insertScene, listConversations, listConversationScenes, listMessages, readSource, renameConversation, type ConversationRow,
 } from '../db/queries/agent';
 import { listRepos } from '../db/queries/repos';
@@ -142,5 +145,37 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
     send('done', { sceneIds, usage: result.usage });
     reply.raw.end();
     return reply;
+  });
+
+  api.post('/orgs/:orgId/scenes/:sceneId/translate', { preHandler: member }, async (req, reply) => {
+    const { language } = z.object({ language: z.string().regex(LANGUAGE_TAG) }).parse(req.body);
+    const { sceneId } = req.params as { sceneId: string };
+    const orgId = req.member!.org.id;
+    let source: { id: string | null; conversationId: string | null; turn: number; scene: unknown } | null = null;
+    if (sceneId === SYSTEM_MAP_ID) {
+      const map = deps.graph ? buildSystemMap(await deps.graph.readOrgGraph(orgId)) : null;
+      source = map ? { id: null, conversationId: null, turn: 0, scene: map } : null;
+    } else if (isUuid(sceneId)) {
+      const row = await findScene(deps.pool, orgId, sceneId);
+      source = row ? { id: row.id, conversationId: row.conversation_id, turn: row.turn, scene: row.scene } : null;
+    }
+    const valid = source ? validateScene(source.scene) : null;
+    if (!source || !valid?.ok) return fail(reply, 404, 'not_found');
+    const llm = deps.llm;
+    if (!llm) return fail(reply, 409, 'agent_not_configured');
+    if (deps.config.rateLimitsEnabled) {
+      const hit = await limiter.hit(`agent:${req.auth!.user.id}`, AGENT_RATE_LIMIT, AGENT_RATE_WINDOW_SECONDS);
+      if (!hit.allowed) return fail(reply, 429, 'rate_limited', { retryAfter: hit.retryAfter });
+    }
+    if ((await tokensUsed(orgId)) >= deps.config.agent.monthlyTokenBudget) return fail(reply, 429, 'token_budget_exceeded');
+    try {
+      const { scene, usage } = await translateScene(llm, valid.scene, language);
+      await addUsage(deps.pool, orgId, currentMonth(nowOf(deps)), usage.input, usage.output);
+      const row = await insertScene(deps.pool, { orgId, conversationId: source.conversationId, sourceSceneId: source.id, turn: source.turn, scene });
+      return reply.code(201).send({ id: row.id, scene });
+    } catch (error) {
+      if (error instanceof TranslateError) return fail(reply, 422, 'translation_failed');
+      throw error;
+    }
   });
 };

@@ -1,5 +1,8 @@
 import type Anthropic from '@anthropic-ai/sdk';
 
+/** Prefix of the translation request; shared by the translator and the scripted fake. */
+export const TRANSLATE_MARKER = 'Target language:';
+
 export type LlmTurnInput = {
   system: string;
   messages: Anthropic.Beta.BetaMessageParam[];
