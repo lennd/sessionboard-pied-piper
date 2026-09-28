@@ -76,7 +76,13 @@ const systemModel = (scene: Scene, index: SceneIndex): VisibleModel => {
   return { level: 'system', expanded: new Set(), visible, repoBoxes, representative };
 };
 
-export const computeVisible = (scene: Scene, index: SceneIndex, level: Level, localExpanded: ReadonlySet<string>): VisibleModel => {
+export const computeVisible = (
+  scene: Scene,
+  index: SceneIndex,
+  level: Level,
+  localExpanded: ReadonlySet<string>,
+  localCollapsed: ReadonlySet<string> = new Set(),
+): VisibleModel => {
   if (level === 'system') return systemModel(scene, index);
 
   const expanded = new Set<string>();
@@ -89,6 +95,7 @@ export const computeVisible = (scene: Scene, index: SceneIndex, level: Level, lo
     expanded.add(id);
     ancestorsOf(index, id).forEach((a) => expanded.add(a));
   });
+  localCollapsed.forEach((id) => expanded.delete(id));
 
   const visible = new Set(scene.nodes.filter((n) => ancestorsOf(index, n.id).every((a) => expanded.has(a))).map((n) => n.id));
   const representative = new Map<string, string>();

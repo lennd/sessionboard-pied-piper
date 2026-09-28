@@ -16,7 +16,7 @@ import { CodeDrawer } from './panels/CodeDrawer';
 import { ExplorerPanel } from './panels/ExplorerPanel';
 import { Footer } from './panels/Footer';
 import { Inspector } from './panels/Inspector';
-import { TopBar } from './panels/TopBar';
+import { availableModes, TopBar } from './panels/TopBar';
 import './workspace.css';
 
 const DEFAULT_LEVEL: Level = 'architecture';
@@ -37,7 +37,11 @@ export const Workspace = () => {
 
   const index = useMemo(() => indexScene(scene), [scene]);
   const localSet = useMemo(() => new Set(explorer.localExpanded), [explorer.localExpanded]);
-  const model = useMemo(() => computeVisible(scene, index, explorer.level, localSet), [scene, index, explorer.level, localSet]);
+  const collapsedSet = useMemo(() => new Set(explorer.localCollapsed), [explorer.localCollapsed]);
+  const model = useMemo(
+    () => computeVisible(scene, index, explorer.level, localSet, collapsedSet),
+    [scene, index, explorer.level, localSet, collapsedSet],
+  );
   const projected = useMemo(() => projectEdges(scene, model), [scene, model]);
   const openSet = useMemo(() => new Set(explorer.openSteps), [explorer.openSteps]);
   const flat = useMemo(() => flattenSteps(scene.steps, openSet), [scene, openSet]);
@@ -65,7 +69,8 @@ export const Workspace = () => {
 
   const loadScene = (id: string) => {
     previousFlat.current = [];
-    dispatchRaw({ type: 'loadScene', sceneId: id, level: explorer.level });
+    const next = sampleRegistry[id];
+    dispatchRaw({ type: 'loadScene', sceneId: id, level: explorer.level, mode: (next && availableModes(next)[0]) ?? 'walkthrough' });
     dispatchPlayer({ type: 'reset' });
   };
 

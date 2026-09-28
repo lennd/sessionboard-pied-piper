@@ -4,6 +4,7 @@ import type { ExplorerState, Mode } from '../engine/explorerState';
 import { buildExplorerTree } from './explorerTree';
 import { PayloadDiff } from './PayloadDiff';
 import { RisksPanel } from './RisksPanel';
+import { availableModes } from './TopBar';
 import { WalkthroughTree } from './WalkthroughTree';
 
 type ExplorerPanelProps = {
@@ -27,7 +28,7 @@ export const ExplorerPanel = (p: ExplorerPanelProps) => {
   return (
     <>
       <nav className="ws-activity" aria-label={t('explorer.title')}>
-        {ACTIVITY.map(({ mode, glyph }) => (
+        {ACTIVITY.filter(({ mode }) => availableModes(p.scene).includes(mode)).map(({ mode, glyph }) => (
           <button key={mode} type="button" data-testid={`activity-${mode}`} aria-pressed={p.explorer.mode === mode} title={t(`mode.${mode}`)} onClick={() => p.onSetMode(mode)}>
             {glyph}
           </button>
@@ -40,7 +41,7 @@ export const ExplorerPanel = (p: ExplorerPanelProps) => {
             const selected = item.nodeId !== null && (item.nodeId === p.explorer.selectedNodeId || item.id === selectedRep);
             const classes = ['tree-item', item.nodeId === null && 'is-group', selected && 'is-selected'].filter(Boolean).join(' ');
             return (
-              <div key={item.id} className={classes} style={{ paddingLeft: 10 + item.depth * 14 }} data-testid={`tree-item-${item.id}`} onClick={() => item.nodeId && p.onSelectNode(item.nodeId)} role="treeitem" aria-selected={selected}>
+              <div key={item.id} className={classes} style={{ paddingLeft: 10 + item.depth * 14 }} data-testid={`tree-item-${item.id}`}>
                 {item.expandable && item.nodeId ? (
                   <button type="button" className="twisty" data-testid={`tree-toggle-${item.id}`} aria-expanded={item.expanded} aria-label={item.expanded ? t('explorer.collapse') : t('explorer.expand')} onClick={(e) => { e.stopPropagation(); p.onToggleExpand(item.id); }}>
                     {item.expanded ? '▾' : '▸'}
@@ -48,8 +49,13 @@ export const ExplorerPanel = (p: ExplorerPanelProps) => {
                 ) : (
                   <span className="twisty">{item.nodeId === null ? '▾' : ''}</span>
                 )}
-                <span aria-hidden>{item.glyph}</span>
-                <span>{item.label}</span>
+                {item.nodeId ? (
+                  <button type="button" className="tree-label" aria-pressed={selected} onClick={() => p.onSelectNode(item.nodeId as string)}>
+                    {item.glyph} {item.label}
+                  </button>
+                ) : (
+                  <span>{item.glyph} {item.label}</span>
+                )}
                 {item.severity && <span className={`risk-dot sev-${item.severity}`} />}
               </div>
             );

@@ -8,7 +8,7 @@ const run = (state: ExplorerState, ...actions: Parameters<typeof reduceExplorer>
 describe('reduceExplorer', () => {
   it('starts in walkthrough mode with nothing open', () => {
     expect(initialExplorerState('fx', 'components')).toEqual({
-      sceneId: 'fx', level: 'components', localExpanded: [], openSteps: [], selectedNodeId: null,
+      sceneId: 'fx', level: 'components', localExpanded: [], localCollapsed: [], openSteps: [], selectedNodeId: null,
       mode: 'walkthrough', selectedRiskId: null, codeNodeId: null, scaleOverlay: false,
     });
   });
@@ -17,6 +17,19 @@ describe('reduceExplorer', () => {
     const s = run(start(), { type: 'toggleExpand', nodeId: 'worker' }, { type: 'toggleExpand', nodeId: 'db' });
     expect(s.localExpanded).toEqual(['worker']);
     expect(run(s, { type: 'toggleExpand', nodeId: 'worker' }).localExpanded).toEqual([]);
+  });
+
+  it('collapsing a piece also drops expanded descendants', () => {
+    const s = run(start(), { type: 'toggleExpand', nodeId: 'worker' }, { type: 'toggleExpand', nodeId: 'reserve' }, { type: 'toggleExpand', nodeId: 'worker' });
+    expect(s.localExpanded).toEqual([]);
+  });
+
+  it('collapses and re-expands pieces the level expanded', () => {
+    const collapsed = run(start({ level: 'components' }), { type: 'toggleExpand', nodeId: 'worker' });
+    expect(collapsed).toMatchObject({ localCollapsed: ['worker'], localExpanded: [] });
+    const reopened = run(collapsed, { type: 'toggleExpand', nodeId: 'worker' });
+    expect(reopened.localCollapsed).toEqual([]);
+    expect(run(collapsed, { type: 'setLevel', level: 'detail' }).localCollapsed).toEqual([]);
   });
 
   it('opening a step expands its node; closing removes it and its open descendants', () => {
@@ -47,8 +60,8 @@ describe('reduceExplorer', () => {
   });
 
   it('loading a scene resets everything except the overlay', () => {
-    const s = run(start({ scaleOverlay: true, openSteps: ['s2'], selectedNodeId: 'api' }), { type: 'loadScene', sceneId: 'other', level: 'detail' });
-    expect(s).toEqual({ ...initialExplorerState('other', 'detail'), scaleOverlay: true });
+    const s = run(start({ scaleOverlay: true, openSteps: ['s2'], selectedNodeId: 'api' }), { type: 'loadScene', sceneId: 'other', level: 'detail', mode: 'risks' });
+    expect(s).toEqual({ ...initialExplorerState('other', 'detail'), mode: 'risks', scaleOverlay: true });
   });
 
   it('changing level keeps local expansion', () => {

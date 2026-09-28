@@ -79,3 +79,25 @@ test('repo groups are labelled and edges connect pieces', async ({ page }) => {
   await expect(page.locator('.edge-line')).not.toHaveCount(0);
   await expect(page.locator('.edge-line').first()).toHaveAttribute('d', /^M [\d.]+ [\d.]+ L [\d.]+ [\d.]+$/);
 });
+
+test('closing a step while playing keeps the cursor in range', async ({ page }) => {
+  await page.getByTestId('step-toggle-s3').click();
+  await page.getByTestId('step-s3-1').click();
+  await page.getByTestId('player-toggle').click();
+  await page.getByTestId('step-toggle-s3').click();
+  await expect(page.getByTestId('player-counter')).toHaveText(/Step 3 · 3 \/ 5|Step 4 · 4 \/ 5/);
+});
+
+test('scenes without changes do not offer the changes mode', async ({ page }) => {
+  await page.getByTestId('scene-select').selectOption('iot-telemetry');
+  await expect(page.getByTestId('node-broker')).toBeVisible();
+  await expect(page.getByTestId('mode-changes')).toHaveCount(0);
+  await expect(page.getByTestId('activity-changes')).toHaveCount(0);
+});
+
+test('a level-expanded piece can be collapsed from the explorer', async ({ page }) => {
+  await page.getByTestId('level-components').click();
+  await expect(page.getByTestId('node-reserve-stock')).toBeVisible();
+  await page.getByTestId('tree-toggle-worker').click();
+  await expect(page.getByTestId('node-reserve-stock')).toHaveCount(0);
+});

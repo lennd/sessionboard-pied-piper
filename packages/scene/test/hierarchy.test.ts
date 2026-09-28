@@ -58,6 +58,13 @@ describe('computeVisible', () => {
     expect(m.visible.has('lock')).toBe(true);
   });
 
+  it('local collapse hides the internals of level-expanded pieces', () => {
+    const m = computeVisible(scene, index, 'components', none, new Set(['worker']));
+    expect(m.expanded.has('worker')).toBe(false);
+    expect(m.visible.has('reserve')).toBe(false);
+    expect(m.representative.get('lock')).toBe('worker');
+  });
+
   it('keyOf omits edges that collapse into one visible piece', () => {
     const projected = projectEdges(scene, computeVisible(scene, index, 'architecture', none));
     expect(projected.keyOf.get('e3')).toBe('worker->db');

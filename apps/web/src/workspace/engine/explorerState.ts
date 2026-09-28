@@ -1,4 +1,4 @@
-import { ancestorsOf, descendantStepIds, findStep, indexScene, type Level, type Scene } from '@rdi/scene';
+import { ancestorsOf, computeVisible, descendantsOf, descendantStepIds, findStep, indexScene, type Level, type Scene } from '@rdi/scene';
 
 export type Mode = 'walkthrough' | 'risks' | 'changes';
 
@@ -6,6 +6,7 @@ export type ExplorerState = {
   sceneId: string;
   level: Level;
   localExpanded: string[];
+  localCollapsed: string[];
   openSteps: string[];
   selectedNodeId: string | null;
   mode: Mode;
@@ -15,7 +16,7 @@ export type ExplorerState = {
 };
 
 export type ExplorerAction =
-  | { type: 'loadScene'; sceneId: string; level: Level }
+  | { type: 'loadScene'; sceneId: string; level: Level; mode: Mode }
   | { type: 'setLevel'; level: Level }
   | { type: 'toggleExpand'; nodeId: string }
   | { type: 'toggleStep'; stepId: string }
@@ -27,7 +28,7 @@ export type ExplorerAction =
   | { type: 'toggleScaleOverlay' };
 
 export const initialExplorerState = (sceneId: string, level: Level): ExplorerState => ({
-  sceneId, level, localExpanded: [], openSteps: [], selectedNodeId: null, mode: 'walkthrough', selectedRiskId: null, codeNodeId: null, scaleOverlay: false,
+  sceneId, level, localExpanded: [], localCollapsed: [], openSteps: [], selectedNodeId: null, mode: 'walkthrough', selectedRiskId: null, codeNodeId: null, scaleOverlay: false,
 });
 
 const withItem = (list: string[], item: string) => (list.includes(item) ? list : [...list, item]);
@@ -41,6 +42,7 @@ const toggleStep = (state: ExplorerState, stepId: string, scene: Scene): Explore
       ...state,
       openSteps: [...state.openSteps, stepId],
       localExpanded: step.expand ? withItem(state.localExpanded, step.expand) : state.localExpanded,
+      localCollapsed: step.expand ? without(state.localCollapsed, new Set([step.expand])) : state.localCollapsed,
     };
   }
   const closing = new Set([stepId, ...descendantStepIds(step)]);
@@ -61,21 +63,32 @@ const selectRisk = (state: ExplorerState, riskId: string | null, scene: Scene): 
     selectedNodeId: risk.nodeIds[0] ?? null,
     level: state.level === 'system' ? 'architecture' : state.level,
     localExpanded: expand.reduce(withItem, state.localExpanded),
+    localCollapsed: without(state.localCollapsed, new Set(expand)),
   };
 };
 
 export const reduceExplorer = (state: ExplorerState, action: ExplorerAction, scene: Scene): ExplorerState => {
   switch (action.type) {
     case 'loadScene':
-      return { ...initialExplorerState(action.sceneId, action.level), scaleOverlay: state.scaleOverlay };
+      return { ...initialExplorerState(action.sceneId, action.level), mode: action.mode, scaleOverlay: state.scaleOverlay };
     case 'setLevel':
-      return { ...state, level: action.level };
+      return { ...state, level: action.level, localCollapsed: [] };
     case 'toggleExpand': {
       const index = indexScene(scene);
       if ((index.children.get(action.nodeId)?.length ?? 0) === 0) return state;
-      return state.localExpanded.includes(action.nodeId)
-        ? { ...state, localExpanded: without(state.localExpanded, new Set([action.nodeId])) }
-        : { ...state, localExpanded: [...state.localExpanded, action.nodeId] };
+      const model = computeVisible(scene, index, state.level, new Set(state.localExpanded), new Set(state.localCollapsed));
+      if (model.expanded.has(action.nodeId)) {
+        return {
+          ...state,
+          localExpanded: without(state.localExpanded, new Set([action.nodeId, ...descendantsOf(index, action.nodeId)])),
+          localCollapsed: withItem(state.localCollapsed, action.nodeId),
+        };
+      }
+      return {
+        ...state,
+        localExpanded: withItem(state.localExpanded, action.nodeId),
+        localCollapsed: without(state.localCollapsed, new Set([action.nodeId, ...ancestorsOf(index, action.nodeId)])),
+      };
     }
     case 'toggleStep':
       return toggleStep(state, action.stepId, scene);
