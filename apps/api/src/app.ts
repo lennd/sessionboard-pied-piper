@@ -6,6 +6,7 @@ import { registerAuth } from './http/auth';
 import type { AppDeps } from './http/deps';
 import { authRoutes } from './routes/auth';
 import { devRoutes } from './routes/dev';
+import { codeRoutes } from './routes/code';
 import { githubRoutes } from './routes/github';
 import { invitationRoutes } from './routes/invitations';
 import { meRoutes } from './routes/me';
@@ -65,6 +66,7 @@ export const buildApp = ({ checks, onClose, checkTimeoutMs = DEFAULT_CHECK_TIMEO
         invitationRoutes(api, deps);
         repoRoutes(api, deps);
         githubRoutes(api, deps);
+        codeRoutes(api, deps);
         if (deps.config.devRoutes) devRoutes(api, deps);
       },
       { prefix: '/api' },
