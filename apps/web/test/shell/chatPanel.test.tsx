@@ -85,4 +85,28 @@ describe('ChatPanel', () => {
     fireEvent.click(screen.getByTestId('chat-send'));
     expect(await screen.findByTestId('chat-error')).toHaveTextContent('agent budget');
   });
+
+  it('survives browsers whose scrollIntoView returns a promise', async () => {
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = (() => Promise.resolve()) as unknown as typeof original;
+    try {
+      mockApi();
+      stream.mockImplementation(async (_o, _c, _b, onEvent: (e: ChatEvent) => void) => {
+        onEvent({ type: 'text', delta: 'one' });
+        onEvent({ type: 'text', delta: ' two' });
+      });
+      const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const view = renderShell(<ChatPanel orgId="o1" language="es" ctx={{ openScene: vi.fn(), selected: null, scene }} />, { session: sessionFixture() });
+      fireEvent.change(await screen.findByTestId('chat-input'), { target: { value: 'hi' } });
+      await waitFor(() => expect(screen.getByTestId('chat-send')).toBeEnabled());
+      fireEvent.click(screen.getByTestId('chat-send'));
+      expect(await screen.findByText('one two')).toBeInTheDocument();
+      view.unmount();
+      expect(errors.mock.calls.flat().join(' ')).not.toMatch(/destroy|must not return anything/);
+      errors.mockRestore();
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
 });
+

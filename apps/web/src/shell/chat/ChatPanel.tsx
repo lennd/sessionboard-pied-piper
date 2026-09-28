@@ -58,7 +58,9 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
   }, [orgId, conversationId]);
 
   useEffect(() => () => abort.current?.abort(), []);
-  useEffect(() => logEnd.current?.scrollIntoView?.({ block: 'end' }), [items, scenes, tool]);
+  useEffect(() => {
+    logEnd.current?.scrollIntoView?.({ block: 'end' });
+  }, [items, scenes, tool]);
 
   const startNew = () => {
     abort.current?.abort();

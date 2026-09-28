@@ -17,6 +17,7 @@ export default defineConfig({
         DB_ENSURE: 'true',
         REDIS_URL: 'redis://localhost:6391/2',
         RATE_LIMITS: 'off',
+        RDI_FAKE_LLM: 'true',
       },
     },
     {
