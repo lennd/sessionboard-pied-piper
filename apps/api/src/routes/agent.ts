@@ -1,8 +1,9 @@
-import type Anthropic from '@anthropic-ai/sdk';
+import Anthropic from '@anthropic-ai/sdk';
 import { buildSystemMap, SYSTEM_MAP_ID } from '@rdi/indexer';
 import { validateScene } from '@rdi/scene';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { windowHistory } from '../agent/history';
 import { questionOf, SYSTEM_PROMPT, userTurn } from '../agent/prompt';
 import { runAgent, type AgentEvent } from '../agent/runAgent';
 import { translateScene, TranslateError } from '../agent/translate';
@@ -100,8 +101,9 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
     }
     if ((await tokensUsed(orgId)) >= deps.config.agent.monthlyTokenBudget) return fail(reply, 429, 'token_budget_exceeded');
 
-    const history = (await listMessages(deps.pool, conversation.id)) as Anthropic.Beta.BetaMessageParam[];
-    const turn = itemsOf(history as Stored[]).turns + 1;
+    const stored = await listMessages(deps.pool, conversation.id);
+    const turn = itemsOf(stored).turns + 1;
+    const history = windowHistory(stored.filter((m) => !m.excluded).map(({ role, content }) => ({ role, content })) as Anthropic.Beta.BetaMessageParam[]);
     const language = body.language ?? req.auth!.user.explanation_language ?? req.member!.org.default_explanation_language;
     const repos = (await listRepos(deps.pool, orgId)).filter((r) => r.status === 'ready').map((r) => r.full_name);
     const user = userTurn(body.text, { language, focus: body.focus ?? null, repos });
@@ -138,12 +140,24 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
       send(type, data);
     };
 
-    const result = await runAgent({ llm, system: SYSTEM_PROMPT, history, user, ctx: toolContext, emit, signal: controller.signal });
-    await appendMessages(deps.pool, conversation.id, [user, ...result.appended] as Stored[]);
-    if (conversation.title === DEFAULT_CONVERSATION_TITLE) await renameConversation(deps.pool, conversation.id, body.text.slice(0, TITLE_LENGTH));
-    await addUsage(deps.pool, orgId, currentMonth(nowOf(deps)), result.usage.input, result.usage.output);
-    send('done', { sceneIds, usage: result.usage });
-    reply.raw.end();
+    const usage = { input: 0, output: 0 };
+    const heartbeat = setInterval(() => {
+      if (!reply.raw.writableEnded) reply.raw.write(': ping\n\n');
+    }, deps.config.agent.heartbeatMs);
+    try {
+      const result = await runAgent({ llm, system: SYSTEM_PROMPT, history, user, ctx: toolContext, emit, signal: controller.signal, usage });
+      const refused = result.errorCode === 'refusal';
+      await appendMessages(deps.pool, conversation.id, [{ ...user, excluded: refused }, ...result.appended] as Stored[]);
+      if (conversation.title === DEFAULT_CONVERSATION_TITLE) await renameConversation(deps.pool, conversation.id, body.text.slice(0, TITLE_LENGTH));
+    } catch (error) {
+      req.log.error(error);
+      send('error', { code: 'internal', message: 'The answer could not be completed.' });
+    } finally {
+      clearInterval(heartbeat);
+      await addUsage(deps.pool, orgId, currentMonth(nowOf(deps)), usage.input, usage.output).catch((error: unknown) => req.log.error(error));
+      send('done', { sceneIds, usage });
+      reply.raw.end();
+    }
     return reply;
   });
 
@@ -156,7 +170,7 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
       const map = deps.graph ? buildSystemMap(await deps.graph.readOrgGraph(orgId)) : null;
       source = map ? { id: null, conversationId: null, turn: 0, scene: map } : null;
     } else if (isUuid(sceneId)) {
-      const row = await findScene(deps.pool, orgId, sceneId);
+      const row = await findScene(deps.pool, orgId, req.auth!.user.id, sceneId);
       source = row ? { id: row.id, conversationId: row.conversation_id, turn: row.turn, scene: row.scene } : null;
     }
     const valid = source ? validateScene(source.scene) : null;
@@ -168,14 +182,21 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
       if (!hit.allowed) return fail(reply, 429, 'rate_limited', { retryAfter: hit.retryAfter });
     }
     if ((await tokensUsed(orgId)) >= deps.config.agent.monthlyTokenBudget) return fail(reply, 429, 'token_budget_exceeded');
+    const usage = { input: 0, output: 0 };
+    const controller = new AbortController();
+    reply.raw.on('close', () => {
+      if (!reply.raw.writableFinished) controller.abort();
+    });
     try {
-      const { scene, usage } = await translateScene(llm, valid.scene, language);
-      await addUsage(deps.pool, orgId, currentMonth(nowOf(deps)), usage.input, usage.output);
+      const { scene } = await translateScene(llm, valid.scene, language, { usage, signal: controller.signal });
       const row = await insertScene(deps.pool, { orgId, conversationId: source.conversationId, sourceSceneId: source.id, turn: source.turn, scene });
       return reply.code(201).send({ id: row.id, scene });
     } catch (error) {
       if (error instanceof TranslateError) return fail(reply, 422, 'translation_failed');
+      if (error instanceof Anthropic.APIError || controller.signal.aborted) return fail(reply, 502, 'llm_error');
       throw error;
+    } finally {
+      await addUsage(deps.pool, orgId, currentMonth(nowOf(deps)), usage.input, usage.output);
     }
   });
 };

@@ -35,10 +35,12 @@ describe('agent queries', () => {
     const { owner, org } = await setup();
     const conv = await createConversation(ctx.pool, { orgId: org.id, userId: owner.userId });
     const row = await insertScene(ctx.pool, { orgId: org.id, conversationId: conv.id, sourceSceneId: null, turn: 1, scene: { id: 's' } });
-    expect(await findScene(ctx.pool, org.id, row.id)).toMatchObject({ turn: 1, scene: { id: 's' } });
+    expect(await findScene(ctx.pool, org.id, owner.userId, row.id)).toMatchObject({ turn: 1, scene: { id: 's' } });
     expect((await listConversationScenes(ctx.pool, conv.id)).map((s) => s.id)).toEqual([row.id]);
     const other = await setup();
-    expect(await findScene(ctx.pool, other.org.id, row.id)).toBeNull();
+    expect(await findScene(ctx.pool, other.org.id, other.owner.userId, row.id)).toBeNull();
+    const colleague = await signupVerified(ctx);
+    expect(await findScene(ctx.pool, org.id, colleague.userId, row.id)).toBeNull();
   });
 
   it('accumulates monthly token usage', async () => {

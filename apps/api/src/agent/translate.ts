@@ -28,11 +28,16 @@ export const sameStructure = (a: Scene, b: Scene): string[] => {
   return checks.filter(([, x, y]) => JSON.stringify(x) !== JSON.stringify(y)).map(([name]) => `${name} differ from the original`);
 };
 
-export const translateScene = async (llm: LlmClient, scene: Scene, language: string): Promise<{ scene: Scene; usage: { input: number; output: number } }> => {
-  const usage = { input: 0, output: 0 };
+export const translateScene = async (
+  llm: LlmClient,
+  scene: Scene,
+  language: string,
+  options: { usage?: { input: number; output: number }; signal?: AbortSignal } = {},
+): Promise<{ scene: Scene; usage: { input: number; output: number } }> => {
+  const usage = options.usage ?? { input: 0, output: 0 };
   const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: `${TRANSLATE_MARKER} ${language}\n\n${JSON.stringify(scene)}` }];
   for (let attempt = 0; attempt < MAX_TRANSLATE_ATTEMPTS; attempt++) {
-    const message = await llm.turn({ system: TRANSLATE_SYSTEM, messages, tools: emitSceneTool });
+    const message = await llm.turn({ system: TRANSLATE_SYSTEM, messages, tools: emitSceneTool, signal: options.signal });
     usage.input += message.usage.input_tokens + (message.usage.cache_creation_input_tokens ?? 0) + (message.usage.cache_read_input_tokens ?? 0);
     usage.output += message.usage.output_tokens;
     const call = message.content.find((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === 'tool_use' && b.name === 'emit_scene');

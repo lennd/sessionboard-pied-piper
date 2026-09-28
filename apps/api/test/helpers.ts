@@ -12,9 +12,9 @@ import { TEST_DATABASE_URL, TEST_REDIS_URL } from './setup/env';
 const TABLES = ['repos', 'github_installations', 'invitations', 'email_tokens', 'sessions', 'memberships', 'orgs', 'users'];
 const RATE_PREFIX = 'rltest';
 
-export const createTestContext = async (options: { github?: Config['github']; githubClient?: GitHubClient; llm?: LlmClient | null } = {}) => {
+export const createTestContext = async (options: { github?: Config['github']; githubClient?: GitHubClient; llm?: LlmClient | null; heartbeatMs?: number } = {}) => {
   const base = loadConfig({ DATABASE_URL: TEST_DATABASE_URL, REDIS_URL: TEST_REDIS_URL, RDI_DEV_ROUTES: 'true', RATE_LIMIT_PREFIX: RATE_PREFIX });
-  const config: Config = { ...base, github: options.github ?? null };
+  const config: Config = { ...base, github: options.github ?? null, agent: { ...base.agent, heartbeatMs: options.heartbeatMs ?? base.agent.heartbeatMs } };
   const pool = createPgPool(config.databaseUrl, 5);
   const redis = createRedisClient(config.redisUrl);
   const mailer = createDevMailer(() => {});

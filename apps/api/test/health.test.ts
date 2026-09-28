@@ -53,7 +53,7 @@ describe('loadConfig', () => {
       trustProxy: false,
       demoRepos: true,
       github: null,
-      agent: { enabled: false, fake: false, model: 'claude-opus-5', monthlyTokenBudget: 2_000_000 },
+      agent: { enabled: false, fake: false, model: 'claude-opus-5', monthlyTokenBudget: 2_000_000, heartbeatMs: 15_000 },
     });
   });
 

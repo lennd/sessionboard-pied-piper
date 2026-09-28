@@ -4,7 +4,7 @@ export const DEFAULT_CONVERSATION_TITLE = 'New conversation';
 const CONVERSATION_LIST_LIMIT = 50;
 
 export type ConversationRow = { id: string; org_id: string; user_id: string; title: string; created_at: Date; updated_at: Date };
-export type StoredMessage = { role: 'user' | 'assistant'; content: unknown };
+export type StoredMessage = { role: 'user' | 'assistant'; content: unknown; excluded?: boolean };
 export type SceneRow = { id: string; org_id: string; conversation_id: string | null; source_scene_id: string | null; turn: number; scene: unknown; created_at: Date };
 
 export const createConversation = async (db: Db, input: { orgId: string; userId: string; title?: string }): Promise<ConversationRow> =>
@@ -23,15 +23,15 @@ export const renameConversation = async (db: Db, id: string, title: string): Pro
 export const appendMessages = async (db: Db, conversationId: string, messages: StoredMessage[]): Promise<void> => {
   if (messages.length === 0) return;
   await db.query(
-    `insert into conversation_messages (conversation_id, role, content)
-     select $1, t.e->>'role', t.e->'content' from jsonb_array_elements($2::jsonb) with ordinality as t(e, n) order by t.n`,
+    `insert into conversation_messages (conversation_id, role, content, excluded)
+     select $1, t.e->>'role', t.e->'content', coalesce((t.e->>'excluded')::boolean, false) from jsonb_array_elements($2::jsonb) with ordinality as t(e, n) order by t.n`,
     [conversationId, JSON.stringify(messages)],
   );
   await db.query('update conversations set updated_at = now() where id = $1', [conversationId]);
 };
 
 export const listMessages = async (db: Db, conversationId: string): Promise<StoredMessage[]> =>
-  (await db.query<StoredMessage>('select role, content from conversation_messages where conversation_id = $1 order by id', [conversationId])).rows;
+  (await db.query<StoredMessage>('select role, content, excluded from conversation_messages where conversation_id = $1 order by id', [conversationId])).rows;
 
 export const insertScene = async (
   db: Db,
@@ -44,8 +44,14 @@ export const insertScene = async (
     )
   ).rows[0]!;
 
-export const findScene = async (db: Db, orgId: string, id: string): Promise<SceneRow | null> =>
-  (await db.query<SceneRow>('select * from scenes where org_id = $1 and id = $2', [orgId, id])).rows[0] ?? null;
+export const findScene = async (db: Db, orgId: string, userId: string, id: string): Promise<SceneRow | null> =>
+  (
+    await db.query<SceneRow>(
+      `select s.* from scenes s left join conversations c on c.id = s.conversation_id
+       where s.org_id = $1 and s.id = $2 and (s.conversation_id is null or c.user_id = $3)`,
+      [orgId, id, userId],
+    )
+  ).rows[0] ?? null;
 
 export const listConversationScenes = async (db: Db, conversationId: string): Promise<SceneRow[]> =>
   (await db.query<SceneRow>('select * from scenes where conversation_id = $1 order by created_at', [conversationId])).rows;

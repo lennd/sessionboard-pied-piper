@@ -201,6 +201,14 @@ const emitScene = (input: unknown): ToolOutcome => {
 };
 
 export const executeTool = async (name: string, input: unknown, ctx: ToolContext): Promise<ToolOutcome> => {
+  try {
+    return await runTool(name, input, ctx);
+  } catch (error) {
+    return { content: `Tool ${name} failed: ${error instanceof Error ? error.message : String(error)}`, isError: true, summary: `${name} (failed)` };
+  }
+};
+
+const runTool = async (name: string, input: unknown, ctx: ToolContext): Promise<ToolOutcome> => {
   switch (name) {
     case 'search_graph': {
       const parsed = searchInput.safeParse(input);

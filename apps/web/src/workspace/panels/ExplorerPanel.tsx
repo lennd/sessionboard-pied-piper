@@ -40,10 +40,10 @@ export const ExplorerPanel = (p: ExplorerPanelProps) => {
           </button>
         ))}
       </nav>
-      {sidebar === 'chat' ? (
-        <aside className="ws-explorer ws-chat" data-testid="chat-panel-host">{p.chatSlot}</aside>
-      ) : (
-      <aside className="ws-explorer">
+      {p.chatSlot !== undefined && (
+        <aside className="ws-explorer ws-chat" data-testid="chat-panel-host" hidden={sidebar !== 'chat'}>{p.chatSlot}</aside>
+      )}
+      <aside className="ws-explorer" hidden={sidebar === 'chat'}>
         <div className="sec-title">{t('explorer.title')} · {t(`level.${p.explorer.level}`)}</div>
         <div className="tree">
           {items.map((item) => {
@@ -83,7 +83,6 @@ export const ExplorerPanel = (p: ExplorerPanelProps) => {
           </>
         )}
       </aside>
-      )}
     </>
   );
 };

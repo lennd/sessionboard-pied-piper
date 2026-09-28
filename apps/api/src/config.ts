@@ -15,7 +15,7 @@ export type Config = {
   trustProxy: boolean | number | string;
   demoRepos: boolean;
   github: { appId: string; privateKey: string; slug: string; webhookSecret: string; stateSecret: string } | null;
-  agent: { enabled: boolean; fake: boolean; model: string; monthlyTokenBudget: number };
+  agent: { enabled: boolean; fake: boolean; model: string; monthlyTokenBudget: number; heartbeatMs: number };
 };
 
 const DEFAULTS = {
@@ -55,10 +55,12 @@ const readGithub = (env: NodeJS.ProcessEnv): Config['github'] => {
   return { appId: GITHUB_APP_ID, privateKey: GITHUB_APP_PRIVATE_KEY.replace(/\\n/g, '\n'), slug: GITHUB_APP_SLUG, webhookSecret: GITHUB_WEBHOOK_SECRET, stateSecret: GITHUB_STATE_SECRET };
 };
 
+const SSE_HEARTBEAT_MS = 15_000;
+
 const readAgent = (env: NodeJS.ProcessEnv, production: boolean, read: (key: keyof typeof DEFAULTS) => string): Config['agent'] => {
   const fake = !production && read('RDI_FAKE_LLM') === 'true';
   const credentials = Boolean(env.ANTHROPIC_API_KEY || env.ANTHROPIC_AUTH_TOKEN);
-  return { enabled: fake || credentials || read('AGENT_ENABLED') === 'true', fake, model: read('AGENT_MODEL'), monthlyTokenBudget: Number(read('AGENT_MONTHLY_TOKEN_BUDGET')) };
+  return { enabled: fake || credentials || read('AGENT_ENABLED') === 'true', fake, model: read('AGENT_MODEL'), monthlyTokenBudget: Number(read('AGENT_MONTHLY_TOKEN_BUDGET')), heartbeatMs: SSE_HEARTBEAT_MS };
 };
 
 export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {

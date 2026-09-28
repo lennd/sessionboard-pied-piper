@@ -167,4 +167,17 @@ describe('runAgent', () => {
     expect(result).toMatchObject({ stop: 'error', appended: [] });
     expect(events.at(-1)).toMatchObject({ type: 'error', code: 'aborted' });
   });
+
+  it('keeps usage in the caller-owned accumulator even when a later step throws', async () => {
+    const { llm } = scripted([toolMsg({ id: 't', name: 'emit_scene', input: validScene })]);
+    const usageBox = { input: 0, output: 0 };
+    const emit = (e: AgentEvent) => { if (e.type === 'scene') throw new Error('db down'); };
+    await expect(runAgent({ llm, system: 's', history: [], user, ctx, emit, usage: usageBox })).rejects.toThrow('db down');
+    expect(usageBox).toEqual({ input: 15, output: 5 });
+  });
+
+  it('reports the error code of a failed turn', async () => {
+    const { llm } = scripted([msg([{ type: 'text', text: '' }], 'refusal')]);
+    expect(await runAgent({ llm, system: 's', history: [], user, ctx, emit: () => {} })).toMatchObject({ stop: 'error', errorCode: 'refusal' });
+  });
 });

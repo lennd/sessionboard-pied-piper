@@ -95,3 +95,11 @@ describe('emit_scene', () => {
     expect(await run('rm_rf', {})).toMatchObject({ isError: true, content: 'Unknown tool "rm_rf".' });
   });
 });
+
+describe('tool failures', () => {
+  it('turns exceptions into error results the model can recover from', async () => {
+    const failing: ToolContext = { ...ctx, prFiles: async () => { throw new Error('GitHub API 404: Not Found'); } };
+    expect(await executeTool('get_pr_diff', { repo: 'acme-demo/shop-api', number: 99 }, failing)).toMatchObject({ isError: true, content: 'Tool get_pr_diff failed: GitHub API 404: Not Found' });
+  });
+});
+

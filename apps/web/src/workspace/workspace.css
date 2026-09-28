@@ -136,3 +136,5 @@ button, select, input { font: inherit; color: inherit; }
 .chat-input textarea { width: 100%; min-height: 64px; resize: vertical; background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px; font: inherit; }
 .chat-chip { align-self: flex-start; font-size: 12px; }
 .chat-notice { margin: 10px; padding: 8px 10px; border-radius: var(--radius); background: color-mix(in srgb, var(--warn, #f5a524) 14%, transparent); font-size: 13px; }
+
+.ws-explorer[hidden] { display: none; }

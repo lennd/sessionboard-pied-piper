@@ -12,7 +12,8 @@ export type AgentEvent =
   | { type: 'scene'; scene: Scene }
   | { type: 'error'; code: 'refusal' | 'max_tokens' | 'max_iterations' | 'llm_error' | 'aborted'; message: string };
 
-export type AgentResult = { appended: Param[]; scenes: Scene[]; usage: { input: number; output: number }; stop: 'end_turn' | 'error' };
+type ErrorCode = Extract<AgentEvent, { type: 'error' }>['code'];
+export type AgentResult = { appended: Param[]; scenes: Scene[]; usage: { input: number; output: number }; stop: 'end_turn' | 'error'; errorCode?: ErrorCode };
 
 export const MAX_ITERATIONS = 10;
 export const MAX_JSON_RETRIES = 2;
@@ -28,15 +29,16 @@ export const runAgent = async (input: {
   ctx: ToolContext;
   emit: (event: AgentEvent) => void | Promise<void>;
   signal?: AbortSignal;
+  usage?: { input: number; output: number };
 }): Promise<AgentResult> => {
   const appended: Param[] = [];
   const scenes: Scene[] = [];
-  const usage = { input: 0, output: 0 };
+  const usage = input.usage ?? { input: 0, output: 0 };
   let invalidScenes = 0;
   let jsonRetries = 0;
-  const fail = async (code: Extract<AgentEvent, { type: 'error' }>['code'], message: string): Promise<AgentResult> => {
+  const fail = async (code: ErrorCode, message: string): Promise<AgentResult> => {
     await input.emit({ type: 'error', code, message });
-    return { appended, scenes, usage, stop: 'error' };
+    return { appended, scenes, usage, stop: 'error', errorCode: code };
   };
 
   for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {

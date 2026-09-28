@@ -2,7 +2,8 @@ import { fileURLToPath } from 'node:url';
 import { buildRepoGraph, detect, parseRepository, walkRepository } from '@rdi/indexer';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createFakeLlm } from '../src/agent/fakeLlm';
-import type { LlmClient } from '../src/agent/llm';
+import type { LlmClient, LlmTurnInput } from '../src/agent/llm';
+import Anthropic from '@anthropic-ai/sdk';
 import { addUsage, currentMonth } from '../src/db/queries/agent';
 import { authed, createTestContext, signupVerified, type TestContext } from './helpers';
 
@@ -149,3 +150,112 @@ describe('translating scenes', () => {
     expect(res.statusCode).toBe(404);
   });
 });
+
+const scriptedLlm = (steps: ((input: LlmTurnInput) => unknown)[]) => {
+  const inputs: LlmTurnInput[] = [];
+  const llm: LlmClient = {
+    model: 'scripted',
+    async turn(input) {
+      inputs.push({ ...input, messages: [...input.messages] });
+      const step = steps.shift();
+      if (!step) throw new Error('script exhausted');
+      const message = (await step(input)) as Anthropic.Beta.BetaMessage;
+      for (const block of message.content) if (block.type === 'text' && block.text) input.onText?.(block.text);
+      return message;
+    },
+  };
+  return { llm, inputs };
+};
+const reply = (content: unknown[], stop_reason: string) => ({ id: 'm', type: 'message', role: 'assistant', model: 'x', content, stop_reason, stop_sequence: null, usage: { input_tokens: 50, output_tokens: 5 } });
+
+describe('robustness', () => {
+  it('ends the stream and counts tokens when a tool fails', async () => {
+    const { llm } = scriptedLlm([
+      () => reply([{ type: 'tool_use', id: 't1', name: 'get_pr_diff', input: { repo: 'acme/api', number: 404 } }], 'tool_use'),
+      () => reply([{ type: 'text', text: 'That PR does not exist.' }], 'end_turn'),
+    ]);
+    const githubClient = { installationToken: async () => 'x', listInstallationRepos: async () => [], getInstallation: async () => ({ accountLogin: 'a' }), installUrl: () => '', listPullFiles: async () => { throw new Error('GitHub API 404: Not Found'); } };
+    const local = await createTestContext({ llm, githubClient });
+    try {
+      const { owner, org } = await setup(local);
+      const inst = (await local.pool.query<{ id: string }>("insert into github_installations (org_id, installation_id, account_login) values ($1, 4040, 'a') returning id", [org.id])).rows[0]!.id;
+      await local.pool.query("insert into repos (org_id, full_name, installation_id) values ($1, 'acme/api', $2)", [org.id, inst]);
+      const conv = await newConversation(owner, org.id, local);
+      const stream = events((await ask(owner, org.id, conv.id, { text: 'what does PR 404 change?' }, local)).body);
+      expect(stream.map((e) => e.event)).toEqual(['tool', 'tool', 'text', 'done']);
+      expect(stream[1]!.data).toMatchObject({ status: 'error' });
+      const usage = (await local.pool.query('select input_tokens, output_tokens from agent_usage where org_id = $1', [org.id])).rows[0];
+      expect(usage).toEqual({ input_tokens: '100', output_tokens: '10' });
+    } finally {
+      await local.close();
+    }
+  });
+
+  it('sends heartbeats while the model is silent', async () => {
+    const { llm } = scriptedLlm([async () => { await new Promise((r) => setTimeout(r, 120)); return reply([{ type: 'text', text: 'ok' }], 'end_turn'); }]);
+    const local = await createTestContext({ llm, heartbeatMs: 20 });
+    try {
+      const { owner, org } = await setup(local);
+      const conv = await newConversation(owner, org.id, local);
+      const body = (await ask(owner, org.id, conv.id, { text: 'hi' }, local)).body;
+      expect(body).toContain(': ping\n\n');
+      expect(events(body.split('\n\n').filter((c) => !c.startsWith(':')).join('\n\n') + '\n\n').at(-1)!.event).toBe('done');
+    } finally {
+      await local.close();
+    }
+  });
+
+  it('keeps refused questions visible but out of the model history', async () => {
+    const { llm, inputs } = scriptedLlm([
+      () => reply([{ type: 'text', text: '' }], 'refusal'),
+      () => reply([{ type: 'text', text: 'Sure.' }], 'end_turn'),
+    ]);
+    const local = await createTestContext({ llm });
+    try {
+      const { owner, org } = await setup(local);
+      const conv = await newConversation(owner, org.id, local);
+      await ask(owner, org.id, conv.id, { text: 'forbidden question' }, local);
+      await ask(owner, org.id, conv.id, { text: 'normal question' }, local);
+      const sent = JSON.stringify(inputs[1]!.messages);
+      expect(sent).not.toContain('forbidden question');
+      expect(sent).toContain('normal question');
+      const detail = (await local.app.inject({ method: 'GET', url: `/api/orgs/${org.id}/conversations/${conv.id}`, headers: { cookie: owner.cookie } })).json();
+      expect(detail.items.map((i: { text: string }) => i.text)).toEqual(['forbidden question', 'normal question', 'Sure.']);
+    } finally {
+      await local.close();
+    }
+  });
+
+  it('never lets another member of the org translate a private conversation scene', async () => {
+    const { owner, org } = await setup();
+    await indexApi(org.id);
+    const conv = await newConversation(owner, org.id);
+    const original = events((await ask(owner, org.id, conv.id, { text: 'orders' })).body).find((e) => e.event === 'scene')!.data;
+    const colleague = await signupVerified(ctx);
+    await ctx.pool.query("insert into memberships (org_id, user_id, role) values ($1, $2, 'member')", [org.id, colleague.userId]);
+    const res = await ctx.app.inject({ method: 'POST', url: `/api/orgs/${org.id}/scenes/${original.id}/translate`, headers: authed(colleague), payload: { language: 'es' } });
+    expect(res.statusCode).toBe(404);
+    expect((await ctx.pool.query('select count(*)::int as n from scenes where conversation_id = $1', [conv.id])).rows[0].n).toBe(1);
+  });
+
+  it('maps model failures during translation to llm_error and records the spent tokens', async () => {
+    const { llm } = scriptedLlm([
+      () => reply([{ type: 'tool_use', id: 't', name: 'emit_scene', input: { id: 'x' } }], 'tool_use'),
+      () => { throw new Anthropic.APIError(529, undefined, 'Overloaded', new Headers()); },
+    ]);
+    const local = await createTestContext({ llm });
+    try {
+      const { owner, org } = await setup(local);
+      const conv = await newConversation(owner, org.id, local);
+      const row = (await local.pool.query<{ id: string }>('insert into scenes (org_id, conversation_id, turn, scene) values ($1, $2, 1, $3) returning id', [org.id, conv.id, JSON.stringify((await import('@rdi/scene')).sampleRegistry['iot-telemetry'])])).rows[0]!;
+      const res = await local.app.inject({ method: 'POST', url: `/api/orgs/${org.id}/scenes/${row.id}/translate`, headers: authed(owner), payload: { language: 'es' } });
+      expect(res.statusCode).toBe(502);
+      expect(res.json()).toEqual({ error: { code: 'llm_error' } });
+      const usage = (await local.pool.query('select input_tokens from agent_usage where org_id = $1', [org.id])).rows[0];
+      expect(usage).toEqual({ input_tokens: '50' });
+    } finally {
+      await local.close();
+    }
+  });
+});
+

@@ -36,16 +36,20 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
   const [error, setError] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
   const justCreated = useRef<string | null>(null);
+  const autoSelected = useRef(false);
   const logEnd = useRef<HTMLDivElement | null>(null);
 
   const errorText = (code: string) => t((`errors.${code}` as MessageKey)) ?? t('errors.unknown');
 
   useEffect(() => {
-    if (conversationId === null && conversations.data?.[0]) setConversationId(conversations.data[0].id);
-  }, [conversations.data, conversationId]);
+    if (autoSelected.current || !conversations.data) return;
+    autoSelected.current = true;
+    if (conversations.data[0]) setConversationId(conversations.data[0].id);
+  }, [conversations.data]);
 
   useEffect(() => {
     if (!conversationId || conversationId === justCreated.current) return;
+    justCreated.current = null;
     let cancelled = false;
     void apiFetch<Conversation>(`/orgs/${orgId}/conversations/${conversationId}`).then((c) => {
       if (cancelled) return;
@@ -132,11 +136,11 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
   return (
     <div className="chat" data-testid="chat-panel">
       <div className="chat-head">
-        <select aria-label={t('chat.conversations')} data-testid="chat-conversations" value={conversationId ?? ''} onChange={(e) => setConversationId(e.target.value || null)}>
+        <select aria-label={t('chat.conversations')} data-testid="chat-conversations" value={conversationId ?? ''} disabled={busy} onChange={(e) => (e.target.value ? setConversationId(e.target.value) : startNew())}>
           <option value="">{t('chat.new')}</option>
           {(conversations.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
         </select>
-        <button type="button" className="btn" data-testid="chat-new" onClick={startNew}>+</button>
+        <button type="button" className="btn" data-testid="chat-new" disabled={busy} onClick={startNew}>+</button>
       </div>
       {agent.data && disabled && <p className="chat-notice" data-testid="chat-disabled">{t('chat.disabled')}</p>}
       <div className="chat-log">

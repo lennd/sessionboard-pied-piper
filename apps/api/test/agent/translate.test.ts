@@ -43,4 +43,22 @@ describe('translateScene', () => {
     const llm = llmReturning(...Array.from({ length: MAX_TRANSLATE_ATTEMPTS }, () => translated(base, 'pt')));
     await expect(translateScene(llm, base, 'es')).rejects.toBeInstanceOf(TranslateError);
   });
+
+describe('translateScene accounting', () => {
+  it('records usage from failed attempts before rethrowing model errors', async () => {
+    const bad = { ...translated(base, 'es'), nodes: base.nodes.slice(1) };
+    let calls = 0;
+    const llm: LlmClient = {
+      model: 'x',
+      async turn() {
+        calls++;
+        if (calls === 1) return reply(bad);
+        throw new Error('overloaded');
+      },
+    };
+    const usage = { input: 0, output: 0 };
+    await expect(translateScene(llm, base, 'es', { usage })).rejects.toThrow('overloaded');
+    expect(usage).toEqual({ input: 7, output: 3 });
+  });
+});
 });
