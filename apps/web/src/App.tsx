@@ -1,10 +1,11 @@
-import { sampleSceneRegistry, sampleScenes, type Scene } from '@rdi/scene';
+import { sampleSceneRegistry, sampleScenes, simulateLoad, type Scene } from '@rdi/scene';
 import { useCallback, useMemo, useReducer, useState } from 'react';
 import { Canvas } from './canvas/Canvas';
 import { frameAt } from './engine/frame';
 import { currentSceneId, enterZoom, goToDepth, rootNav, type NavState } from './engine/navigation';
 import { initialPlayerState, reducePlayer, type PlayerAction, type PlayerState } from './engine/player';
 import { usePlaybackClock } from './engine/usePlaybackClock';
+import { LoadPanel } from './panels/LoadPanel';
 import { NarrationPanel } from './panels/NarrationPanel';
 import { PayloadPanel } from './panels/PayloadPanel';
 import { PlayerControls } from './panels/PlayerControls';
@@ -36,6 +37,9 @@ export const App = () => {
   usePlaybackClock(player.playing, (deltaMs) => dispatch({ type: 'tick', deltaMs }));
 
   const frame = useMemo(() => frameAt(scene, player.stepIndex), [scene, player.stepIndex]);
+  const [rpsByScene, setRpsByScene] = useState<Record<string, number>>({});
+  const rps = rpsByScene[scene.id] ?? scene.load?.rps ?? 0;
+  const load = useMemo(() => (scene.load ? simulateLoad(scene, rps) : undefined), [scene, rps]);
 
   return (
     <div className="app">
@@ -56,9 +60,11 @@ export const App = () => {
           scene={scene}
           frame={frame}
           progress={player.progress}
+          load={load}
           onZoom={(nodeId) => setNav(enterZoom(nav, scene, nodeId, sampleSceneRegistry))}
         />
         <PlayerControls state={player} stepCount={scene.steps.length} dispatch={dispatch} />
+        <LoadPanel scene={scene} rps={rps} result={load} onRpsChange={(value) => setRpsByScene((prev) => ({ ...prev, [scene.id]: value }))} />
       </main>
     </div>
   );
