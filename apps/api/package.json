@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "test": "vitest run test/health.test.ts",
+    "test": "vitest run test/health.test.ts test/checks.test.ts",
     "test:integration": "vitest run test/health.integration.test.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
