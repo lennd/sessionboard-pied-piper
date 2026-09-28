@@ -1,4 +1,4 @@
-import { LEVELS, type Level, type Scene } from '@rdi/scene/v2';
+import { LEVELS, type Level, type Scene } from '@rdi/scene';
 import { useI18n } from '../../i18n/I18nProvider';
 import { primarySubtag, UI_LANGUAGES, type UiLanguage } from '../../i18n/messages';
 import { THEMES, type ThemeId } from '../../theme/themes';

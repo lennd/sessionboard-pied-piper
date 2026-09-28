@@ -1,4 +1,9 @@
-import type { Scene } from './schema';
+export type SimGraph = { nodes: { id: string }[]; edges: { id: string; from: string; to: string }[] };
+export type LoadConfig = {
+  rps: number;
+  nodes: Record<string, { capacity: number; latencyMs: number }>;
+  queues?: Record<string, { consumers: number; maxDepth?: number }>;
+};
 
 export type NodeLoad = {
   arrivalRps: number;
@@ -23,8 +28,8 @@ const MAX_STEADY_UTILIZATION = 0.95;
 const MS_PER_SECOND = 1000;
 const DEFAULT_ELAPSED_SECONDS = 10;
 
-const findBackEdges = (scene: Scene): Set<string> => {
-  const outgoing = new Map<string, Scene['edges']>();
+const findBackEdges = (scene: SimGraph): Set<string> => {
+  const outgoing = new Map<string, SimGraph['edges']>();
   scene.edges.forEach((e) => outgoing.set(e.from, [...(outgoing.get(e.from) ?? []), e]));
   const state = new Map<string, 'visiting' | 'done'>();
   const back = new Set<string>();
@@ -43,7 +48,7 @@ const findBackEdges = (scene: Scene): Set<string> => {
   return back;
 };
 
-const topologicalOrder = (scene: Scene, edges: Scene['edges']): string[] => {
+const topologicalOrder = (scene: SimGraph, edges: SimGraph['edges']): string[] => {
   const indegree = new Map(scene.nodes.map((n) => [n.id, 0]));
   edges.forEach((e) => indegree.set(e.to, (indegree.get(e.to) ?? 0) + 1));
   const ready = scene.nodes.filter((n) => indegree.get(n.id) === 0).map((n) => n.id);
@@ -69,7 +74,7 @@ const topologicalOrder = (scene: Scene, edges: Scene['edges']): string[] => {
  * capacity a backlog grows for `elapsedSeconds` on top of that capped baseline (total depth capped by
  * the queue's `maxDepth`), so latency and depth never drop as traffic rises. Results are estimates.
  */
-export const simulateLoad = (scene: Scene, rps: number, elapsedSeconds = DEFAULT_ELAPSED_SECONDS): LoadResult => {
+export const simulateLoad = (scene: SimGraph, load: LoadConfig | undefined, rps: number, elapsedSeconds = DEFAULT_ELAPSED_SECONDS): LoadResult => {
   if (!Number.isFinite(rps) || rps < 0) throw new RangeError(`rps must be a finite number >= 0, got ${rps}`);
 
   const backEdges = findBackEdges(scene);
@@ -82,8 +87,8 @@ export const simulateLoad = (scene: Scene, rps: number, elapsedSeconds = DEFAULT
   order.forEach((id) => {
     const parents = incoming(id);
     const arrival = parents.length === 0 ? rps : parents.reduce((sum, e) => sum + (nodes[e.from]?.throughputRps ?? 0), 0);
-    const config = scene.load?.nodes[id];
-    const queue = scene.load?.queues?.[id];
+    const config = load?.nodes[id];
+    const queue = load?.queues?.[id];
     const capacity = config ? config.capacity * (queue?.consumers ?? 1) : Number.POSITIVE_INFINITY;
     const baseLatency = config?.latencyMs ?? 0;
     const utilization = Number.isFinite(capacity) ? arrival / capacity : 0;

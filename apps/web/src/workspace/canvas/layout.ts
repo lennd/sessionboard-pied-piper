@@ -1,4 +1,4 @@
-import { topLevelGroups, type ProjectedEdge, type Scene, type SceneIndex, type VisibleModel } from '@rdi/scene/v2';
+import { topLevelGroups, type ProjectedEdge, type Scene, type SceneIndex, type VisibleModel } from '@rdi/scene';
 import ELK, { type ElkNode } from 'elkjs/lib/elk.bundled.js';
 import type { Rect } from './floating';
 

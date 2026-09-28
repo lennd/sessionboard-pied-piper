@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ancestorsOf, computeVisible, descendantsOf, indexScene, projectEdges, topLevelGroups, validateScene } from '../../src/v2/index';
+import { ancestorsOf, computeVisible, descendantsOf, indexScene, projectEdges, topLevelGroups, validateScene } from '../src/index';
 import { fixtureScene } from './fixture';
 
 const scene = fixtureScene();

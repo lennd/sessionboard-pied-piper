@@ -1,4 +1,4 @@
-import type { FlatStep, ProjectedEdges, VisibleModel } from '@rdi/scene/v2';
+import type { FlatStep, ProjectedEdges, VisibleModel } from '@rdi/scene';
 
 export type ActiveEdge = { key: string; reverse: boolean; label: string | null };
 

@@ -1,4 +1,4 @@
-import { ancestorsOf, descendantStepIds, findStep, indexScene, type Level, type Scene } from '@rdi/scene/v2';
+import { ancestorsOf, descendantStepIds, findStep, indexScene, type Level, type Scene } from '@rdi/scene';
 
 export type Mode = 'walkthrough' | 'risks' | 'changes';
 

@@ -1,6 +1,6 @@
 import {
   descendantsOf, type Change, type EdgeKind, type ProjectedEdges, type ScaleStatus, type Scene, type SceneIndex, type SceneRisk, type Severity, type VisibleModel,
-} from '@rdi/scene/v2';
+} from '@rdi/scene';
 import type { Edge, Node } from '@xyflow/react';
 import type { Mode } from '../engine/explorerState';
 import type { Frame } from '../engine/frame';

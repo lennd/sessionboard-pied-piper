@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { computeVisible, indexScene, projectEdges } from '@rdi/scene/v2';
+import { computeVisible, indexScene, projectEdges } from '@rdi/scene';
 import { absoluteRect, layoutScene, layoutSignature, PIECE_HEIGHT, PIECE_WIDTH } from '../../src/workspace/canvas/layout';
 import { fixtureScene } from './fixture';
 

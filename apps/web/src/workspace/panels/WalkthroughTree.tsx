@@ -1,4 +1,4 @@
-import type { FlatStep, Step } from '@rdi/scene/v2';
+import type { FlatStep, Step } from '@rdi/scene';
 import { useI18n } from '../../i18n/I18nProvider';
 
 type WalkthroughTreeProps = {

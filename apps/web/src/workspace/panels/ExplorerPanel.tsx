@@ -1,4 +1,4 @@
-import type { FlatStep, Scene, SceneIndex, SceneRisk, VisibleModel } from '@rdi/scene/v2';
+import type { FlatStep, Scene, SceneIndex, SceneRisk, VisibleModel } from '@rdi/scene';
 import { useI18n } from '../../i18n/I18nProvider';
 import type { ExplorerState, Mode } from '../engine/explorerState';
 import { buildExplorerTree } from './explorerTree';

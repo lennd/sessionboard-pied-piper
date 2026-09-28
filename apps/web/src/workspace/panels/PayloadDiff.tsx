@@ -1,4 +1,4 @@
-import type { Payload } from '@rdi/scene/v2';
+import type { Payload } from '@rdi/scene';
 import { diffLines } from 'diff';
 import { useI18n } from '../../i18n/I18nProvider';
 

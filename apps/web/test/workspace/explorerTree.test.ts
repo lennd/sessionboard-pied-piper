@@ -1,4 +1,4 @@
-import { computeVisible, indexScene } from '@rdi/scene/v2';
+import { computeVisible, indexScene } from '@rdi/scene';
 import { buildExplorerTree } from '../../src/workspace/panels/explorerTree';
 import { risksByNode } from '../../src/workspace/engine/risks';
 import { fixtureScene } from './fixture';

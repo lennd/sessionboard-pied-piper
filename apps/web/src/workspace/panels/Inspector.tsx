@@ -1,4 +1,4 @@
-import type { SceneNode, SceneRisk } from '@rdi/scene/v2';
+import type { SceneNode, SceneRisk } from '@rdi/scene';
 import { useI18n } from '../../i18n/I18nProvider';
 import type { Frame } from '../engine/frame';
 import { ComponentCard } from './ComponentCard';

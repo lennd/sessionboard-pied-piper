@@ -1,4 +1,4 @@
-import type { ProjectedEdges, Scene, SceneIndex, SceneRisk, VisibleModel } from '@rdi/scene/v2';
+import type { ProjectedEdges, Scene, SceneIndex, SceneRisk, VisibleModel } from '@rdi/scene';
 import { Background, Controls, ReactFlow, ReactFlowProvider, ViewportPortal, type NodeMouseHandler } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useMemo } from 'react';

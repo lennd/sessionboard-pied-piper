@@ -1,4 +1,4 @@
-import { topLevelGroups, type Scene, type SceneIndex, type SceneRisk, type Severity, type VisibleModel } from '@rdi/scene/v2';
+import { topLevelGroups, type Scene, type SceneIndex, type SceneRisk, type Severity, type VisibleModel } from '@rdi/scene';
 import { REPO_GLYPH, ROLE_GLYPHS } from '../canvas/glyphs';
 import { aggregateSeverity } from '../engine/risks';
 

@@ -1,4 +1,4 @@
-import { RISK_CATEGORIES, type RiskCategory, type Scene } from '@rdi/scene/v2';
+import { RISK_CATEGORIES, type RiskCategory, type Scene } from '@rdi/scene';
 import { useState } from 'react';
 import { useI18n } from '../../i18n/I18nProvider';
 import { severityRank } from '../engine/risks';

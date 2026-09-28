@@ -1,4 +1,4 @@
-import { descendantsOf, SCALE_STATUSES, SEVERITIES, type ScaleStatus, type Scene, type SceneIndex, type SceneNode, type SceneRisk, type Severity } from '@rdi/scene/v2';
+import { descendantsOf, SCALE_STATUSES, SEVERITIES, type ScaleStatus, type Scene, type SceneIndex, type SceneNode, type SceneRisk, type Severity } from '@rdi/scene';
 
 export const severityRank = (s: Severity): number => SEVERITIES.indexOf(s);
 export const statusRank = (s: ScaleStatus): number => SCALE_STATUSES.indexOf(s);

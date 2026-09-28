@@ -1,4 +1,4 @@
-import { computeVisible, flattenSteps, indexScene, projectEdges } from '@rdi/scene/v2';
+import { computeVisible, flattenSteps, indexScene, projectEdges } from '@rdi/scene';
 import { layoutScene } from '../../src/workspace/canvas/layout';
 import { toFlow, type ContainerData, type FlowEdgeData, type PieceData } from '../../src/workspace/canvas/toFlow';
 import { frameAt } from '../../src/workspace/engine/frame';

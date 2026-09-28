@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { sampleScenes } from '@rdi/scene/v2';
+import { sampleScenes } from '@rdi/scene';
 import { I18nProvider } from '../../src/i18n/I18nProvider';
 import { availableModes, hasScale, TopBar } from '../../src/workspace/panels/TopBar';
 import { fixtureScene } from './fixture';

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { flattenSteps, numberSteps } from '@rdi/scene/v2';
+import { flattenSteps, numberSteps } from '@rdi/scene';
 import { I18nProvider } from '../../src/i18n/I18nProvider';
 import { WalkthroughTree } from '../../src/workspace/panels/WalkthroughTree';
 import { fixtureScene } from './fixture';

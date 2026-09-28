@@ -1,4 +1,4 @@
-import { validateScene, type Scene } from '../../src/v2/index';
+import { validateScene, type Scene } from '../src/index';
 
 export const fixtureScene = (): Scene => {
   const result = validateScene({

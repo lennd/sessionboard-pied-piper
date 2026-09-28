@@ -1,37 +1,55 @@
 import { describe, expect, it } from 'vitest';
-import { defineScene, sampleSceneRegistry, sampleScenes, simulateLoad, validateScene } from '../src/index';
+import { defineScene, flattenSteps, indexScene, sampleRegistry, sampleScenes, validateScene, type Scene, type Step } from '../src/index';
 
-describe('sample scenes', () => {
-  it('are all valid and uniquely identified', () => {
-    sampleScenes.forEach((scene) => expect(validateScene(scene)).toMatchObject({ ok: true }));
-    expect(Object.keys(sampleSceneRegistry).sort()).toEqual(
-      ['pr-impact', 'speaker-reconcile-algorithm', 'speaker-sync-flow', 'speaker-sync-load'],
-    );
+const allSteps = (steps: Step[]): Step[] => steps.flatMap((s) => [s, ...allSteps(s.substeps)]);
+const shape = (scene: Scene) => ({
+  nodes: scene.nodes.map((n) => [n.id, n.role, n.parent ?? null, n.repo ?? null]),
+  edges: scene.edges.map((e) => [e.id, e.from, e.to]),
+  steps: allSteps(scene.steps).map((s) => [s.id, s.travel?.edgeId ?? null, s.expand ?? null]),
+  risks: scene.risks.map((r) => [r.id, r.category, r.severity]),
+});
+
+describe('samples', () => {
+  it('are valid and registered', () => {
+    sampleScenes.forEach((s) => expect(validateScene(s)).toMatchObject({ ok: true }));
+    expect(Object.keys(sampleRegistry).sort()).toEqual(['checkout-en', 'checkout-es', 'iot-telemetry']);
   });
 
-  it('cover every scene kind', () => {
-    expect(new Set(sampleScenes.map((s) => s.kind))).toEqual(new Set(['flow', 'algorithm', 'load', 'diff-impact']));
+  it('checkout exists in Spanish and English with identical structure', () => {
+    const es = sampleRegistry['checkout-es']!;
+    const en = sampleRegistry['checkout-en']!;
+    expect(es.language).toBe('es');
+    expect(en.language).toBe('en');
+    expect(shape(es)).toEqual(shape(en));
+    expect(es.nodes.find((n) => n.id === 'worker')!.summary).not.toBe(en.nodes.find((n) => n.id === 'worker')!.summary);
   });
 
-  it('resolve every zoom target inside the registry', () => {
-    sampleScenes.forEach((scene) =>
-      Object.values(scene.zoom ?? {}).forEach((target) => expect(sampleSceneRegistry[target]).toBeDefined()),
-    );
+  it('checkout covers every risk category, nesting two levels deep, code and changes', () => {
+    const s = sampleRegistry['checkout-es']!;
+    expect(new Set(s.risks.map((r) => r.category))).toEqual(new Set(['performance', 'security', 'complexity', 'reliability']));
+    expect(Math.max(...indexScene(s).depth.values())).toBe(2);
+    expect(s.nodes.some((n) => n.code?.snippet)).toBe(true);
+    expect(s.nodes.some((n) => n.change)).toBe(true);
   });
 
-  it('flow scene has at least one payload step', () => {
-    expect(sampleSceneRegistry['speaker-sync-flow']!.steps.some((s) => s.payload)).toBe(true);
+  it('every non-logic top-level piece in checkout declares scale', () => {
+    const s = sampleRegistry['checkout-en']!;
+    s.nodes.filter((n) => !n.parent && n.role !== 'actor').forEach((n) => expect(n.scale, n.id).toBeDefined());
   });
 
-  it('load scene saturates the queue at 4x its default rps', () => {
-    const load = sampleSceneRegistry['speaker-sync-load']!;
-    expect(simulateLoad(load, load.load!.rps).bottlenecks).toEqual([]);
-    expect(simulateLoad(load, load.load!.rps * 4).bottlenecks).toContain('queue');
+  it('every top-level step travels an edge', () => {
+    sampleScenes.forEach((s) => flattenSteps(s.steps, new Set()).forEach((f) => expect(f.step.travel, `${s.id}/${f.step.id}`).toBeDefined()));
+  });
+
+  it('iot telemetry is a non-web system with sub-steps', () => {
+    const s = sampleRegistry['iot-telemetry']!;
+    expect(s.nodes.map((n) => n.role)).toContain('channel');
+    expect(s.steps.some((st) => st.substeps.length > 0)).toBe(true);
   });
 
   it('defineScene throws readable errors', () => {
-    expect(() => defineScene({ id: 'x', title: 'x', kind: 'flow', nodes: [{ id: 'a', type: 'client', label: 'A' }] })).toThrow(
-      /steps: a "flow" scene needs at least one step/,
+    expect(() => defineScene({ id: 'x', title: 'x', language: 'en', nodes: [{ id: 'a', label: 'A', role: 'actor', kind: 'k', summary: 's', parent: 'b' }] })).toThrow(
+      /nodes\.0\.parent: unknown node "b"/,
     );
   });
 });

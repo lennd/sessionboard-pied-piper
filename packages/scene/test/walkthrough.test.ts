@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { descendantStepIds, findStep, flattenSteps, numberSteps, stepAncestors } from '../../src/v2/index';
+import { descendantStepIds, findStep, flattenSteps, numberSteps, stepAncestors } from '../src/index';
 import { fixtureScene } from './fixture';
 
 const { steps } = fixtureScene();

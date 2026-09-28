@@ -1,4 +1,4 @@
-import { indexScene } from '@rdi/scene/v2';
+import { indexScene } from '@rdi/scene';
 import { aggregateSeverity, maxSeverity, risksByNode, worstScale } from '../../src/workspace/engine/risks';
 import { fixtureScene } from './fixture';
 

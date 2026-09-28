@@ -1,4 +1,4 @@
-import { validateScene, type Scene } from '@rdi/scene/v2';
+import { validateScene, type Scene } from '@rdi/scene';
 
 export const fixtureScene = (): Scene => {
   const result = validateScene({

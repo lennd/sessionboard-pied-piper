@@ -1,4 +1,4 @@
-import { stepAncestors, type FlatStep, type Step } from '@rdi/scene/v2';
+import { stepAncestors, type FlatStep, type Step } from '@rdi/scene';
 
 export const resequenceCursor = (prev: FlatStep[], next: FlatStep[], cursor: number, steps: Step[]): number => {
   const current = prev[cursor]?.step.id;

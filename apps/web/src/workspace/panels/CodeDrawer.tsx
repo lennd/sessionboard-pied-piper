@@ -1,4 +1,4 @@
-import type { SceneNode } from '@rdi/scene/v2';
+import type { SceneNode } from '@rdi/scene';
 import { useI18n } from '../../i18n/I18nProvider';
 
 const KEYWORDS = /\b(async|await|const|let|var|function|return|if|else|for|while|of|in|new|throw|try|catch|class|export|import|from|def|self|None|True|False|SELECT|UPDATE|INSERT|WHERE|FROM|SET|FOR)\b/g;

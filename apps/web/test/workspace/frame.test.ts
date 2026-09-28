@@ -1,4 +1,4 @@
-import { computeVisible, flattenSteps, indexScene, projectEdges } from '@rdi/scene/v2';
+import { computeVisible, flattenSteps, indexScene, projectEdges } from '@rdi/scene';
 import { frameAt } from '../../src/workspace/engine/frame';
 import { stepPhase, TRAVEL_FRACTION } from '../../src/workspace/engine/phase';
 import { fixtureScene } from './fixture';

@@ -1,6 +1,6 @@
 import {
   computeVisible, flattenSteps, indexScene, numberSteps, projectEdges, sampleRegistry, sampleScenes, type Level, type Scene,
-} from '@rdi/scene/v2';
+} from '@rdi/scene';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { initialPlayerState, reducePlayer, type PlayerAction } from '../engine/player';
 import { usePlaybackClock } from '../engine/usePlaybackClock';

@@ -1,4 +1,4 @@
-import { flattenSteps } from '@rdi/scene/v2';
+import { flattenSteps } from '@rdi/scene';
 import { resequenceCursor } from '../../src/workspace/engine/resequence';
 import { fixtureScene } from './fixture';
 
