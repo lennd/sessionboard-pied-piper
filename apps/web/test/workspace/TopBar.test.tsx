@@ -51,4 +51,11 @@ describe('TopBar', () => {
     expect(screen.getByTestId('regenerate')).toBeDisabled();
     expect(screen.getByTestId('regenerate')).toHaveTextContent('Regenerar en Español');
   });
+  it('delegates language changes and renders the home link when provided', () => {
+    const onLanguage = vi.fn();
+    renderBar({ onLanguage, homeHref: '/orgs/o1/settings' });
+    fireEvent.change(screen.getByTestId('language-select'), { target: { value: 'pt' } });
+    expect(onLanguage).toHaveBeenCalledWith('pt');
+    expect(screen.getByTestId('home-link')).toHaveAttribute('href', '/orgs/o1/settings');
+  });
 });

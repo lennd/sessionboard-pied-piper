@@ -17,6 +17,7 @@ type TopBarProps = {
   scenes: Scene[]; scene: Scene; level: Level; mode: Mode; scaleOverlay: boolean; theme: ThemeId;
   onSceneChange: (id: string) => void; onLevel: (level: Level) => void; onMode: (mode: Mode) => void;
   onToggleOverlay: () => void; onTheme: (theme: ThemeId) => void;
+  onLanguage?: (language: UiLanguage) => void; homeHref?: string;
 };
 
 export const TopBar = (p: TopBarProps) => {
@@ -53,9 +54,12 @@ export const TopBar = (p: TopBarProps) => {
           {t('scene.regenerate', { language: t(`language.${language}`) })}
         </button>
       )}
-      <select className="select" data-testid="language-select" aria-label={t('language.label')} value={language} onChange={(e) => setLanguage(e.target.value as UiLanguage)}>
+      <select className="select" data-testid="language-select" aria-label={t('language.label')} value={language} onChange={(e) => (p.onLanguage ?? setLanguage)(e.target.value as UiLanguage)}>
         {UI_LANGUAGES.map((l) => <option key={l} value={l}>{t(`language.${l}`)}</option>)}
       </select>
+      {p.homeHref && (
+        <a className="btn" href={p.homeHref} data-testid="home-link" title={t('nav.settings')}>⚙ {t('nav.settings')}</a>
+      )}
       <select className="select" data-testid="theme-select" aria-label={t('theme.label')} value={p.theme} onChange={(e) => p.onTheme(e.target.value as ThemeId)}>
         {THEMES.map((th) => <option key={th} value={th}>◐ {t(`theme.${th}`)}</option>)}
       </select>

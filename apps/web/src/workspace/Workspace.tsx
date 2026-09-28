@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import { initialPlayerState, reducePlayer, type PlayerAction } from '../engine/player';
 import { usePlaybackClock } from '../engine/usePlaybackClock';
 import { useI18n } from '../i18n/I18nProvider';
+import type { UiLanguage } from '../i18n/messages';
 import { applyTheme, resolveTheme, THEME_STORAGE_KEY, type ThemeId } from '../theme/themes';
 import { Canvas } from './canvas/Canvas';
 import { initialExplorerState, reduceExplorer, type ExplorerAction } from './engine/explorerState';
@@ -22,18 +23,25 @@ import './workspace.css';
 const DEFAULT_LEVEL: Level = 'architecture';
 const sceneFor = (language: string): Scene => sampleRegistry[`checkout-${language}`] ?? sampleRegistry['checkout-en'] ?? (sampleScenes[0] as Scene);
 
-export const Workspace = () => {
+type WorkspaceProps = { theme?: ThemeId; onTheme?: (theme: ThemeId) => void; onLanguage?: (language: UiLanguage) => void; initialLevel?: Level; homeHref?: string };
+
+export const Workspace = ({ theme: controlledTheme, onTheme, onLanguage, initialLevel = DEFAULT_LEVEL, homeHref }: WorkspaceProps = {}) => {
   const { language } = useI18n();
   const [explorer, dispatchRaw] = useReducer(
     (state: ReturnType<typeof initialExplorerState>, action: ExplorerAction) => reduceExplorer(state, action, sampleRegistry[state.sceneId] ?? sceneFor(language)),
     undefined,
-    () => initialExplorerState(sceneFor(language).id, DEFAULT_LEVEL),
+    () => initialExplorerState(sceneFor(language).id, initialLevel),
   );
   const scene = sampleRegistry[explorer.sceneId] ?? sceneFor(language);
   const [player, dispatchPlayerRaw] = useReducer((s: typeof initialPlayerState, a: PlayerAction & { count: number }) => reducePlayer(s, a, a.count), initialPlayerState);
-  const [theme, setTheme] = useState<ThemeId>(() => resolveTheme(localStorage.getItem(THEME_STORAGE_KEY)));
+  const [localTheme, setLocalTheme] = useState<ThemeId>(() => resolveTheme(localStorage.getItem(THEME_STORAGE_KEY)));
+  const theme = controlledTheme ?? localTheme;
+  const setTheme = (next: ThemeId) => (onTheme ? onTheme(next) : setLocalTheme(next));
 
-  useEffect(() => { applyTheme(document.documentElement, theme); localStorage.setItem(THEME_STORAGE_KEY, theme); }, [theme]);
+  useEffect(() => {
+    applyTheme(document.documentElement, theme);
+    if (!controlledTheme) localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }, [theme, controlledTheme]);
 
   const index = useMemo(() => indexScene(scene), [scene]);
   const localSet = useMemo(() => new Set(explorer.localExpanded), [explorer.localExpanded]);
@@ -80,6 +88,7 @@ export const Workspace = () => {
         scenes={sampleScenes} scene={scene} level={explorer.level} mode={explorer.mode} scaleOverlay={explorer.scaleOverlay} theme={theme}
         onSceneChange={loadScene} onLevel={(level) => dispatchRaw({ type: 'setLevel', level })} onMode={(mode) => dispatchRaw({ type: 'setMode', mode })}
         onToggleOverlay={() => dispatchRaw({ type: 'toggleScaleOverlay' })} onTheme={setTheme}
+        onLanguage={onLanguage} homeHref={homeHref}
       />
       <div className="ws-body">
         <ExplorerPanel
