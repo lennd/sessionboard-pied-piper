@@ -44,3 +44,12 @@ the dialog creates a personal access token and gives you the two commands to con
 (`POST /mcp`, Streamable HTTP, `Authorization: Bearer rdi_…`) and start Claude Code on the solution. Claude Code reads it
 with `get_solution`, queries the graph with `query_graph`, saves new versions with `update_solution` and reports
 `report_task_progress`; the Solution page updates live. Set `PUBLIC_API_URL` when the API is not on `http://localhost:4040`.
+
+### Connect your GitHub repositories
+
+In Settings → Repositories press **Create GitHub App** (shown on local/dev servers when no App is configured). Choose your
+account or an organization, confirm on GitHub, and you are taken straight to the installation page: install it on your
+account and/or on organizations (an organization install may need an admin's approval). Press **Connect another account**
+to add more installations; repositories from every connected account are listed and indexed with their own installation
+token. On localhost the App's webhook is inactive, so use **Re-index** after pushing. Production deployments configure
+the App with `GITHUB_APP_*` environment variables instead; stored manifest credentials are ignored there.
