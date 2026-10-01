@@ -15,6 +15,8 @@ import { MembersPage } from './settings/MembersPage';
 import { PreferencesPage } from './settings/PreferencesPage';
 import { RepositoriesPage } from './settings/RepositoriesPage';
 import { SecurityPage } from './settings/SecurityPage';
+import { SolutionsPage } from './settings/SolutionsPage';
+import { TokensPage } from './settings/TokensPage';
 import { SettingsLayout } from './settings/SettingsLayout';
 import { UsagePage } from './settings/UsagePage';
 
@@ -48,6 +50,8 @@ export const router = createBrowserRouter([
           { path: 'usage', element: <UsagePage /> },
           { path: 'preferences', element: <PreferencesPage /> },
           { path: 'security', element: <SecurityPage /> },
+          { path: 'solutions', element: <SolutionsPage /> },
+          { path: 'tokens', element: <TokensPage /> },
         ],
       },
     ],

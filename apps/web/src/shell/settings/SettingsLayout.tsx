@@ -11,8 +11,8 @@ import { clearSession, useSession, type SessionData, type SessionOrg } from '../
 export type SettingsContext = { org: SessionOrg; session: SessionData };
 export const useSettingsContext = () => useOutletContext<SettingsContext>();
 
-const ORG_ITEMS: [string, MessageKey][] = [['general', 'nav.general'], ['members', 'nav.members'], ['repositories', 'nav.repositories'], ['usage', 'nav.usage']];
-const ACCOUNT_ITEMS: [string, MessageKey][] = [['preferences', 'nav.preferences'], ['security', 'nav.security']];
+const ORG_ITEMS: [string, MessageKey][] = [['general', 'nav.general'], ['members', 'nav.members'], ['repositories', 'nav.repositories'], ['usage', 'nav.usage'], ['solutions', 'nav.solutions']];
+const ACCOUNT_ITEMS: [string, MessageKey][] = [['preferences', 'nav.preferences'], ['security', 'nav.security'], ['tokens', 'nav.tokens']];
 
 export const SettingsLayout = () => {
   const { t } = useI18n();
