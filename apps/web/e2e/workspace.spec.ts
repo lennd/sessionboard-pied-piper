@@ -104,3 +104,28 @@ test('a level-expanded piece can be collapsed from the explorer', async ({ page 
   await page.getByTestId('tree-toggle-worker').click();
   await expect(page.getByTestId('node-reserve-stock')).toHaveCount(0);
 });
+
+test('pieces can be dragged, keep their place after reload and reset to the automatic layout', async ({ page }) => {
+  const node = page.locator('.react-flow__node[data-id="worker"]');
+  const flowPosition = async () => {
+    const transform = await node.evaluate((el) => (el as HTMLElement).style.transform);
+    const [, x, y] = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/.exec(transform) ?? [];
+    return { x: Number(x), y: Number(y) };
+  };
+  const before = await flowPosition();
+  const box = (await node.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 60, box.y + box.height / 2 + 90, { steps: 8 });
+  await page.mouse.up();
+  const moved = await flowPosition();
+  expect(Math.hypot(moved.x - before.x, moved.y - before.y)).toBeGreaterThan(20);
+
+  await page.reload();
+  await page.getByTestId('scene-select').selectOption('checkout-en');
+  await expect(page.getByTestId('node-worker')).toBeVisible();
+  await expect.poll(async () => { const p = await flowPosition(); return Math.hypot(p.x - moved.x, p.y - moved.y); }).toBeLessThan(2);
+
+  await page.getByTestId('layout-reset').click();
+  await expect.poll(async () => { const p = await flowPosition(); return Math.hypot(p.x - before.x, p.y - before.y); }).toBeLessThan(2);
+});
