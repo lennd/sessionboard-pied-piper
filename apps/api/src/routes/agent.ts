@@ -9,6 +9,8 @@ import { runAgent, type AgentEvent } from '../agent/runAgent';
 import { translateScene, TranslateError } from '../agent/translate';
 import type { ToolContext } from '../agent/tools';
 import { createRateLimiter } from '../auth/rateLimit';
+import { updateSolution } from '../db/queries/solutions';
+import { createFromDraft, proposeVersion } from '../solutions/service';
 import {
   addUsage, appendMessages, createConversation, currentMonth, DEFAULT_CONVERSATION_TITLE, findConversation, findRepoInstallation, findScene, getUsage,
   insertScene, listConversations, listConversationScenes, listMessages, readSource, renameConversation, type ConversationRow,
@@ -112,6 +114,15 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const toolContext: ToolContext = {
       loadGraph: () => (graph ??= deps.graph ? deps.graph.readOrgGraph(orgId) : Promise.resolve({ nodes: [], edges: [] })),
       readSource: (repo, path) => readSource(deps.pool, orgId, repo, path),
+      upsertSolution: async ({ solutionId, title, draft }) => {
+        if (solutionId) {
+          const { n } = await proposeVersion(deps, { orgId, solutionId, author: 'web', input: draft });
+          await updateSolution(deps.pool, solutionId, { title });
+          return { id: solutionId, n, title };
+        }
+        const created = await createFromDraft(deps, { orgId, userId: req.auth!.user.id, title, conversationId: conversation.id, author: 'web', input: draft });
+        return { ...created, title };
+      },
       prFiles: async (repo, number) => {
         const installation = await findRepoInstallation(deps.pool, orgId, repo);
         return installation !== null && deps.github ? deps.github.listPullFiles(installation, repo, number) : null;

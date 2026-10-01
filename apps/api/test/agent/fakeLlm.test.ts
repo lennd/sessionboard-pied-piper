@@ -30,4 +30,15 @@ describe('createFakeLlm', () => {
     const message = await turn([{ role: 'user', content: `${TRANSLATE_MARKER} pt\n\n${JSON.stringify(scene)}` }]);
     expect(toolUse(message)).toMatchObject({ name: 'emit_scene', input: { ...scene, language: 'pt' } });
   });
+
+  it('turns "I want" requests into a solution', async () => {
+    const user: Param = { role: 'user', content: [{ type: 'text', text: 'Respond in English (en).' }, { type: 'text', text: 'I want order cancellation' }] };
+    const first = await turn([user]);
+    const hits = [{ id: 'ep:a:POST /api/orders', label: 'Endpoint', name: 'POST /api/orders', summary: 'x' }, { id: 'queue:o:orders', label: 'Queue', name: 'orders', summary: 'q' }];
+    const second = await turn([user, { role: 'assistant', content: first.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUse(first).id, content: JSON.stringify(hits) }] }]);
+    const input = toolUse(second).input as { title: string; plan: { nodeRefs: string[] }[]; sceneProposed: { nodes: { id: string }[] } };
+    expect(toolUse(second).name).toBe('upsert_solution');
+    expect(input.title).toBe('I want order cancellation');
+    expect(input.plan.map((t) => t.nodeRefs[0])).toEqual(input.sceneProposed.nodes.map((n) => n.id));
+  });
 });

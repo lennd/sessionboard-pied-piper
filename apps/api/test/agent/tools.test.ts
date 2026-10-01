@@ -1,5 +1,5 @@
 import { sampleRegistry } from '@rdi/scene';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { executeTool, sceneInputSchema, TOOL_NAMES, toolDefinitions, type ToolContext } from '../../src/agent/tools';
 import { fixtureOrgGraph, fixtureSources } from './orgGraph';
 
@@ -10,6 +10,7 @@ beforeAll(async () => {
   ctx = {
     loadGraph: async () => graph,
     readSource: async (repo, path) => sources.get(`${repo}|${path}`) ?? null,
+    upsertSolution: async () => ({ id: 'x', n: 1, title: 'x' }),
     prFiles: async (repo, number) => (repo === 'acme-demo/shop-api' && number === 7 ? [{ filename: 'src/orders.ts', status: 'modified', patch: '@@ -1 +1 @@\n-a\n+b' }] : null),
   };
 });
@@ -103,3 +104,21 @@ describe('tool failures', () => {
   });
 });
 
+describe('upsert_solution', () => {
+  it('validates the draft and stores it through the context', async () => {
+    const scene = sampleRegistry['iot-telemetry']!;
+    const upsert = vi.fn().mockResolvedValue({ id: 'sol1', n: 1, title: 'Rate limits' });
+    const outcome = await executeTool('upsert_solution', { title: 'Rate limits', summary: 'Throttle devices', sceneProposed: scene, plan: [{ id: 't1', title: 'Limiter', nodeRefs: [scene.nodes[0]!.id] }] }, { ...ctx, upsertSolution: upsert });
+    expect(outcome).toMatchObject({ solution: { id: 'sol1', n: 1, title: 'Rate limits' } });
+    expect(outcome.content).toBe('Solution "Rate limits" saved as version 1 (id sol1).');
+    expect(upsert).toHaveBeenCalledWith({ title: 'Rate limits', solutionId: undefined, draft: expect.objectContaining({ summary: 'Throttle devices' }) });
+  });
+
+  it('returns the validation errors of an invalid draft without storing it', async () => {
+    const upsert = vi.fn();
+    const outcome = await executeTool('upsert_solution', { title: 'x', summary: 'x', plan: [{ id: 't1', title: 'A', dependsOn: ['nope'] }] }, { ...ctx, upsertSolution: upsert });
+    expect(outcome).toMatchObject({ isError: true });
+    expect(outcome.content).toContain('dependsOn "nope"');
+    expect(upsert).not.toHaveBeenCalled();
+  });
+});

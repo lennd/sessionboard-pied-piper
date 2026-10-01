@@ -32,6 +32,7 @@ const ctx: ToolContext = {
   loadGraph: async () => ({ nodes: [{ id: 'queue:o:orders', label: 'Queue', name: 'orders', summary: 'Orders queue', repoId: null, props: {} }], edges: [] }),
   readSource: async () => null,
   prFiles: async () => null,
+  upsertSolution: async () => ({ id: 'x', n: 1, title: 'x' }),
 };
 const user = { role: 'user' as const, content: 'How do orders flow?' };
 const collect = () => {
@@ -179,5 +180,13 @@ describe('runAgent', () => {
   it('reports the error code of a failed turn', async () => {
     const { llm } = scripted([msg([{ type: 'text', text: '' }], 'refusal')]);
     expect(await runAgent({ llm, system: 's', history: [], user, ctx, emit: () => {} })).toMatchObject({ stop: 'error', errorCode: 'refusal' });
+  });
+
+  it('emits solution events', async () => {
+    const scene = validScene;
+    const { llm } = scripted([toolMsg({ id: 's', name: 'upsert_solution', input: { title: 'Plan', summary: 's', sceneProposed: scene, plan: [] } }), textMsg('Saved.')]);
+    const { events, emit } = collect();
+    await runAgent({ llm, system: 's', history: [], user, ctx: { ...ctx, upsertSolution: async () => ({ id: 'sol', n: 1, title: 'Plan' }) }, emit });
+    expect(events).toContainEqual({ type: 'solution', id: 'sol', n: 1, title: 'Plan' });
   });
 });

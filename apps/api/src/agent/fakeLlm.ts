@@ -48,6 +48,12 @@ const languageOf = (messages: Param[]) => {
   return 'en';
 };
 
+const WANT = /^i want\b/i;
+const questionText = (messages: Param[]) => {
+  for (const m of [...messages].reverse()) if (m.role === 'user' && !blocks(m).some((b) => b.type === 'tool_result')) return textOf(m).at(-1) ?? '';
+  return '';
+};
+
 const sceneFrom = (hits: SearchHit[], language: string) => {
   const pieces = hits.slice(0, MAX_SCENE_PIECES);
   const nodes = pieces.map((h, i) => ({ id: `p${i + 1}`, label: h.name.slice(0, 110), role: ROLE_BY_LABEL[h.label] ?? 'compute', kind: h.label, summary: h.summary || h.name, graphRef: h.id }));
@@ -81,7 +87,14 @@ export const createFakeLlm = (): LlmClient => ({
         onText?.('I could not find matching pieces in the indexed repositories.');
         return text('I could not find matching pieces in the indexed repositories.');
       }
-      return toolUse('emit_scene', sceneFrom(hits, languageOf(messages)));
+      const scene = sceneFrom(hits, languageOf(messages));
+      const question = questionText(messages);
+      if (WANT.test(question)) {
+        const proposed = { ...scene, nodes: scene.nodes.map((n, i) => (i === 0 ? { ...n, change: 'modified' } : n)) };
+        const plan = proposed.nodes.map((n, i) => ({ id: `t${i + 1}`, title: `Update ${n.label}`, nodeRefs: [n.id], acceptance: ['Existing tests pass'], dependsOn: i === 0 ? [] : [`t${i}`] }));
+        return toolUse('upsert_solution', { title: question.slice(0, 200), summary: `Proposed change: ${question}`, sceneProposed: proposed, plan, risks: [{ title: 'Behaviour change for existing clients', severity: 'medium' }] });
+      }
+      return toolUse('emit_scene', scene);
     }
     const answer = `Here is how it fits together. ${payload.split('\n')[0]}`;
     onText?.(answer);
