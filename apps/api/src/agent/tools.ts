@@ -9,10 +9,11 @@ export type ToolContext = {
   readSource(repo: string, path: string): Promise<{ content: string; language: string } | null>;
   prFiles(repo: string, number: number): Promise<{ filename: string; status: string; patch?: string }[] | null>;
   upsertSolution(input: { solutionId?: string; title: string; draft: Record<string, unknown> }): Promise<{ id: string; n: number; title: string }>;
+  searchCode(query: string, repo?: string): Promise<{ repo: string; path: string; line: number; text: string }[]>;
 };
 export type ToolOutcome = { content: string; isError?: boolean; scene?: Scene; solution?: { id: string; n: number; title: string }; summary: string };
 
-export const TOOL_NAMES = ['search_graph', 'get_neighbors', 'find_path', 'read_code', 'get_pr_diff', 'emit_scene', 'upsert_solution'] as const;
+export const TOOL_NAMES = ['search_code', 'search_graph', 'get_neighbors', 'find_path', 'read_code', 'get_pr_diff', 'emit_scene', 'upsert_solution'] as const;
 export const MAX_READ_LINES = 400;
 const DEFAULT_SEARCH_LIMIT = 12;
 const MAX_SEARCH_LIMIT = 30;
@@ -31,6 +32,7 @@ const searchInput = z.object({
   labels: z.array(z.enum(NODE_LABELS)).optional(),
   limit: z.number().int().min(1).max(MAX_SEARCH_LIMIT).optional(),
 });
+const codeSearchInput = z.object({ query: z.string().trim().min(3).max(200), repo: z.string().min(1).max(200).optional() });
 const neighborsInput = z.object({
   id: z.string().min(1).max(500),
   direction: z.enum(['in', 'out', 'both']).optional(),
@@ -49,6 +51,11 @@ const jsonSchemaOf = (schema: z.ZodType): Anthropic.Beta.BetaTool['input_schema'
 export const sceneInputSchema = jsonSchemaOf(sceneSchema) as Record<string, unknown>;
 
 export const toolDefinitions: Anthropic.Beta.BetaTool[] = [
+  {
+    name: 'search_code',
+    description: 'Search the indexed source code of every repository by text (case-insensitive), e.g. a feature name, library, route fragment or function name. Returns repository, file, line number and the matching line. Start here when the question is about a feature; then read_code around the hits.',
+    input_schema: jsonSchemaOf(codeSearchInput),
+  },
   {
     name: 'search_graph',
     description: 'Search the organization System Graph (services, endpoints, files, queues, tables, external APIs, config keys) by keywords. Returns the best matching pieces with their ids, which the other tools accept.',
@@ -229,8 +236,17 @@ export const executeTool = async (name: string, input: unknown, ctx: ToolContext
   }
 };
 
+const searchCode = async (input: z.infer<typeof codeSearchInput>, ctx: ToolContext): Promise<ToolOutcome> => {
+  const matches = await ctx.searchCode(input.query, input.repo);
+  return { content: JSON.stringify({ matches }), summary: `search_code "${input.query}" → ${matches.length}` };
+};
+
 const runTool = async (name: string, input: unknown, ctx: ToolContext): Promise<ToolOutcome> => {
   switch (name) {
+    case 'search_code': {
+      const parsed = codeSearchInput.safeParse(input);
+      return parsed.success ? searchCode(parsed.data, ctx) : invalid(name, parsed.error);
+    }
     case 'search_graph': {
       const parsed = searchInput.safeParse(input);
       return parsed.success ? searchGraph(parsed.data, ctx) : invalid(name, parsed.error);

@@ -13,7 +13,7 @@ import { createRateLimiter } from '../auth/rateLimit';
 import { updateSolution } from '../db/queries/solutions';
 import { createFromDraft, proposeVersion } from '../solutions/service';
 import {
-  addUsage, appendMessages, createConversation, currentMonth, DEFAULT_CONVERSATION_TITLE, findConversation, findRepoInstallation, findScene, getUsage,
+  addUsage, appendMessages, createConversation, currentMonth, DEFAULT_CONVERSATION_TITLE, findConversation, findRepoInstallation, findScene, getUsage, searchSource,
   insertScene, listConversations, listConversationScenes, listMessages, readSource, renameConversation, type ConversationRow,
 } from '../db/queries/agent';
 import { listRepos } from '../db/queries/repos';
@@ -115,6 +115,7 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const toolContext: ToolContext = {
       loadGraph: () => (graph ??= deps.graph ? deps.graph.readOrgGraph(orgId) : Promise.resolve({ nodes: [], edges: [] })),
       readSource: (repo, path) => readSource(deps.pool, orgId, repo, path),
+      searchCode: (query, repo) => searchSource(deps.pool, orgId, query, repo ?? null),
       upsertSolution: async ({ solutionId, title, draft }) => {
         if (solutionId) {
           const { n } = await proposeVersion(deps, { orgId, solutionId, author: 'web', input: draft });

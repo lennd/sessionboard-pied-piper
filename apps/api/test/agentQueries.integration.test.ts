@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
-  addUsage, appendMessages, createConversation, currentMonth, DEFAULT_CONVERSATION_TITLE, findConversation, findRepoInstallation, findScene,
+  addUsage, appendMessages, createConversation, currentMonth, DEFAULT_CONVERSATION_TITLE, findConversation, findRepoInstallation, findScene, searchSource,
   getUsage, insertScene, listConversations, listConversationScenes, listMessages, readSource, renameConversation,
 } from '../src/db/queries/agent';
 import { authed, createTestContext, signupVerified, type TestContext } from './helpers';
@@ -60,6 +60,9 @@ describe('agent queries', () => {
     expect(await readSource(ctx.pool, org.id, 'acme/api', 'src/a.ts')).toEqual({ content: 'export const a = 1;', language: 'typescript' });
     const other = await setup();
     expect(await readSource(ctx.pool, other.org.id, 'acme/api', 'src/a.ts')).toBeNull();
+    expect(await searchSource(ctx.pool, org.id, 'CONST A', null)).toEqual([{ repo: 'acme/api', path: 'src/a.ts', line: 1, text: 'export const a = 1;' }]);
+    expect(await searchSource(ctx.pool, other.org.id, 'const a', null)).toEqual([]);
+    expect(await searchSource(ctx.pool, org.id, 'const a', 'acme/web')).toEqual([]);
     expect(await findRepoInstallation(ctx.pool, org.id, 'acme/api')).toBeNull();
     const inst = (await ctx.pool.query<{ id: string }>("insert into github_installations (org_id, installation_id, account_login) values ($1, 777, 'acme') returning id", [org.id])).rows[0]!.id;
     await ctx.pool.query('update repos set installation_id = $1 where id = $2', [inst, repo]);

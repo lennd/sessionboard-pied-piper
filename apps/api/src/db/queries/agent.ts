@@ -89,3 +89,36 @@ export const findRepoInstallation = async (db: Db, orgId: string, repoFullName: 
   ).rows[0];
   return row ? Number(row.installation_id) : null;
 };
+
+const SEARCH_FILE_LIMIT = 25;
+const SEARCH_MATCHES_PER_FILE = 5;
+const SEARCH_MATCH_LIMIT = 60;
+const SEARCH_LINE_CHARS = 200;
+const LIKE_SPECIAL = /[\\%_]/g;
+
+export type CodeMatch = { repo: string; path: string; line: number; text: string };
+
+/** Case-insensitive text search over the org's indexed source, a few matching lines per file. */
+export const searchSource = async (db: Db, orgId: string, query: string, repo: string | null): Promise<CodeMatch[]> => {
+  const pattern = `%${query.replace(LIKE_SPECIAL, (c) => `\\${c}`)}%`;
+  const rows = (
+    await db.query<{ full_name: string; path: string; content: string }>(
+      `select r.full_name, sf.path, sf.content from source_files sf join repos r on r.id = sf.repo_id
+       where r.org_id = $1 and ($3::text is null or r.full_name = $3) and sf.content ilike $2
+       order by length(sf.path), sf.path limit $4`,
+      [orgId, pattern, repo, SEARCH_FILE_LIMIT],
+    )
+  ).rows;
+  const needle = query.toLowerCase();
+  const matches: CodeMatch[] = [];
+  for (const row of rows) {
+    let inFile = 0;
+    const lines = row.content.split('\n');
+    for (let i = 0; i < lines.length && inFile < SEARCH_MATCHES_PER_FILE && matches.length < SEARCH_MATCH_LIMIT; i++) {
+      if (!lines[i]!.toLowerCase().includes(needle)) continue;
+      matches.push({ repo: row.full_name, path: row.path, line: i + 1, text: lines[i]!.trim().slice(0, SEARCH_LINE_CHARS) });
+      inFile += 1;
+    }
+  }
+  return matches;
+};

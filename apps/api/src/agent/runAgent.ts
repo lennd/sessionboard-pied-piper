@@ -16,9 +16,10 @@ export type AgentEvent =
 type ErrorCode = Extract<AgentEvent, { type: 'error' }>['code'];
 export type AgentResult = { appended: Param[]; scenes: Scene[]; usage: { input: number; output: number }; stop: 'end_turn' | 'error'; errorCode?: ErrorCode };
 
-export const MAX_ITERATIONS = 10;
+export const MAX_ITERATIONS = 16;
 export const MAX_JSON_RETRIES = 2;
 export const MAX_INVALID_SCENES = 3;
+export const WRAP_UP = 'You have reached your exploration budget. Do not search further: call emit_scene now with a scene built from what you found (mark uncertain parts in the summaries), then answer briefly.';
 export const STOP_EMITTING = 'Do not call emit_scene again in this answer; explain in text instead.';
 
 export const runAgent = async (input: {
@@ -44,12 +45,17 @@ export const runAgent = async (input: {
 
   for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
     const textEmits: (void | Promise<void>)[] = [];
+    const finalStep = iteration === MAX_ITERATIONS - 1 && scenes.length === 0;
+    const lastAppended = appended.at(-1);
+    if (finalStep && lastAppended?.role === 'user' && Array.isArray(lastAppended.content)) {
+      lastAppended.content = [...lastAppended.content, { type: 'text', text: WRAP_UP }];
+    }
     let message: Anthropic.Beta.BetaMessage;
     try {
       message = await input.llm.turn({
         system: input.system,
         messages: [...input.history, input.user, ...appended],
-        tools: input.tools ?? toolDefinitions,
+        tools: finalStep ? (input.tools ?? toolDefinitions).filter((t) => t.name === 'emit_scene') : input.tools ?? toolDefinitions,
         onText: (delta) => {
           if (delta) textEmits.push(input.emit({ type: 'text', delta }));
         },

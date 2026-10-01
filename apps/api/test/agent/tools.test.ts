@@ -11,6 +11,15 @@ beforeAll(async () => {
     loadGraph: async () => graph,
     readSource: async (repo, path) => sources.get(`${repo}|${path}`) ?? null,
     upsertSolution: async () => ({ id: 'x', n: 1, title: 'x' }),
+    searchCode: async (query, repo) => {
+      const matches: { repo: string; path: string; line: number; text: string }[] = [];
+      for (const [key, file] of sources) {
+        const [fileRepo, path] = key.split('|') as [string, string];
+        if (repo && fileRepo !== repo) continue;
+        file.content.split('\n').forEach((text, i) => { if (text.toLowerCase().includes(query.toLowerCase())) matches.push({ repo: fileRepo, path, line: i + 1, text }); });
+      }
+      return matches;
+    },
     prFiles: async (repo, number) => (repo === 'acme-demo/shop-api' && number === 7 ? [{ filename: 'src/orders.ts', status: 'modified', patch: '@@ -1 +1 @@\n-a\n+b' }] : null),
   };
 });
@@ -122,3 +131,17 @@ describe('upsert_solution', () => {
     expect(upsert).not.toHaveBeenCalled();
   });
 });
+
+describe('search_code', () => {
+  it('finds code lines by text across repositories', async () => {
+    const outcome = await run('search_code', { query: 'createOrderHandler' });
+    const result = json(outcome.content);
+    expect(result.matches).toEqual(expect.arrayContaining([
+      { repo: 'acme-demo/shop-api', path: 'src/server.ts', line: 6, text: "app.post('/api/orders', createOrderHandler);" },
+    ]));
+    expect(outcome.summary).toMatch(/^search_code "createOrderHandler" → \d+/);
+    expect(json((await run('search_code', { query: 'createOrderHandler', repo: 'acme-demo/shop-web' })).content).matches).toEqual([]);
+    expect(await run('search_code', { query: 'a' })).toMatchObject({ isError: true });
+  });
+});
+
