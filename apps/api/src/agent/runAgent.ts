@@ -19,6 +19,8 @@ export type AgentResult = { appended: Param[]; scenes: Scene[]; usage: { input: 
 export const MAX_ITERATIONS = 16;
 export const MAX_JSON_RETRIES = 2;
 export const MAX_INVALID_SCENES = 3;
+/** Steps reserved at the end for drawing (and, if needed, fixing) the scene. */
+export const WRAP_UP_STEPS = 3;
 export const WRAP_UP = 'You have reached your exploration budget. Do not search further: call emit_scene now with a scene built from what you found (mark uncertain parts in the summaries), then answer briefly.';
 export const STOP_EMITTING = 'Do not call emit_scene again in this answer; explain in text instead.';
 
@@ -45,9 +47,9 @@ export const runAgent = async (input: {
 
   for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
     const textEmits: (void | Promise<void>)[] = [];
-    const finalStep = iteration === MAX_ITERATIONS - 1 && scenes.length === 0;
+    const finalStep = iteration >= MAX_ITERATIONS - WRAP_UP_STEPS && scenes.length === 0;
     const lastAppended = appended.at(-1);
-    if (finalStep && lastAppended?.role === 'user' && Array.isArray(lastAppended.content)) {
+    if (iteration === MAX_ITERATIONS - WRAP_UP_STEPS && finalStep && lastAppended?.role === 'user' && Array.isArray(lastAppended.content)) {
       lastAppended.content = [...lastAppended.content, { type: 'text', text: WRAP_UP }];
     }
     let message: Anthropic.Beta.BetaMessage;

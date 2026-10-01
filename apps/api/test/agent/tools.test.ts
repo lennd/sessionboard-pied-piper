@@ -145,3 +145,23 @@ describe('search_code', () => {
   });
 });
 
+describe('emit_scene repairs', () => {
+  it('drops internal pieces from groups and complexity on non-logic pieces instead of rejecting the scene', async () => {
+    const scene = {
+      id: 'saml', title: 'SAML', language: 'en',
+      nodes: [
+        { id: 'api', label: 'API', role: 'compute', kind: 'svc', summary: 's', complexity: { time: 'O(1)' } },
+        { id: 'router', label: 'Router', role: 'logic', kind: 'router', summary: 's', parent: 'api', complexity: { time: 'O(n)' } },
+        { id: 'db', label: 'DB', role: 'storage', kind: 'pg', summary: 's' },
+      ],
+      groups: [{ id: 'g1', label: 'Backend', nodeIds: ['api', 'router'] }, { id: 'g2', label: 'Inner', nodeIds: ['router'] }],
+    };
+    const outcome = await run('emit_scene', scene);
+    expect(outcome.isError).toBeFalsy();
+    expect(outcome.scene!.groups).toEqual([{ id: 'g1', label: 'Backend', nodeIds: ['api'] }]);
+    expect(outcome.scene!.nodes.find((n) => n.id === 'api')!.complexity).toBeUndefined();
+    expect(outcome.scene!.nodes.find((n) => n.id === 'router')!.complexity).toEqual({ time: 'O(n)' });
+    expect(outcome.content).toContain('Auto-fixed');
+  });
+});
+
