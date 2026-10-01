@@ -138,3 +138,17 @@ button, select, input { font: inherit; color: inherit; }
 .chat-notice { margin: 10px; padding: 8px 10px; border-radius: var(--radius); background: color-mix(in srgb, var(--warn, #f5a524) 14%, transparent); font-size: 13px; }
 
 .ws-explorer[hidden] { display: none; }
+
+.plan { display: flex; flex-direction: column; gap: 8px; padding: 10px; overflow: auto; height: 100%; }
+.plan-head { display: flex; justify-content: space-between; gap: 6px; align-items: center; }
+.plan-version { display: flex; gap: 6px; align-items: center; font-size: 12px; }
+.plan-tasks { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.plan-task { width: 100%; text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius); background: transparent; color: var(--text); cursor: pointer; font: inherit; }
+.plan-task.is-done { border-color: color-mix(in srgb, var(--ok, #3ccf91) 60%, var(--line)); }
+.plan-task.is-blocked { border-color: color-mix(in srgb, var(--bad, #ff6b81) 60%, var(--line)); }
+.plan-status { font-size: 11px; color: var(--muted); }
+.plan-note { font-size: 12px; color: var(--accent); }
+.plan-execute { margin-top: 8px; }
+.dialog-backdrop { position: fixed; inset: 0; background: rgba(4, 8, 20, 0.6); display: grid; place-items: center; z-index: 100; }
+.dialog { width: min(720px, 92vw); padding: 20px; border-radius: 14px; display: flex; flex-direction: column; gap: 8px; }
+.dialog pre { white-space: pre-wrap; word-break: break-all; padding: 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.35); font-size: 12px; }

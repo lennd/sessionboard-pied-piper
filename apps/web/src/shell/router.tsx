@@ -9,6 +9,7 @@ import { LoginPage } from './pages/LoginPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { ResetPage } from './pages/ResetPage';
 import { SignupPage } from './pages/SignupPage';
+import { SolutionPage } from './pages/SolutionPage';
 import { VerifyPage } from './pages/VerifyPage';
 import { GeneralPage } from './settings/GeneralPage';
 import { MembersPage } from './settings/MembersPage';
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/onboarding', element: <OnboardingPage /> },
       { path: '/orgs/:orgId/explore', element: <ExplorePage /> },
+      { path: '/orgs/:orgId/solutions/:solutionId', element: <SolutionPage /> },
       {
         path: '/orgs/:orgId/settings',
         element: <SettingsLayout />,
