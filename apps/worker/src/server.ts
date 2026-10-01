@@ -1,9 +1,9 @@
 import { createGraphStore } from '@rdi/graph';
-import { createGitHubClient } from '@rdi/providers';
 import { Worker } from 'bullmq';
 import { Redis } from 'ioredis';
 import pg from 'pg';
 import { INDEX_QUEUE, loadWorkerConfig, type IndexJobData } from './config';
+import { createGithubLoader } from './github';
 import { runIndexJob } from './pipeline';
 import { createSourceResolver } from './sources';
 
@@ -13,7 +13,7 @@ const pool = new pg.Pool({ connectionString: config.databaseUrl, max: POOL_SIZE 
 pool.on('error', () => {});
 const graph = createGraphStore(config.neo4jUrl, config.neo4jUser, config.neo4jPassword);
 await graph.ensureSchema();
-const resolveSource = createSourceResolver({ fixturesDir: config.fixturesDir, github: config.github ? createGitHubClient(config.github) : null });
+const resolveSource = createSourceResolver({ fixturesDir: config.fixturesDir, github: createGithubLoader({ pool, envConfig: config.github, production: process.env.NODE_ENV === 'production' }) });
 const connection = new Redis(config.redisUrl, { maxRetriesPerRequest: null });
 
 const worker = new Worker<IndexJobData>(

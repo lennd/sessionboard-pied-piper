@@ -3,33 +3,47 @@ import { DEMO_REPOS } from '@rdi/providers';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { REPO_LIMIT } from '../domain/constants';
-import { findInstallationForOrg } from '../db/queries/github';
+import { listInstallationsForOrg } from '../db/queries/github';
+import { manifestAvailable, resolveGithubApp } from '../github/app';
 import { countRepos, deleteRepoRow, findRepo, insertPendingRepo, listRepos, resetRepoStages } from '../db/queries/repos';
 import { fail, isUuid, requireAction, requireAuth, requireMember } from '../http/auth';
 import type { AppDeps } from '../http/deps';
 import { publicRepo } from '../http/payloads';
 
-type Available = { fullName: string; defaultBranch: string; source: 'github' | 'demo' };
+type Available = { fullName: string; defaultBranch: string; source: 'github' | 'demo'; account?: string; installationRowId?: string };
 const MAX_REPO_NAME = 200;
 
 export const repoRoutes = (api: FastifyInstance, deps: AppDeps) => {
   const member = [requireAuth, requireMember(deps)];
   const manage = [...member, requireAction('repos.manage')];
 
-  const availableFor = async (orgId: string): Promise<{ repos: Available[]; installationRowId: string | null }> => {
-    const installation = await findInstallationForOrg(deps.pool, orgId);
-    if (installation && deps.github) {
-      const repos = await deps.github.listInstallationRepos(Number(installation.installation_id));
-      return { repos: repos.map((r) => ({ fullName: r.fullName, defaultBranch: r.defaultBranch, source: 'github' as const })), installationRowId: installation.id };
+  const availableFor = async (orgId: string): Promise<Available[]> => {
+    const installations = await listInstallationsForOrg(deps.pool, orgId);
+    const active = await resolveGithubApp(deps);
+    if (installations.length > 0 && active) {
+      const perInstallation = await Promise.allSettled(
+        installations.map(async (installation) =>
+          (await active.client.listInstallationRepos(Number(installation.installation_id))).map((r) => ({
+            fullName: r.fullName, defaultBranch: r.defaultBranch, source: 'github' as const, account: installation.account_login, installationRowId: installation.id,
+          }))),
+      );
+      return perInstallation.flatMap((result) => (result.status === 'fulfilled' ? result.value : []));
     }
-    const repos = deps.config.demoRepos ? DEMO_REPOS.map((r) => ({ fullName: r.fullName, defaultBranch: r.defaultBranch, source: 'demo' as const })) : [];
-    return { repos, installationRowId: null };
+    return deps.config.demoRepos ? DEMO_REPOS.map((r) => ({ fullName: r.fullName, defaultBranch: r.defaultBranch, source: 'demo' as const })) : [];
   };
 
   api.get('/orgs/:orgId/integrations', { preHandler: member }, async (req) => {
-    const installation = await findInstallationForOrg(deps.pool, req.member!.org.id);
+    const installations = await listInstallationsForOrg(deps.pool, req.member!.org.id);
+    const active = await resolveGithubApp(deps);
     return {
-      github: { configured: Boolean(deps.config.github && deps.github), installation: installation ? { accountLogin: installation.account_login } : null },
+      github: {
+        configured: Boolean(active),
+        source: active?.source ?? null,
+        appSlug: active?.config.slug ?? null,
+        appUrl: active ? active.htmlUrl ?? `https://github.com/apps/${active.config.slug}` : null,
+        manifestAvailable: await manifestAvailable(deps),
+        installations: installations.map((i) => ({ accountLogin: i.account_login })),
+      },
       demo: { available: deps.config.demoRepos },
     };
   });
@@ -37,17 +51,16 @@ export const repoRoutes = (api: FastifyInstance, deps: AppDeps) => {
   api.get('/orgs/:orgId/available-repos', { preHandler: member }, async (req) => {
     const orgId = req.member!.org.id;
     const existing = new Set((await listRepos(deps.pool, orgId)).map((r) => r.full_name));
-    return (await availableFor(orgId)).repos.filter((r) => !existing.has(r.fullName));
+    return (await availableFor(orgId)).filter((r) => !existing.has(r.fullName)).map(({ installationRowId: _ignored, ...repo }) => repo);
   });
 
   api.post('/orgs/:orgId/repos', { preHandler: manage }, async (req, reply) => {
     const { fullName } = z.object({ fullName: z.string().min(1).max(MAX_REPO_NAME) }).parse(req.body);
     const orgId = req.member!.org.id;
-    const { repos, installationRowId } = await availableFor(orgId);
-    const chosen = repos.find((r) => r.fullName === fullName);
+    const chosen = (await availableFor(orgId)).find((r) => r.fullName === fullName);
     if (!chosen) return fail(reply, 404, 'not_found');
     if ((await countRepos(deps.pool, orgId)) >= REPO_LIMIT) return fail(reply, 409, 'repo_limit');
-    const repo = await insertPendingRepo(deps.pool, { orgId, fullName, defaultBranch: chosen.defaultBranch, installationRowId: chosen.source === 'github' ? installationRowId : null });
+    const repo = await insertPendingRepo(deps.pool, { orgId, fullName, defaultBranch: chosen.defaultBranch, installationRowId: chosen.installationRowId ?? null });
     await deps.indexQueue?.enqueue({ repoId: repo.id, orgId, reason: 'added' });
     return reply.code(201).send(publicRepo(repo));
   });

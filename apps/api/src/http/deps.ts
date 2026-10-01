@@ -7,6 +7,6 @@ import type { Config } from '../config';
 import type { Mailer } from '../mail/mailer';
 import type { IndexQueue } from '../queue/indexQueue';
 
-export type AppDeps = { config: Config; pool: pg.Pool; redis: Redis; mailer: Mailer; now?: () => Date; graph?: GraphStore; indexQueue?: IndexQueue; github?: GitHubClient | null; llm?: LlmClient | null };
+export type AppDeps = { config: Config; pool: pg.Pool; redis: Redis; mailer: Mailer; now?: () => Date; graph?: GraphStore; indexQueue?: IndexQueue; github?: GitHubClient | null; llm?: LlmClient | null; fetch?: typeof fetch };
 
 export const nowOf = (deps: AppDeps): Date => deps.now?.() ?? new Date();

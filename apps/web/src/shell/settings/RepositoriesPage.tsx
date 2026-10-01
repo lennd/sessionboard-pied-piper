@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nProvider';
+import type { MessageKey } from '../../i18n/messages';
 import { apiFetch } from '../api';
 import { GhostButton, PrimaryButton } from '../components/Buttons';
 import { errorText } from '../errors';
@@ -11,8 +12,14 @@ import { useSettingsContext } from './SettingsLayout';
 type Stage = { name: 'clone' | 'parse' | 'detect' | 'summarize' | 'link'; status: 'pending' | 'running' | 'done' | 'error'; progress?: number; detail?: string };
 type Repo = { id: string; fullName: string; defaultBranch: string; languages: string[]; status: 'pending' | 'indexing' | 'ready' | 'error'; stages: Stage[]; error: string | null; lastSyncedAt: string | null };
 type Usage = { repos: number; repoLimit: number; pieces: number };
-type Integrations = { github: { configured: boolean; installation: { accountLogin: string } | null }; demo: { available: boolean } };
-type Available = { fullName: string; defaultBranch: string; source: 'github' | 'demo' };
+type Integrations = {
+  github: { configured: boolean; source: 'env' | 'manifest' | null; appSlug: string | null; appUrl: string | null; manifestAvailable: boolean; installations: { accountLogin: string }[] };
+  demo: { available: boolean };
+};
+type Available = { fullName: string; defaultBranch: string; source: 'github' | 'demo'; account?: string };
+const APP_SUFFIX_LENGTH = 4;
+const GITHUB_ERRORS = new Set(['invalid_state', 'invalid_request', 'installation_not_yours', 'installation_taken', 'missing_installation', 'github_failed', 'manifest_failed', 'github_not_configured', 'github_already_configured']);
+const defaultAppName = () => `Repository Designer ${Math.random().toString(36).slice(2, 2 + APP_SUFFIX_LENGTH)}`;
 
 const STAGE_GLYPH = { done: '✓', running: '◐', error: '✕', pending: '○' } as const;
 const POLL_MS = 2000;
@@ -62,6 +69,7 @@ export const RepositoriesPage = () => {
     });
 
   const github = integrations.data?.github;
+  const githubError = params.get('github_error');
   return (
     <section>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -72,15 +80,20 @@ export const RepositoriesPage = () => {
             {usage.data && <> · <span data-testid="repos-limit">{t('repos.limit', { count: usage.data.repos, limit: usage.data.repoLimit })}</span></>}
           </p>
         </div>
-        {github?.installation ? (
-          <span className="tag" data-testid="github-connected">● {t('repos.connectedTo', { account: github.installation.accountLogin })}</span>
-        ) : (
-          <GhostButton disabled={!github?.configured || !canManage} title={github?.configured ? undefined : t('errors.github_not_configured')} onClick={() => void connectGithub()} data-testid="connect-github">
-            + {t('repos.connect')}
-          </GhostButton>
-        )}
+        <GhostButton disabled={!github?.configured || !canManage} title={github?.configured ? undefined : t('errors.github_not_configured')} onClick={() => void connectGithub()} data-testid="connect-github">
+          + {github && github.installations.length > 0 ? t('repos.connectAnother') : t('repos.connect')}
+        </GhostButton>
       </div>
+      {github && github.installations.length > 0 && (
+        <div className="row" data-testid="github-accounts" style={{ gap: 6, margin: '8px 0' }}>
+          <span className="muted-a">{t('repos.connectedAccounts')}</span>
+          {github.installations.map((i) => <span key={i.accountLogin} className="tag" data-testid={`github-account-${i.accountLogin}`}>● {i.accountLogin}</span>)}
+        </div>
+      )}
+      {github && !github.configured && github.manifestAvailable && canManage && <CreateAppCard orgId={org.id} onError={setError} />}
       {params.get('connected') === 'github' && <p className="alert ok" data-testid="connected-toast">{t('repos.connectedToast')}</p>}
+      {params.get('github') === 'pending' && <p className="alert ok" data-testid="github-pending">{t('repos.githubPending')}</p>}
+      {githubError && <p className="alert error" role="alert" data-testid="github-error">{t(GITHUB_ERRORS.has(githubError) ? (`githubError.${githubError}` as MessageKey) : 'githubError.github_failed')}</p>}
       {!github?.configured && integrations.data?.demo.available && <p className="alert ok" data-testid="demo-hint">{t('repos.demoHint')}</p>}
       {error && <p className="alert error" role="alert" data-testid="repos-error">{error}</p>}
       {canManage && available.data && (
@@ -90,7 +103,7 @@ export const RepositoriesPage = () => {
           ) : (
             <>
               <select aria-label={t('repos.add')} value={selected} onChange={(e) => setSelected(e.target.value)} data-testid="add-repo-select" style={{ maxWidth: 360 }}>
-                {available.data.map((r) => <option key={r.fullName} value={r.fullName}>{r.fullName} · {t(`repos.source.${r.source}`)}</option>)}
+                {available.data.map((r) => <option key={r.fullName} value={r.fullName}>{r.fullName} · {r.source === 'github' && r.account ? t('repos.source.githubAccount', { account: r.account }) : t(`repos.source.${r.source}`)}</option>)}
               </select>
               <PrimaryButton className="btn-small" onClick={() => void add()} disabled={!selected} data-testid="add-repo-submit">{t('repos.addButton')}</PrimaryButton>
             </>
@@ -136,5 +149,53 @@ export const RepositoriesPage = () => {
         </table>
       )}
     </section>
+  );
+};
+
+const CreateAppCard = ({ orgId, onError }: { orgId: string; onError: (message: string | null) => void }) => {
+  const { t } = useI18n();
+  const [name, setName] = useState(defaultAppName);
+  const [owner, setOwner] = useState<'user' | 'org'>('user');
+  const [login, setLogin] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const create = async () => {
+    onError(null);
+    setBusy(true);
+    try {
+      const query = new URLSearchParams({ owner });
+      if (owner === 'org') query.set('org', login.trim());
+      query.set('name', name.trim());
+      const { action, manifest } = await apiFetch<{ action: string; manifest: string }>(`/orgs/${orgId}/github/manifest?${query.toString()}`);
+      const form = document.createElement('form');
+      form.method = 'post';
+      form.action = action;
+      const field = document.createElement('input');
+      field.type = 'hidden';
+      field.name = 'manifest';
+      field.value = manifest;
+      form.append(field);
+      document.body.append(form);
+      form.submit();
+    } catch (err) {
+      onError(errorText(t, err));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="glass" data-testid="create-app" style={{ padding: 16, borderRadius: 12, margin: '12px 0' }}>
+      <b>{t('repos.createApp')}</b>
+      <p className="muted-a">{t('repos.createAppHelp')}</p>
+      <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <label className="field-label">{t('repos.appName')}<input className="input" data-testid="app-name" value={name} maxLength={34} onChange={(e) => setName(e.target.value)} /></label>
+        <select aria-label={t('repos.owner.label')} data-testid="app-owner" value={owner} onChange={(e) => setOwner(e.target.value as 'user' | 'org')}>
+          <option value="user">{t('repos.owner.user')}</option>
+          <option value="org">{t('repos.owner.org')}</option>
+        </select>
+        {owner === 'org' && <label className="field-label">{t('repos.orgLogin')}<input className="input" data-testid="app-org-login" value={login} onChange={(e) => setLogin(e.target.value)} placeholder="my-company" /></label>}
+        <PrimaryButton className="btn-small" data-testid="create-app-submit" disabled={busy || !name.trim() || (owner === 'org' && !login.trim())} onClick={() => void create()}>{t('repos.createApp')} →</PrimaryButton>
+      </div>
+    </div>
   );
 };

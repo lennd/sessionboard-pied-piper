@@ -27,7 +27,7 @@ const writeFixtureGraph = async (orgId: string, repoId: string, dir: string) => 
 describe('integrations and available repositories', () => {
   it('reports GitHub as not configured and offers the demo repositories', async () => {
     const { owner, org } = await setup();
-    expect((await call(owner, 'GET', `/api/orgs/${org.id}/integrations`)).json()).toEqual({ github: { configured: false, installation: null }, demo: { available: true } });
+    expect((await call(owner, 'GET', `/api/orgs/${org.id}/integrations`)).json()).toEqual({ github: { configured: false, source: null, appSlug: null, appUrl: null, manifestAvailable: true, installations: [] }, demo: { available: true } });
     const available = (await call(owner, 'GET', `/api/orgs/${org.id}/available-repos`)).json();
     expect(available.map((r: { fullName: string }) => r.fullName)).toEqual(['acme-demo/shop-web', 'acme-demo/shop-api', 'acme-demo/shop-worker']);
     expect((await call(owner, 'GET', `/api/orgs/${org.id}/github/install-url`)).json()).toEqual({ error: { code: 'github_not_configured' } });

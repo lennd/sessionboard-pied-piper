@@ -19,7 +19,7 @@ let orgId: string;
 const addRepo = async (fullName: string) =>
   (await pool.query<{ id: string }>("insert into repos (org_id, full_name, stages) values ($1, $2, '[]') returning id", [orgId, fullName])).rows[0]!.id;
 const repoRow = async (id: string) => (await pool.query('select status, stages, languages, error, last_synced_at from repos where id = $1', [id])).rows[0];
-const deps = () => ({ pool, graph, workDir, resolveSource: createSourceResolver({ fixturesDir: FIXTURES, github: null }) });
+const deps = () => ({ pool, graph, workDir, resolveSource: createSourceResolver({ fixturesDir: FIXTURES, github: async () => null }) });
 
 beforeAll(async () => {
   await graph.ensureSchema();
@@ -69,7 +69,7 @@ describe('runIndexJob', () => {
 
   it('leaves no graph data when the repository is deleted while it is being indexed', async () => {
     const id = await addRepo('acme-demo/deleted-api');
-    const resolve = createSourceResolver({ fixturesDir: FIXTURES, github: null });
+    const resolve = createSourceResolver({ fixturesDir: FIXTURES, github: async () => null });
     const deletingResolver = async (repo: Parameters<typeof resolve>[0]) => {
       await pool.query('delete from repos where id = $1', [repo.id]);
       return resolve({ ...repo, fullName: 'acme-demo/shop-api' });
