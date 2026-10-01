@@ -23,6 +23,7 @@ export const SYSTEM_PROMPT = [
   '- risks: performance, security, complexity and reliability weaknesses with severity, explanation, affected nodeIds and mitigation.',
   '- scale on important pieces: how they behave at low, medium and high volume (ok, strained, limit, saturated) plus the strategy to scale.',
   '- Keep scenes focused: at most about 25 pieces and 12 top-level steps, ids short and stable.',
+  '- Validation rules that are easy to miss: do not use groups (pieces already group by their repo field); complexity is only allowed on logic pieces; parent must be the id of another node; every edge, focus, travel and risk id must exist.',
   '',
   'Write for someone who does not want to read code: short sentences, concrete examples, no jargon without explanation.',
 ].join('\n');

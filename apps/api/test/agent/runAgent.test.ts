@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { sampleRegistry } from '@rdi/scene';
 import { describe, expect, it, vi } from 'vitest';
 import type { LlmClient, LlmTurnInput } from '../../src/agent/llm';
-import { MAX_INVALID_SCENES, MAX_ITERATIONS, runAgent, STOP_EMITTING, WRAP_UP, type AgentEvent } from '../../src/agent/runAgent';
+import { MAX_INVALID_SCENES, MAX_ITERATIONS, runAgent, STOP_EMITTING, WRAP_UP, WRAP_UP_STEPS, type AgentEvent } from '../../src/agent/runAgent';
 import type { ToolContext } from '../../src/agent/tools';
 
 type Message = Anthropic.Beta.BetaMessage;
@@ -139,9 +139,9 @@ describe('runAgent', () => {
     const { events, emit } = collect();
     const result = await runAgent({ llm, system: 's', history: [], user, ctx, emit });
     expect(calls).toHaveLength(MAX_ITERATIONS);
-    const last = calls[MAX_ITERATIONS - 1]!;
-    expect(last.tools.map((t) => t.name)).toEqual(['emit_scene']);
-    expect(JSON.stringify(last.messages.at(-1)!.content)).toContain(WRAP_UP);
+    for (const call of calls.slice(MAX_ITERATIONS - WRAP_UP_STEPS)) expect(call.tools.map((t) => t.name)).toEqual(['emit_scene']);
+    expect(calls[MAX_ITERATIONS - WRAP_UP_STEPS - 1]!.tools.length).toBeGreaterThan(1);
+    expect(JSON.stringify(calls[MAX_ITERATIONS - WRAP_UP_STEPS]!.messages.at(-1)!.content)).toContain(WRAP_UP);
     expect(result.stop).toBe('error');
     expect(events.at(-1)).toMatchObject({ type: 'error', code: 'max_iterations' });
     expect(result.appended.length % 2).toBe(0);
