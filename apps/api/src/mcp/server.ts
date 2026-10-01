@@ -6,7 +6,7 @@ import type pg from 'pg';
 import { z } from 'zod';
 import { executeTool, type ToolContext } from '../agent/tools';
 import { listSolutions } from '../db/queries/solutions';
-import { readSource } from '../db/queries/agent';
+import { readSource, searchSource } from '../db/queries/agent';
 import { MCP_SERVER_NAME } from '../routes/tokens';
 import { proposeVersion, reportTask, solutionDetail, SolutionError } from '../solutions/service';
 
@@ -30,6 +30,7 @@ export const buildMcpServer = (ctx: McpContext): McpServer => {
   const toolContext: ToolContext = {
     loadGraph: () => (ctx.graph ? ctx.graph.readOrgGraph(ctx.orgId) : Promise.resolve({ nodes: [], edges: [] })),
     readSource: (repo, path) => readSource(ctx.pool, ctx.orgId, repo, path),
+    searchCode: (query, repo) => searchSource(ctx.pool, ctx.orgId, query, repo ?? null),
     prFiles: async () => null,
     upsertSolution: async () => {
       throw new SolutionError('not_found');
