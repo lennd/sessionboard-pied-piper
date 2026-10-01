@@ -13,19 +13,23 @@ export const isLocalUrl = (url: string): boolean => {
   }
 };
 
-export const buildAppManifest = ({ name, appUrl, publicApiUrl }: ManifestInput): Record<string, unknown> => ({
-  name,
-  url: appUrl,
-  hook_attributes: { url: `${publicApiUrl}/api/github/webhook`, active: !isLocalUrl(publicApiUrl) },
-  redirect_url: `${appUrl}/api/github/manifest/callback`,
-  setup_url: `${appUrl}/api/github/setup`,
-  setup_on_update: true,
-  request_oauth_on_install: true,
-  callback_urls: [`${appUrl}/api/github/setup`],
-  public: true,
-  default_permissions: { contents: 'read', metadata: 'read', pull_requests: 'read' },
-  default_events: ['push'],
-});
+/** GitHub refuses webhook URLs it cannot reach, so local servers get an App without webhook or events (use Re-index). */
+export const buildAppManifest = ({ name, appUrl, publicApiUrl }: ManifestInput): Record<string, unknown> => {
+  const reachable = !isLocalUrl(publicApiUrl);
+  return {
+    name,
+    url: appUrl,
+    ...(reachable ? { hook_attributes: { url: `${publicApiUrl}/api/github/webhook`, active: true } } : {}),
+    redirect_url: `${appUrl}/api/github/manifest/callback`,
+    setup_url: `${appUrl}/api/github/setup`,
+    setup_on_update: true,
+    request_oauth_on_install: true,
+    callback_urls: [`${appUrl}/api/github/setup`],
+    public: true,
+    default_permissions: { contents: 'read', metadata: 'read', pull_requests: 'read' },
+    ...(reachable ? { default_events: ['push'] } : {}),
+  };
+};
 
 export const manifestPostUrl = (owner: ManifestOwner, state: string): string =>
   `${owner.type === 'org' ? `https://github.com/organizations/${encodeURIComponent(owner.login)}` : 'https://github.com'}/settings/apps/new?state=${encodeURIComponent(state)}`;
