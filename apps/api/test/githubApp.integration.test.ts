@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { loadGithubAppRow, saveGithubApp } from '../src/db/queries/githubApp';
-import { forgetGithubApp, manifestAvailable, resolveGithubApp } from '../src/github/app';
+import { manifestAvailable, resolveGithubApp } from '../src/github/app';
 import { createTestContext, type TestContext } from './helpers';
 
 let ctx: TestContext;
@@ -19,7 +19,6 @@ describe('GitHub App resolution', () => {
     expect(await resolveGithubApp(deps)).toBeNull();
     expect(await manifestAvailable(deps)).toBe(true);
     await saveGithubApp(ctx.pool, app);
-    forgetGithubApp(deps);
     const active = await resolveGithubApp(deps);
     expect(active).toMatchObject({ source: 'manifest', config: { appId: '123', slug: 'repository-designer-abcd', webhookSecret: 'whs', stateSecret: 'st' }, htmlUrl: app.htmlUrl, ownerLogin: 'hugo' });
     expect(active!.client.installUrl('s')).toBe('https://github.com/apps/repository-designer-abcd/installations/new?state=s');

@@ -4,6 +4,7 @@ import { validateScene } from '@rdi/scene';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { windowHistory } from '../agent/history';
+import { resolveGithubApp } from '../github/app';
 import { questionOf, SYSTEM_PROMPT, userTurn } from '../agent/prompt';
 import { runAgent, type AgentEvent } from '../agent/runAgent';
 import { translateScene, TranslateError } from '../agent/translate';
@@ -125,7 +126,8 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
       },
       prFiles: async (repo, number) => {
         const installation = await findRepoInstallation(deps.pool, orgId, repo);
-        return installation !== null && deps.github ? deps.github.listPullFiles(installation, repo, number) : null;
+        const active = installation !== null ? await resolveGithubApp(deps) : null;
+        return installation !== null && active ? active.client.listPullFiles(installation, repo, number) : null;
       },
     };
 

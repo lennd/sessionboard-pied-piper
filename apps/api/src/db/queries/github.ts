@@ -16,6 +16,9 @@ export const bindInstallation = async (db: Db, input: { orgId: string; installat
 export const findInstallationForOrg = async (db: Db, orgId: string): Promise<InstallationRow | null> =>
   (await db.query<InstallationRow>('select id, org_id, installation_id::text, account_login from github_installations where org_id = $1 order by created_at desc limit 1', [orgId])).rows[0] ?? null;
 
+export const listInstallationsForOrg = async (db: Db, orgId: string): Promise<InstallationRow[]> =>
+  (await db.query<InstallationRow>('select id, org_id, installation_id::text, account_login from github_installations where org_id = $1 order by created_at, id', [orgId])).rows;
+
 export const findReposForInstallationAndName = async (db: Db, installationId: number, fullName: string): Promise<{ id: string; org_id: string; default_branch: string }[]> =>
   (
     await db.query<{ id: string; org_id: string; default_branch: string }>(

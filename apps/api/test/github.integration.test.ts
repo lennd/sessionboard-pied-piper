@@ -46,9 +46,9 @@ describe('GitHub App flow', () => {
     expect(res.statusCode).toBe(302);
     expect(res.headers.location).toBe(`http://localhost:5177/orgs/${org.id}/settings/repositories?connected=github`);
     const integrations = (await ctx.app.inject({ method: 'GET', url: `/api/orgs/${org.id}/integrations`, headers: { cookie: owner.cookie } })).json();
-    expect(integrations.github).toEqual({ configured: true, installation: { accountLogin: 'acme' } });
+    expect(integrations.github).toMatchObject({ configured: true, source: 'env', manifestAvailable: false, installations: [{ accountLogin: 'acme' }] });
     const available = (await ctx.app.inject({ method: 'GET', url: `/api/orgs/${org.id}/available-repos`, headers: { cookie: owner.cookie } })).json();
-    expect(available).toEqual([{ fullName: 'acme/api', defaultBranch: 'main', source: 'github' }]);
+    expect(available).toEqual([{ fullName: 'acme/api', defaultBranch: 'main', source: 'github', account: 'acme' }]);
   });
 
   it('rejects forged or foreign state', async () => {
@@ -93,7 +93,7 @@ describe('GitHub App flow', () => {
     const res = await setupCall(attacker.owner, 6161, await stateFor(attacker.owner, attacker.org.id));
     expect(res.json()).toEqual({ error: { code: 'installation_taken' } });
     const victimView = (await ctx.app.inject({ method: 'GET', url: `/api/orgs/${victim.org.id}/integrations`, headers: { cookie: victim.owner.cookie } })).json();
-    expect(victimView.github.installation).toEqual({ accountLogin: 'acme' });
+    expect(victimView.github.installations).toEqual([{ accountLogin: 'acme' }]);
     const attackerRepos = await ctx.app.inject({ method: 'GET', url: `/api/orgs/${attacker.org.id}/available-repos`, headers: { cookie: attacker.owner.cookie } });
     expect(attackerRepos.json().filter((r: { source: string }) => r.source === 'github')).toEqual([]);
   });
