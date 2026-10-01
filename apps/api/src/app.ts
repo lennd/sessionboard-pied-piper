@@ -13,6 +13,7 @@ import { invitationRoutes } from './routes/invitations';
 import { meRoutes } from './routes/me';
 import { orgRoutes } from './routes/orgs';
 import { repoRoutes } from './routes/repos';
+import { solutionRoutes } from './routes/solutions';
 
 const DEFAULT_CHECK_TIMEOUT_MS = 3000;
 const HTTP_OK = 200;
@@ -69,6 +70,7 @@ export const buildApp = ({ checks, onClose, checkTimeoutMs = DEFAULT_CHECK_TIMEO
         githubRoutes(api, deps);
         codeRoutes(api, deps);
         agentRoutes(api, deps);
+        solutionRoutes(api, deps);
         if (deps.config.devRoutes) devRoutes(api, deps);
       },
       { prefix: '/api' },

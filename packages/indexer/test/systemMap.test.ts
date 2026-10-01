@@ -93,3 +93,15 @@ describe('large organizations', () => {
   });
 });
 
+describe('determinism', () => {
+  it('builds the same map whatever order the graph store returns', async () => {
+    const graph = await orgGraph();
+    const reversed = { nodes: [...graph.nodes].reverse(), edges: [...graph.edges].reverse() };
+    const a = buildSystemMap(graph)!;
+    const b = buildSystemMap(reversed)!;
+    expect(b.steps.map((s) => s.narration)).toEqual(a.steps.map((s) => s.narration));
+    expect(b.edges).toEqual(a.edges);
+    expect(b.nodes).toEqual(a.nodes);
+  });
+});
+

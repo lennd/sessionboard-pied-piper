@@ -14,13 +14,24 @@ const MAX_SHARED_PER_KIND = 15;
 const CODE_CONTEXT_BEFORE = 2;
 const CODE_CONTEXT_AFTER = 12;
 const EDGE_ORDER: EdgeKind[] = ['sync', 'async', 'write', 'read', 'calls'];
+/** Requests that change state tell the more useful story, so they lead the walkthrough. */
+const METHOD_ORDER = ['POST', 'PUT', 'PATCH', 'DELETE', 'GET'];
 
 const sceneId = (id: string) => (id.length <= MAX_ID ? id : `${id.slice(0, 80)}#${createHash('sha1').update(id).digest('hex').slice(0, 12)}`);
 const clip = (text: string, max = MAX_LABEL) => (text.length <= max ? text : `${text.slice(0, max - 1)}…`);
 
 type SceneEdgeDraft = { from: string; to: string; kind: EdgeKind; label?: string };
 
-export const buildSystemMap = (graph: OrgGraph): Scene | null => {
+const byText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
+/** Graph stores return rows in arbitrary order; sort first so the map and its walkthrough are deterministic. */
+const canonical = (graph: OrgGraph): OrgGraph => ({
+  nodes: [...graph.nodes].sort((a, b) => byText(a.id, b.id)),
+  edges: [...graph.edges].sort((a, b) => byText(`${a.from}|${a.type}|${a.to}`, `${b.from}|${b.type}|${b.to}`)),
+});
+
+export const buildSystemMap = (input: OrgGraph): Scene | null => {
+  const graph = canonical(input);
   const byId = new Map(graph.nodes.map((n) => [n.id, n]));
   const services = graph.nodes.filter((n) => n.label === 'Service').sort((a, b) => a.name.localeCompare(b.name));
   if (services.length === 0) return null;
@@ -95,8 +106,15 @@ export const buildSystemMap = (graph: OrgGraph): Scene | null => {
   const labelOf = new Map(nodes.map((n) => [n.id, n.label]));
   const parentOf = new Map(nodes.flatMap((n) => (n.parent ? [[n.id, n.parent] as const] : [])));
   const roleOf = new Map(nodes.map((n) => [n.id, n.role]));
+  const methodRank = (e: (typeof edgeList)[number]) => {
+    const method = (labelOf.get(e.to) ?? '').split(' ')[0] ?? '';
+    const rank = METHOD_ORDER.indexOf(method);
+    return rank === -1 ? METHOD_ORDER.length : rank;
+  };
   const outgoing = (id: string) =>
-    edgeList.filter((e) => e.from === id).sort((a, b) => EDGE_ORDER.indexOf(a.kind) - EDGE_ORDER.indexOf(b.kind));
+    edgeList
+      .filter((e) => e.from === id)
+      .sort((a, b) => EDGE_ORDER.indexOf(a.kind) - EDGE_ORDER.indexOf(b.kind) || methodRank(a) - methodRank(b));
   const narrate = (e: (typeof edgeList)[number]): string => {
     const from = labelOf.get(e.from) ?? e.from;
     const to = labelOf.get(e.to) ?? e.to;
