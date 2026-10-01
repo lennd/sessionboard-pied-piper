@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastif
 import { ZodError } from 'zod';
 import type { Check } from './checks';
 import { registerAuth } from './http/auth';
+import { mcpRoutes } from './mcp/route';
 import type { AppDeps } from './http/deps';
 import { authRoutes } from './routes/auth';
 import { devRoutes } from './routes/dev';
@@ -77,6 +78,7 @@ export const buildApp = ({ checks, onClose, checkTimeoutMs = DEFAULT_CHECK_TIMEO
       },
       { prefix: '/api' },
     );
+    mcpRoutes(app, deps);
   }
 
   if (onClose) app.addHook('onClose', onClose);
