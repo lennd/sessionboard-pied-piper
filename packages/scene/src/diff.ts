@@ -1,5 +1,5 @@
 import { defineScene } from './samples/define';
-import type { Scene, SceneNode } from './schema';
+import { MAX_SCENE_NODES, type Scene, type SceneNode } from './schema';
 
 const fingerprint = (n: SceneNode) => JSON.stringify([n.label, n.role, n.kind, n.summary, n.parent ?? null]);
 
@@ -14,6 +14,7 @@ export const diffScenes = (before: Scene, after: Scene): Scene => {
   });
   for (const old of before.nodes) {
     if (current.has(old.id)) continue;
+    if (nodes.length >= MAX_SCENE_NODES) break;
     const { parent, change: _ignored, ...rest } = old;
     nodes.push({ ...rest, ...(parent && current.has(parent) ? { parent } : {}), change: 'removed' as const });
   }

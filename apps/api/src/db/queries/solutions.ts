@@ -40,10 +40,12 @@ export const createSolution = (
     return { solution, version: await insertVersion(client, solution.id, input.author, input.draft) };
   });
 
-export const addVersion = (pool: pg.Pool, solutionId: string, author: Author, draft: SolutionDraft): Promise<VersionRow> =>
+/** Appends a version; when given a function, it builds the draft from the latest version read under the row lock. */
+export const addVersion = (pool: pg.Pool, solutionId: string, author: Author, draft: SolutionDraft | ((latest: VersionRow | null) => SolutionDraft)): Promise<VersionRow> =>
   inTransaction(pool, async (client) => {
     await client.query('select id from solutions where id = $1 for update', [solutionId]);
-    const version = await insertVersion(client, solutionId, author, draft);
+    const latest = typeof draft === 'function' ? await getVersion(client, solutionId) : null;
+    const version = await insertVersion(client, solutionId, author, typeof draft === 'function' ? draft(latest) : draft);
     await client.query('update solutions set updated_at = now() where id = $1', [solutionId]);
     return version;
   });

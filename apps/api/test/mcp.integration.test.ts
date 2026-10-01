@@ -58,6 +58,13 @@ describe('MCP endpoint', () => {
     expect(detail).toMatchObject({ status: 'in_progress', version: { n: 2, author: 'claude-code', draft: { summary: 'v2 from Claude Code', plan: [{ id: 't1' }, { id: 't2' }] } }, tasks: { t1: { status: 'done', note: 'PR #12' } } });
   });
 
+  it('refuses updates based on a stale version', async () => {
+    const { token, solution } = await setup();
+    await callTool(token, 'update_solution', { id: solution.id, summary: 'v2', baseVersion: 1 });
+    const stale = await callTool(token, 'update_solution', { id: solution.id, summary: 'v3 from stale', baseVersion: 1 });
+    expect(stale).toMatchObject({ isError: true, content: [{ text: 'The solution changed since version 1 (latest is 2). Call get_solution again and retry.' }] });
+  });
+
   it('rejects invalid updates, unknown tasks and other organizations', async () => {
     const { token, solution } = await setup();
     expect(await callTool(token, 'update_solution', { id: solution.id, summary: 'x', plan: [{ id: 't1', title: 'A', dependsOn: ['zz'] }] })).toMatchObject({ isError: true });

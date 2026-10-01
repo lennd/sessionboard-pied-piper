@@ -53,6 +53,41 @@ describe('solutions API', () => {
     expect((await call(owner, 'PATCH', `/api/orgs/${org.id}/solutions/${id}/tasks/t9`, { status: 'done' })).json()).toEqual({ error: { code: 'unknown_task' } });
   });
 
+  it('keeps the solution status consistent with its tasks and never revives archived solutions', async () => {
+    const { owner, org } = await setup();
+    const { id } = (await call(owner, 'POST', `/api/orgs/${org.id}/solutions`, { title: 'x', draft: draft('v1') })).json();
+    const status = async () => (await call(owner, 'GET', `/api/orgs/${org.id}/solutions/${id}`)).json().status;
+    await call(owner, 'PATCH', `/api/orgs/${org.id}/solutions/${id}/tasks/t1`, { status: 'done' });
+    await call(owner, 'PATCH', `/api/orgs/${org.id}/solutions/${id}/tasks/t2`, { status: 'done' });
+    expect(await status()).toBe('done');
+    await call(owner, 'PATCH', `/api/orgs/${org.id}/solutions/${id}/tasks/t2`, { status: 'blocked' });
+    expect(await status()).toBe('in_progress');
+    await call(owner, 'PATCH', `/api/orgs/${org.id}/solutions/${id}/tasks/t2`, { status: 'done' });
+    const more = { ...draft('v2'), plan: [...draft('v2').plan, { id: 't3', title: 'Docs' }] };
+    await call(owner, 'POST', `/api/orgs/${org.id}/solutions/${id}/versions`, { draft: more });
+    expect(await status()).toBe('in_progress');
+    await call(owner, 'PATCH', `/api/orgs/${org.id}/solutions/${id}`, { status: 'archived' });
+    await call(owner, 'PATCH', `/api/orgs/${org.id}/solutions/${id}/tasks/t3`, { status: 'done' });
+    expect(await status()).toBe('archived');
+  });
+
+  it('shares one Redis subscription across every open page and releases it', async () => {
+    const { owner, org } = await setup();
+    const { id } = (await call(owner, 'POST', `/api/orgs/${org.id}/solutions`, { title: 'x', draft: draft('v1') })).json();
+    if (!ctx.app.server.listening) await ctx.app.listen({ port: 0, host: '127.0.0.1' });
+    const port = (ctx.app.server.address() as { port: number }).port;
+    const subscribers = async () => Number(((await ctx.redis.pubsub('NUMSUB', `rdi:solution:${id}`)) as [string, number])[1]);
+    const open = () => new Promise<http.ClientRequest>((resolve) => {
+      const request = http.get({ host: '127.0.0.1', port, path: `/api/orgs/${org.id}/solutions/${id}/events`, headers: { cookie: owner.cookie } });
+      request.on('response', (res) => res.once('data', () => resolve(request)));
+    });
+    const streams = [await open(), await open(), await open()];
+    expect(await subscribers()).toBe(1);
+    for (const stream of streams) stream.destroy();
+    await new Promise((r) => setTimeout(r, 200));
+    expect(await subscribers()).toBe(0);
+  });
+
   it('keeps solutions inside the organization but shares them with members', async () => {
     const { owner, org } = await setup();
     const { id } = (await call(owner, 'POST', `/api/orgs/${org.id}/solutions`, { title: 'x', draft: draft('v1') })).json();
@@ -67,7 +102,7 @@ describe('solutions API', () => {
   it('streams changes live to open solution pages', async () => {
     const { owner, org } = await setup();
     const { id } = (await call(owner, 'POST', `/api/orgs/${org.id}/solutions`, { title: 'x', draft: draft('v1') })).json();
-    await ctx.app.listen({ port: 0, host: '127.0.0.1' });
+    if (!ctx.app.server.listening) await ctx.app.listen({ port: 0, host: '127.0.0.1' });
     const port = (ctx.app.server.address() as { port: number }).port;
     const received: string[] = [];
     const request = http.get({ host: '127.0.0.1', port, path: `/api/orgs/${org.id}/solutions/${id}/events`, headers: { cookie: owner.cookie } });

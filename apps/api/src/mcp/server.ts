@@ -20,6 +20,7 @@ const solutionFailure = (error: unknown) => {
   if (!(error instanceof SolutionError)) throw error;
   if (error.code === 'not_found') return failure('Solution not found.');
   if (error.code === 'unknown_task') return failure('That task is not part of the latest version of the plan.');
+  if (error.code === 'stale_version') return failure(error.errors[0] ?? 'The solution changed. Call get_solution again.');
   return failure(`The solution is invalid:\n${error.errors.join('\n')}`);
 };
 
@@ -83,15 +84,15 @@ export const buildMcpServer = (ctx: McpContext): McpServer => {
   });
 
   server.registerTool('update_solution', {
-    description: 'Save a new version of a Solution as Claude Code (for example after discovering the plan must change). Fields you omit are kept from the latest version.',
+    description: 'Save a new version of a Solution as Claude Code (for example after discovering the plan must change). summary is required; the other fields you omit are kept from the latest version. Pass baseVersion (the version you read with get_solution) so concurrent changes are not overwritten.',
     inputSchema: {
-      id: z.string().uuid(), summary: z.string().min(1).max(4000),
+      id: z.string().uuid(), baseVersion: z.number().int().positive().optional(), summary: z.string().min(1).max(4000),
       plan: z.array(z.record(z.string(), z.unknown())).optional(), risks: z.array(z.record(z.string(), z.unknown())).optional(),
       sceneProposed: z.record(z.string(), z.unknown()).optional(), sceneCurrent: z.record(z.string(), z.unknown()).optional(),
     },
-  }, async ({ id, ...draft }) => {
+  }, async ({ id, baseVersion, ...draft }) => {
     try {
-      const { n } = await proposeVersion(deps, { orgId: ctx.orgId, solutionId: id, author: 'claude-code', input: draft, merge: true });
+      const { n } = await proposeVersion(deps, { orgId: ctx.orgId, solutionId: id, author: 'claude-code', input: draft, merge: true, baseVersion });
       return text(`Saved version ${n}.`);
     } catch (error) {
       return solutionFailure(error);

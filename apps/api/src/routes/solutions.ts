@@ -4,11 +4,12 @@ import { z } from 'zod';
 import { listSolutions, updateSolution } from '../db/queries/solutions';
 import { fail, isUuid, requireAuth, requireMember } from '../http/auth';
 import type { AppDeps } from '../http/deps';
-import { publishSolutionEvent, solutionChannel } from '../solutions/events';
+import { createSolutionHub, publishSolutionEvent } from '../solutions/events';
 import { createFromDraft, proposeVersion, reportTask, solutionDetail, SolutionError } from '../solutions/service';
 
 const MAX_TITLE = 200;
 const HEARTBEAT_MS = 15_000;
+const MAX_STREAMS_PER_USER = 20;
 const createBody = z.object({ title: z.string().trim().min(1).max(MAX_TITLE), draft: z.record(z.string(), z.unknown()) });
 const versionBody = z.object({ draft: z.record(z.string(), z.unknown()) });
 const patchBody = z.object({ title: z.string().trim().min(1).max(MAX_TITLE).optional(), status: z.enum(SOLUTION_STATUSES).optional() });
@@ -18,6 +19,7 @@ const detailQuery = z.object({ version: z.coerce.number().int().positive().optio
 export const failSolution = (reply: FastifyReply, error: unknown) => {
   if (!(error instanceof SolutionError)) throw error;
   if (error.code === 'invalid_draft') return fail(reply, 422, 'invalid_draft', { errors: error.errors });
+  if (error.code === 'stale_version') return fail(reply, 409, 'stale_version', { errors: error.errors });
   return fail(reply, 404, error.code);
 };
 
@@ -77,24 +79,41 @@ export const solutionRoutes = (api: FastifyInstance, deps: AppDeps) => {
     }
   });
 
+  const hub = createSolutionHub(deps.redis);
+  api.addHook('onClose', () => hub.close());
+  const openStreams = new Map<string, number>();
+
   api.get('/orgs/:orgId/solutions/:id/events', { preHandler: member }, async (req, reply) => {
     const id = idOf(req.params);
     if (!isUuid(id) || !(await solutionDetail(deps, req.member!.org.id, id))) return fail(reply, 404, 'not_found');
-    const subscriber = deps.redis.duplicate();
-    await subscriber.subscribe(solutionChannel(id));
-    reply.hijack();
-    reply.raw.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache, no-transform', connection: 'keep-alive', 'x-accel-buffering': 'no' });
-    reply.raw.write(': connected\n\n');
-    subscriber.on('message', (_channel, message) => {
-      if (!reply.raw.writableEnded) reply.raw.write(`event: solution\ndata: ${message}\n\n`);
-    });
+    const userId = req.auth!.user.id;
+    if ((openStreams.get(userId) ?? 0) >= MAX_STREAMS_PER_USER) return fail(reply, 429, 'rate_limited');
+    openStreams.set(userId, (openStreams.get(userId) ?? 0) + 1);
+    let stop: (() => void) | null = null;
+    let closed = false;
     const heartbeat = setInterval(() => {
       if (!reply.raw.writableEnded) reply.raw.write(': ping\n\n');
     }, HEARTBEAT_MS);
     reply.raw.on('close', () => {
+      closed = true;
       clearInterval(heartbeat);
-      subscriber.disconnect();
+      stop?.();
+      const left = (openStreams.get(userId) ?? 1) - 1;
+      if (left > 0) openStreams.set(userId, left);
+      else openStreams.delete(userId);
     });
+    reply.hijack();
+    reply.raw.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache, no-transform', connection: 'keep-alive', 'x-accel-buffering': 'no' });
+    try {
+      const unsubscribe = await hub.listen(id, (message) => {
+        if (!reply.raw.writableEnded) reply.raw.write(`event: solution\ndata: ${message}\n\n`);
+      });
+      if (closed) unsubscribe();
+      else stop = unsubscribe;
+      reply.raw.write(': connected\n\n');
+    } catch {
+      reply.raw.end();
+    }
     return reply;
   });
 };

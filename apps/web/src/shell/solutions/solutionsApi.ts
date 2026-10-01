@@ -18,7 +18,13 @@ export const solutionScenes = (detail: SolutionDetail, t: Translate): Scene[] =>
   const scenes: Scene[] = [];
   if (draft.sceneProposed) scenes.push({ ...draft.sceneProposed, id: `${base}-proposed`, title: t('scene.proposed', { n }) });
   if (draft.sceneCurrent) scenes.push({ ...draft.sceneCurrent, id: `${base}-current`, title: t('scene.current', { n }) });
-  if (draft.sceneProposed && draft.sceneCurrent) scenes.push({ ...diffScenes(draft.sceneCurrent, draft.sceneProposed), id: `${base}-changes`, title: t('scene.changes', { n }) });
+  if (draft.sceneProposed && draft.sceneCurrent) {
+    try {
+      scenes.push({ ...diffScenes(draft.sceneCurrent, draft.sceneProposed), id: `${base}-changes`, title: t('scene.changes', { n }) });
+    } catch {
+      // A diff that cannot form a valid scene is skipped; proposed and current stay available.
+    }
+  }
   return scenes;
 };
 

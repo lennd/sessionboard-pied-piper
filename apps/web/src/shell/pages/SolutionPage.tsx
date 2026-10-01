@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nProvider';
@@ -30,6 +30,7 @@ export const SolutionPage = () => {
     queryKey: solutionKey(orgId, solutionId, version),
     queryFn: () => apiFetch<SolutionDetail>(`/orgs/${orgId}/solutions/${solutionId}${version ? `?version=${version}` : ''}`),
     enabled: Boolean(orgId && solutionId),
+    placeholderData: keepPreviousData,
   });
   useEffect(() => subscribeSolution(orgId, solutionId, () => void client.invalidateQueries({ queryKey: ['solution', orgId, solutionId] })), [orgId, solutionId, client]);
   const loadCode = useMemo(() => codeLoader(orgId), [orgId]);
@@ -38,12 +39,11 @@ export const SolutionPage = () => {
   if (!session) return null;
   const org = session.orgs.find((o) => o.id === orgId);
   if (!org) return <Navigate to="/" replace />;
-  if (detail.isLoading || !detail.data) return <Splash />;
+  if (!detail.data) return <Splash />;
   const data = detail.data;
   return (
     <>
       <Workspace
-        key={`${solutionId}-v${data.version.n}`}
         extraScenes={scenes}
         initialPanel="plan"
         panels={[{ id: 'plan', glyph: '☰', title: t('plan.title'), render: (ctx) => <PlanPanel detail={data} ctx={ctx} onVersion={setVersion} onExecute={() => setHandoff(true)} /> }]}

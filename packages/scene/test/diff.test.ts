@@ -21,4 +21,13 @@ describe('diffScenes', () => {
     expect(change[second!.id]).toBe('removed');
     expect(change[rest[0]!.id]).toBeNull();
   });
+
+  it('stays within the scene limits when many pieces were replaced', () => {
+    const big = (prefix: string) => ({ ...before, id: `big-${prefix}`, edges: [], steps: [], risks: [], groups: [], nodes: Array.from({ length: 150 }, (_, i) => ({ id: `${prefix}${i}`, label: `${prefix}${i}`, role: 'compute' as const, kind: 'svc', summary: 's' })) });
+    const diff = diffScenes(big('a'), big('b'));
+    expect(validateScene(diff).ok).toBe(true);
+    expect(diff.nodes.length).toBeLessThanOrEqual(150);
+    expect(diff.nodes.filter((n) => n.change === 'added')).toHaveLength(150);
+  });
 });
+

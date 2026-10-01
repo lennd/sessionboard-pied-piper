@@ -24,6 +24,7 @@ const MAX_CODE = 20_000;
 const MAX_PATH = 500;
 const MAX_LANGUAGE = 40;
 const MAX_NODES = 150;
+export const MAX_SCENE_NODES = MAX_NODES;
 const MAX_STEPS = 80;
 const LANGUAGE_TAG = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
 
