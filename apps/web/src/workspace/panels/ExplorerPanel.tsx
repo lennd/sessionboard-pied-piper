@@ -13,7 +13,7 @@ type ExplorerPanelProps = {
   numbering: Map<string, string>; byNode: Map<string, SceneRisk[]>;
   onSelectNode: (id: string) => void; onToggleExpand: (id: string) => void; onSeek: (index: number) => void;
   onToggleStep: (id: string) => void; onSelectRisk: (id: string) => void; onSetMode: (mode: Mode) => void;
-  chatSlot?: ReactNode; sidebar?: 'explorer' | 'chat'; onSidebar?: (sidebar: 'explorer' | 'chat') => void;
+  panels?: { id: string; glyph: string; title: string; node: ReactNode }[]; sidebar?: string; onSidebar?: (sidebar: string) => void;
 };
 
 const ACTIVITY: { mode: Mode; glyph: string }[] = [
@@ -31,19 +31,19 @@ export const ExplorerPanel = (p: ExplorerPanelProps) => {
   return (
     <>
       <nav className="ws-activity" aria-label={t('explorer.title')}>
-        {p.chatSlot !== undefined && (
-          <button type="button" data-testid="activity-chat" aria-pressed={sidebar === 'chat'} title={t('chat.title')} onClick={() => p.onSidebar?.('chat')}>✦</button>
-        )}
+        {(p.panels ?? []).map((panel) => (
+          <button key={panel.id} type="button" data-testid={`activity-${panel.id}`} aria-pressed={sidebar === panel.id} title={panel.title} onClick={() => p.onSidebar?.(panel.id)}>{panel.glyph}</button>
+        ))}
         {ACTIVITY.filter(({ mode }) => availableModes(p.scene).includes(mode)).map(({ mode, glyph }) => (
           <button key={mode} type="button" data-testid={`activity-${mode}`} aria-pressed={sidebar === 'explorer' && p.explorer.mode === mode} title={t(`mode.${mode}`)} onClick={() => p.onSetMode(mode)}>
             {glyph}
           </button>
         ))}
       </nav>
-      {p.chatSlot !== undefined && (
-        <aside className="ws-explorer ws-chat" data-testid="chat-panel-host" hidden={sidebar !== 'chat'}>{p.chatSlot}</aside>
-      )}
-      <aside className="ws-explorer" hidden={sidebar === 'chat'}>
+      {(p.panels ?? []).map((panel) => (
+        <aside key={panel.id} className="ws-explorer ws-chat" data-testid={`panel-host-${panel.id}`} hidden={sidebar !== panel.id}>{panel.node}</aside>
+      ))}
+      <aside className="ws-explorer" hidden={sidebar !== 'explorer' && (p.panels ?? []).some((panel) => panel.id === sidebar)}>
         <div className="sec-title">{t('explorer.title')} · {t(`level.${p.explorer.level}`)}</div>
         <div className="tree">
           {items.map((item) => {

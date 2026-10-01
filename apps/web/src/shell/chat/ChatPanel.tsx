@@ -1,6 +1,7 @@
 import { validateScene, type Scene } from '@rdi/scene';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nProvider';
 import type { MessageKey } from '../../i18n/messages';
 import type { ChatContext } from '../../workspace/Workspace';
@@ -29,6 +30,7 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [scenes, setScenes] = useState<SceneEntry[]>([]);
+  const [solutions, setSolutions] = useState<{ id: string; n: number; title: string; turn: number }[]>([]);
   const [tool, setTool] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [focus, setFocus] = useState<{ label: string; graphRef: string } | null>(null);
@@ -55,6 +57,7 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
       if (cancelled) return;
       setItems(c.items);
       setScenes(validScenes(c.scenes));
+      setSolutions([]);
     });
     return () => {
       cancelled = true;
@@ -71,6 +74,7 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
     setConversationId(null);
     setItems([]);
     setScenes([]);
+    setSolutions([]);
     setError(null);
     void client.setQueryData(['conversations', orgId], (list: Summary[] | undefined) => list ?? []);
   };
@@ -101,6 +105,8 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
           if (!result.ok) return;
           setScenes((current) => [...current, { id: event.id, turn, scene: result.scene }]);
           ctx.openScene(result.scene);
+        } else if (event.type === 'solution') {
+          setSolutions((current) => [...current, { id: event.id, n: event.n, title: event.title, turn }]);
         } else if (event.type === 'error') {
           setError(errorText(event.code));
         }
@@ -148,6 +154,12 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
         {visibleItems.map((item, i) => (
           <div key={i}>
             <div className={`chat-msg ${item.role}`} data-testid={`chat-message-${i}`}>{item.text}</div>
+            {item.role === 'assistant' && solutions.filter((s) => s.turn === item.turn).map((s) => (
+              <div key={`${s.id}-${s.n}`} className="chat-scene" data-testid={`chat-solution-${s.id}`}>
+                <span>☰ {t('chat.solution', { title: s.title, n: s.n })}</span>
+                <Link className="btn" data-testid={`chat-solution-open-${s.id}`} to={`/orgs/${orgId}/solutions/${s.id}`}>{t('chat.open')}</Link>
+              </div>
+            ))}
             {item.role === 'assistant' && scenes.filter((s) => s.turn === item.turn).map((entry) => (
               <div key={entry.id} className="chat-scene" data-testid={`chat-scene-${entry.id}`}>
                 <span>◆ {t('chat.scene', { title: entry.scene.title })}</span>

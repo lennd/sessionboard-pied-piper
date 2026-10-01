@@ -259,3 +259,16 @@ describe('robustness', () => {
   });
 });
 
+describe('solutions from chat', () => {
+  it('stores the solution the agent proposes and streams it', async () => {
+    const { owner, org } = await setup();
+    await indexApi(org.id);
+    const conv = await newConversation(owner, org.id);
+    const stream = events((await ask(owner, org.id, conv.id, { text: 'I want order cancellation' })).body);
+    const solution = stream.find((e) => e.event === 'solution')!.data;
+    expect(solution).toMatchObject({ n: 1, title: 'I want order cancellation' });
+    const detail = (await ctx.app.inject({ method: 'GET', url: `/api/orgs/${org.id}/solutions/${solution.id}`, headers: { cookie: owner.cookie } })).json();
+    expect(detail).toMatchObject({ conversationId: conv.id, version: { n: 1, author: 'web' } });
+    expect(detail.version.draft.plan.length).toBeGreaterThan(0);
+  });
+});

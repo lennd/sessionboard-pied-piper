@@ -25,7 +25,7 @@ const mockApi = (enabled = true, conversation: object = { id: 'c1', title: 'New 
 
 const render = (selected: { label: string; graphRef: string } | null = null) => {
   const openScene = vi.fn();
-  renderShell(<ChatPanel orgId="o1" language="es" ctx={{ openScene, selected, scene }} />, { session: sessionFixture() });
+  renderShell(<ChatPanel orgId="o1" language="es" ctx={{ openScene, selectNode: vi.fn(), selected, scene }} />, { session: sessionFixture() });
   return { openScene };
 };
 
@@ -97,7 +97,7 @@ describe('ChatPanel', () => {
         onEvent({ type: 'text', delta: ' two' });
       });
       const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const view = renderShell(<ChatPanel orgId="o1" language="es" ctx={{ openScene: vi.fn(), selected: null, scene }} />, { session: sessionFixture() });
+      const view = renderShell(<ChatPanel orgId="o1" language="es" ctx={{ openScene: vi.fn(), selectNode: vi.fn(), selected: null, scene }} />, { session: sessionFixture() });
       fireEvent.change(await screen.findByTestId('chat-input'), { target: { value: 'hi' } });
       await waitFor(() => expect(screen.getByTestId('chat-send')).toBeEnabled());
       fireEvent.click(screen.getByTestId('chat-send'));
@@ -143,6 +143,20 @@ describe('ChatPanel', () => {
     fireEvent.change(screen.getByTestId('chat-conversations'), { target: { value: 'c2' } });
     await waitFor(() => expect(api).toHaveBeenCalledWith('/orgs/o1/conversations/c2'));
     expect(await screen.findByText('second question')).toBeInTheDocument();
+  });
+
+  it('links solutions proposed by the agent', async () => {
+    mockApi();
+    stream.mockImplementation(async (_o, _c, _b, onEvent: (e: ChatEvent) => void) => {
+      onEvent({ type: 'solution', id: 'sol1', n: 1, title: 'Order cancellation' });
+      onEvent({ type: 'text', delta: 'Saved a plan.' });
+    });
+    render();
+    fireEvent.change(await screen.findByTestId('chat-input'), { target: { value: 'I want order cancellation' } });
+    await waitFor(() => expect(screen.getByTestId('chat-send')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('chat-send'));
+    expect(await screen.findByTestId('chat-solution-sol1')).toHaveTextContent('Solution: Order cancellation · v1');
+    expect(screen.getByTestId('chat-solution-open-sol1')).toHaveAttribute('href', '/orgs/o1/solutions/sol1');
   });
 });
 

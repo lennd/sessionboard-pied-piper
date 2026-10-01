@@ -9,12 +9,15 @@ import { LoginPage } from './pages/LoginPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { ResetPage } from './pages/ResetPage';
 import { SignupPage } from './pages/SignupPage';
+import { SolutionPage } from './pages/SolutionPage';
 import { VerifyPage } from './pages/VerifyPage';
 import { GeneralPage } from './settings/GeneralPage';
 import { MembersPage } from './settings/MembersPage';
 import { PreferencesPage } from './settings/PreferencesPage';
 import { RepositoriesPage } from './settings/RepositoriesPage';
 import { SecurityPage } from './settings/SecurityPage';
+import { SolutionsPage } from './settings/SolutionsPage';
+import { TokensPage } from './settings/TokensPage';
 import { SettingsLayout } from './settings/SettingsLayout';
 import { UsagePage } from './settings/UsagePage';
 
@@ -37,6 +40,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/onboarding', element: <OnboardingPage /> },
       { path: '/orgs/:orgId/explore', element: <ExplorePage /> },
+      { path: '/orgs/:orgId/solutions/:solutionId', element: <SolutionPage /> },
       {
         path: '/orgs/:orgId/settings',
         element: <SettingsLayout />,
@@ -48,6 +52,8 @@ export const router = createBrowserRouter([
           { path: 'usage', element: <UsagePage /> },
           { path: 'preferences', element: <PreferencesPage /> },
           { path: 'security', element: <SecurityPage /> },
+          { path: 'solutions', element: <SolutionsPage /> },
+          { path: 'tokens', element: <TokensPage /> },
         ],
       },
     ],

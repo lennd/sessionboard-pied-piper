@@ -10,6 +10,7 @@ export type AgentEvent =
   | { type: 'text'; delta: string }
   | { type: 'tool'; name: string; status: 'running' | 'done' | 'error'; summary: string }
   | { type: 'scene'; scene: Scene }
+  | { type: 'solution'; id: string; n: number; title: string }
   | { type: 'error'; code: 'refusal' | 'max_tokens' | 'max_iterations' | 'llm_error' | 'aborted'; message: string };
 
 type ErrorCode = Extract<AgentEvent, { type: 'error' }>['code'];
@@ -94,6 +95,7 @@ export const runAgent = async (input: {
         scenes.push(outcome.scene);
         await input.emit({ type: 'scene', scene: outcome.scene });
       }
+      if (outcome.solution) await input.emit({ type: 'solution', ...outcome.solution });
       results.push({ type: 'tool_result', tool_use_id: use.id, content, ...(outcome.isError ? { is_error: true } : {}) });
     }
     appended.push({ role: 'assistant', content: message.content }, { role: 'user', content: results });

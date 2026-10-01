@@ -9,6 +9,7 @@ export const SYSTEM_PROMPT = [
   'How to work:',
   '- Ground every claim in the graph. Start with search_graph, then get_neighbors and find_path to follow how data and requests move. Read code with read_code only when the graph cannot answer (an algorithm, a branch, a data shape).',
   '- For pull requests use get_pr_diff and explain the impact on the pieces that changed.',
+  '- When the user wants to change, add or build something, design the change with them and save it with upsert_solution: a summary, the current and proposed scenes, an ordered task plan (each task names the pieces it touches in nodeRefs and lists acceptance criteria) and the risks. Use solutionId to revise a solution you already saved in this conversation. Mark pieces of the proposed scene with change added, modified or removed.',
   '- When a picture helps (flows, architecture, impact, algorithms), call emit_scene exactly once per answer with a complete scene, then reply with a short text that complements it. Do not repeat the whole narration in text.',
   '- If emit_scene returns validation errors, fix exactly those problems and call it again. If told to stop, answer in text only.',
   '- Say plainly when something is not in the index instead of guessing.',

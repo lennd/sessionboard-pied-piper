@@ -15,6 +15,7 @@ export type Config = {
   trustProxy: boolean | number | string;
   demoRepos: boolean;
   github: { appId: string; privateKey: string; slug: string; webhookSecret: string; stateSecret: string } | null;
+  publicApiUrl: string;
   agent: { enabled: boolean; fake: boolean; model: string; monthlyTokenBudget: number; heartbeatMs: number };
 };
 
@@ -34,6 +35,7 @@ const DEFAULTS = {
   DB_ENSURE: 'false',
   TRUST_PROXY: 'false',
   DEMO_REPOS: 'true',
+  PUBLIC_API_URL: 'http://localhost:4040',
   AGENT_ENABLED: 'false',
   RDI_FAKE_LLM: 'false',
   AGENT_MODEL: 'claude-opus-5',
@@ -84,6 +86,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     trustProxy: parseTrustProxy(read('TRUST_PROXY')),
     demoRepos: !production && read('DEMO_REPOS') !== 'false',
     github: readGithub(env),
+    publicApiUrl: read('PUBLIC_API_URL').replace(/\/$/, ''),
     agent: readAgent(env, production, read),
   };
 };

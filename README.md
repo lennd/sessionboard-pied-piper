@@ -35,3 +35,12 @@ The chat in the workspace (✦ in the activity bar) talks to Claude through the 
 (or `AGENT_ENABLED=true` with an `ant auth login` profile) before `npm run dev`; `AGENT_MODEL` defaults to
 `claude-opus-5` and `AGENT_MONTHLY_TOKEN_BUDGET` to 2,000,000 tokens per organization. For offline development and the
 E2E suite, `RDI_FAKE_LLM=true` uses a deterministic scripted agent (never in production).
+
+### Solutions and Claude Code
+
+Describe a change in the chat ("I want …") and the agent saves a versioned **Solution** (current vs proposed scene, task
+plan, risks) under Settings → Solutions. Open it to see the plan next to the canvas and press **Execute in Claude Code**:
+the dialog creates a personal access token and gives you the two commands to connect the remote MCP server
+(`POST /mcp`, Streamable HTTP, `Authorization: Bearer rdi_…`) and start Claude Code on the solution. Claude Code reads it
+with `get_solution`, queries the graph with `query_graph`, saves new versions with `update_solution` and reports
+`report_task_progress`; the Solution page updates live. Set `PUBLIC_API_URL` when the API is not on `http://localhost:4040`.
