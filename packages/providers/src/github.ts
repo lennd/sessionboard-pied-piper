@@ -11,6 +11,8 @@ export type GitHubClient = {
 };
 
 const JWT_BACKDATE_SECONDS = 60;
+const PAGE_SIZE = 100;
+const MAX_PAGES = 10;
 const JWT_LIFETIME_SECONDS = 540;
 const DEFAULT_API = 'https://api.github.com';
 
@@ -46,8 +48,15 @@ export const createGitHubClient = (config: GitHubAppConfig, fetchImpl: typeof fe
     installationToken,
     async listInstallationRepos(installationId) {
       const token = await installationToken(installationId);
-      const body = await request<{ repositories: { full_name: string; default_branch: string; private: boolean }[] }>('/installation/repositories?per_page=100', `token ${token}`);
-      return body.repositories.map((r) => ({ fullName: r.full_name, defaultBranch: r.default_branch, private: r.private }));
+      const repos: GitHubRepo[] = [];
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const body = await request<{ total_count?: number; repositories: { full_name: string; default_branch: string; private: boolean }[] }>(
+          `/installation/repositories?per_page=${PAGE_SIZE}${page > 1 ? `&page=${page}` : ''}`, `token ${token}`,
+        );
+        repos.push(...body.repositories.map((r) => ({ fullName: r.full_name, defaultBranch: r.default_branch, private: r.private })));
+        if (body.repositories.length < PAGE_SIZE || repos.length >= (body.total_count ?? repos.length)) break;
+      }
+      return repos;
     },
     async getInstallation(installationId) {
       const body = await request<{ account: { login: string } }>(`/app/installations/${installationId}`, appAuth());

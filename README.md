@@ -49,7 +49,8 @@ with `get_solution`, queries the graph with `query_graph`, saves new versions wi
 
 In Settings → Repositories press **Create GitHub App** (shown on local/dev servers when no App is configured). Choose your
 account or an organization, confirm on GitHub, and you are taken straight to the installation page: install it on your
-account and/or on organizations (an organization install may need an admin's approval). Press **Connect another account**
-to add more installations; repositories from every connected account are listed and indexed with their own installation
+account and/or on organizations. GitHub then asks you to authorize the App once, so the server can check that the
+installation really belongs to you. If an organization admin must approve the install, the page says so; once approved,
+press **Connect another account** and save on GitHub to finish. Press **Connect another account** to add more installations; repositories from every connected account are listed and indexed with their own installation
 token. On localhost the App's webhook is inactive, so use **Re-index** after pushing. Production deployments configure
 the App with `GITHUB_APP_*` environment variables instead; stored manifest credentials are ignored there.

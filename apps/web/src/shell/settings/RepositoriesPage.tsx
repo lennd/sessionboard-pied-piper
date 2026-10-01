@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nProvider';
+import type { MessageKey } from '../../i18n/messages';
 import { apiFetch } from '../api';
 import { GhostButton, PrimaryButton } from '../components/Buttons';
 import { errorText } from '../errors';
@@ -17,6 +18,7 @@ type Integrations = {
 };
 type Available = { fullName: string; defaultBranch: string; source: 'github' | 'demo'; account?: string };
 const APP_SUFFIX_LENGTH = 4;
+const GITHUB_ERRORS = new Set(['invalid_state', 'invalid_request', 'installation_not_yours', 'installation_taken', 'missing_installation', 'github_failed', 'manifest_failed', 'github_not_configured', 'github_already_configured']);
 const defaultAppName = () => `Repository Designer ${Math.random().toString(36).slice(2, 2 + APP_SUFFIX_LENGTH)}`;
 
 const STAGE_GLYPH = { done: '✓', running: '◐', error: '✕', pending: '○' } as const;
@@ -67,6 +69,7 @@ export const RepositoriesPage = () => {
     });
 
   const github = integrations.data?.github;
+  const githubError = params.get('github_error');
   return (
     <section>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -89,6 +92,8 @@ export const RepositoriesPage = () => {
       )}
       {github && !github.configured && github.manifestAvailable && canManage && <CreateAppCard orgId={org.id} onError={setError} />}
       {params.get('connected') === 'github' && <p className="alert ok" data-testid="connected-toast">{t('repos.connectedToast')}</p>}
+      {params.get('github') === 'pending' && <p className="alert ok" data-testid="github-pending">{t('repos.githubPending')}</p>}
+      {githubError && <p className="alert error" role="alert" data-testid="github-error">{t(GITHUB_ERRORS.has(githubError) ? (`githubError.${githubError}` as MessageKey) : 'githubError.github_failed')}</p>}
       {!github?.configured && integrations.data?.demo.available && <p className="alert ok" data-testid="demo-hint">{t('repos.demoHint')}</p>}
       {error && <p className="alert error" role="alert" data-testid="repos-error">{error}</p>}
       {canManage && available.data && (

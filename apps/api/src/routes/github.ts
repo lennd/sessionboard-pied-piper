@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { buildAppManifest, exchangeManifestCode, manifestPostUrl, signState, verifyState, verifyWebhookSignature } from '@rdi/providers';
+import { buildAppManifest, exchangeManifestCode, exchangeUserCode, listUserInstallations, manifestPostUrl, signState, verifyState, verifyWebhookSignature } from '@rdi/providers';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { can } from '../domain/roles';
@@ -13,13 +13,23 @@ import { nowOf, type AppDeps } from '../http/deps';
 const STATE_TTL_MS = 15 * 60_000;
 const STATE_KEY_PREFIX = 'rdi:gh-state:';
 const MANIFEST_KEY_PREFIX = 'rdi:gh-manifest:';
+const CONNECT_KEY_PREFIX = 'rdi:gh-connect:';
+const VERIFY_KEY_PREFIX = 'rdi:gh-verify:';
+const CONNECT_TTL_SECONDS = 60 * 60;
+const VERIFY_TTL_SECONDS = 10 * 60;
+const OAUTH_AUTHORIZE_URL = 'https://github.com/login/oauth/authorize';
 const MANIFEST_TTL_SECONDS = 60 * 60;
 const STATE_BYTES = 24;
 const SECRET_BYTES = 32;
 const SUBJECT_SEPARATOR = ':';
 const MAX_APP_NAME = 34;
 
-const setupQuery = z.object({ installation_id: z.coerce.number().int().positive(), state: z.string().min(1).max(500) });
+const setupQuery = z.object({
+  installation_id: z.coerce.number().int().positive().optional(),
+  setup_action: z.string().max(40).optional(),
+  code: z.string().min(1).max(200).optional(),
+  state: z.string().min(1).max(500).optional(),
+});
 const manifestQuery = z.object({
   owner: z.enum(['user', 'org']).default('user'),
   org: z.string().regex(/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/).optional(),
@@ -31,6 +41,15 @@ const pushPayload = z.object({ ref: z.string(), repository: z.object({ full_name
 export const githubRoutes = (api: FastifyInstance, deps: AppDeps) => {
   const manage = [requireAuth, requireMember(deps), requireAction('repos.manage')];
   const installState = (stateSecret: string, orgId: string, userId: string) => signState(stateSecret, `${orgId}${SUBJECT_SEPARATOR}${userId}`, nowOf(deps));
+  const setupUrl = `${deps.config.appUrl}/api/github/setup`;
+  const repositoriesPage = (orgId: string | null, params: string) =>
+    orgId ? `${deps.config.appUrl}/orgs/${orgId}/settings/repositories?${params}` : `${deps.config.appUrl}/?${params}`;
+  /** Remembers which product org the user is connecting, so GitHub redirects without our state still land in the right place. */
+  const rememberConnect = (userId: string, orgId: string) => deps.redis.set(`${CONNECT_KEY_PREFIX}${userId}`, orgId, 'EX', CONNECT_TTL_SECONDS);
+  const canManage = async (orgId: string, userId: string) => {
+    const membership = await findMembership(deps.pool, orgId, userId);
+    return Boolean(membership && can(membership.role, 'repos.manage'));
+  };
 
   api.get('/orgs/:orgId/github/manifest', { preHandler: manage }, async (req, reply) => {
     if (await resolveGithubApp(deps)) return fail(reply, 409, 'github_already_configured');
@@ -47,40 +66,88 @@ export const githubRoutes = (api: FastifyInstance, deps: AppDeps) => {
   });
 
   api.get('/github/manifest/callback', { preHandler: requireAuth }, async (req, reply) => {
-    const query = callbackQuery.parse(req.query);
-    const raw = await deps.redis.getdel(`${MANIFEST_KEY_PREFIX}${query.state}`);
+    const userId = req.auth!.user.id;
+    const query = callbackQuery.safeParse(req.query);
+    const raw = query.success ? await deps.redis.getdel(`${MANIFEST_KEY_PREFIX}${query.data.state}`) : null;
     const pending = raw ? (JSON.parse(raw) as { orgId: string; userId: string }) : null;
-    if (!pending || pending.userId !== req.auth!.user.id) return fail(reply, 400, 'invalid_state');
-    const membership = await findMembership(deps.pool, pending.orgId, req.auth!.user.id);
-    if (!membership || !can(membership.role, 'repos.manage')) return fail(reply, 404, 'not_found');
-    if (!(await manifestAvailable(deps))) return fail(reply, 409, 'github_already_configured');
-    const app = await exchangeManifestCode(query.code, deps.fetch ?? fetch);
-    await saveGithubApp(deps.pool, { ...app, stateSecret: randomBytes(SECRET_BYTES).toString('base64url') });
+    if (!query.success || !pending || pending.userId !== userId) return reply.redirect(repositoriesPage(null, 'github_error=invalid_state'), 302);
+    if (!(await canManage(pending.orgId, userId))) return reply.redirect(repositoriesPage(null, 'github_error=invalid_state'), 302);
+    if (!(await manifestAvailable(deps))) return reply.redirect(repositoriesPage(pending.orgId, 'github_error=github_already_configured'), 302);
+    try {
+      const app = await exchangeManifestCode(query.data.code, deps.fetch ?? fetch);
+      await saveGithubApp(deps.pool, { ...app, stateSecret: randomBytes(SECRET_BYTES).toString('base64url') });
+    } catch {
+      return reply.redirect(repositoriesPage(pending.orgId, 'github_error=manifest_failed'), 302);
+    }
     const active = await resolveGithubApp(deps);
-    if (!active) return fail(reply, 500, 'internal');
-    return reply.redirect(active.client.installUrl(installState(active.config.stateSecret, pending.orgId, req.auth!.user.id)), 302);
+    if (!active) return reply.redirect(repositoriesPage(pending.orgId, 'github_error=manifest_failed'), 302);
+    await rememberConnect(userId, pending.orgId);
+    return reply.redirect(active.client.installUrl(installState(active.config.stateSecret, pending.orgId, userId)), 302);
   });
 
   api.get('/orgs/:orgId/github/install-url', { preHandler: manage }, async (req, reply) => {
     const active = await resolveGithubApp(deps);
     if (!active) return fail(reply, 409, 'github_not_configured');
+    await rememberConnect(req.auth!.user.id, req.member!.org.id);
     return { url: active.client.installUrl(installState(active.config.stateSecret, req.member!.org.id, req.auth!.user.id)) };
   });
 
   api.get('/github/setup', { preHandler: requireAuth }, async (req, reply) => {
+    const userId = req.auth!.user.id;
+    const back = (orgId: string | null, params: string) => reply.redirect(repositoriesPage(orgId, params), 302);
+    const parsed = setupQuery.safeParse(req.query);
+    if (!parsed.success) return back(null, 'github_error=invalid_request');
+    const query = parsed.data;
     const active = await resolveGithubApp(deps);
-    if (!active) return fail(reply, 409, 'github_not_configured');
-    const query = setupQuery.parse(req.query);
-    const [orgId, userId] = (verifyState(active.config.stateSecret, query.state, nowOf(deps)) ?? '').split(SUBJECT_SEPARATOR);
-    if (!orgId || userId !== req.auth!.user.id) return fail(reply, 400, 'invalid_state');
-    const firstUse = await deps.redis.set(`${STATE_KEY_PREFIX}${query.state}`, '1', 'PX', STATE_TTL_MS, 'NX');
-    if (firstUse !== 'OK') return fail(reply, 400, 'invalid_state');
-    const membership = await findMembership(deps.pool, orgId, req.auth!.user.id);
-    if (!membership || !can(membership.role, 'repos.manage')) return fail(reply, 404, 'not_found');
-    const installation = await active.client.getInstallation(query.installation_id);
-    const bound = await bindInstallation(deps.pool, { orgId, installationId: query.installation_id, accountLogin: installation.accountLogin });
-    if (!bound) return fail(reply, 409, 'installation_taken');
-    return reply.redirect(`${deps.config.appUrl}/orgs/${orgId}/settings/repositories?connected=github`, 302);
+    let orgId: string | null = null;
+    let signedState = false;
+    let installationId = query.installation_id ?? null;
+    if (query.state && active) {
+      const [stateOrg, stateUser] = (verifyState(active.config.stateSecret, query.state, nowOf(deps)) ?? '').split(SUBJECT_SEPARATOR);
+      if (stateOrg && stateUser === userId) {
+        orgId = stateOrg;
+        signedState = true;
+      }
+    }
+    if (!orgId && query.state) {
+      const raw = await deps.redis.getdel(`${VERIFY_KEY_PREFIX}${query.state}`);
+      const pending = raw ? (JSON.parse(raw) as { orgId: string; userId: string; installationId: number }) : null;
+      if (pending && pending.userId === userId) {
+        orgId = pending.orgId;
+        installationId = pending.installationId;
+      }
+    }
+    orgId ??= await deps.redis.get(`${CONNECT_KEY_PREFIX}${userId}`);
+    if (!orgId) return back(null, 'github_error=invalid_state');
+    if (!active) return back(orgId, 'github_error=github_not_configured');
+    if (!(await canManage(orgId, userId))) return back(null, 'github_error=invalid_state');
+    if (query.setup_action === 'request') return back(orgId, 'github=pending');
+    if (!installationId) return back(orgId, 'github_error=missing_installation');
+    try {
+      let accountLogin: string;
+      if (active.oauth) {
+        if (!query.code) {
+          const nonce = randomBytes(STATE_BYTES).toString('base64url');
+          await deps.redis.set(`${VERIFY_KEY_PREFIX}${nonce}`, JSON.stringify({ orgId, userId, installationId }), 'EX', VERIFY_TTL_SECONDS);
+          return reply.redirect(`${OAUTH_AUTHORIZE_URL}?${new URLSearchParams({ client_id: active.oauth.clientId, redirect_uri: setupUrl, state: nonce }).toString()}`, 302);
+        }
+        const token = await exchangeUserCode({ ...active.oauth, code: query.code, redirectUri: setupUrl }, deps.fetch ?? fetch);
+        const owned = (await listUserInstallations(token, deps.fetch ?? fetch)).find((i) => i.id === installationId);
+        if (!owned) return back(orgId, 'github_error=installation_not_yours');
+        accountLogin = owned.accountLogin;
+      } else {
+        // Env Apps without OAuth credentials keep the signed, single-use state as their only proof.
+        if (!signedState || !query.state) return back(orgId, 'github_error=invalid_state');
+        const firstUse = await deps.redis.set(`${STATE_KEY_PREFIX}${query.state}`, '1', 'PX', STATE_TTL_MS, 'NX');
+        if (firstUse !== 'OK') return back(orgId, 'github_error=invalid_state');
+        accountLogin = (await active.client.getInstallation(installationId)).accountLogin;
+      }
+      const bound = await bindInstallation(deps.pool, { orgId, installationId, accountLogin });
+      if (!bound) return back(orgId, 'github_error=installation_taken');
+      return back(orgId, 'connected=github');
+    } catch {
+      return back(orgId, 'github_error=github_failed');
+    }
   });
 
   api.register(async (hooks) => {

@@ -65,4 +65,16 @@ describe('createGitHubClient', () => {
     expect(fetchMock.mock.calls[1]![0]).toBe('https://api.github.com/repos/acme/api/pulls/42/files?per_page=100');
     expect(fetchMock.mock.calls[1]![1].headers.authorization).toBe('token ghs_pr');
   });
+
+  it('pages through installations with more than 100 repositories', async () => {
+    const repos = (from: number, count: number) => Array.from({ length: count }, (_, i) => ({ full_name: `acme/r${from + i}`, default_branch: 'main', private: true }));
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(json({ token: 'ghs_p' }, 201))
+      .mockResolvedValueOnce(json({ total_count: 150, repositories: repos(0, 100) }))
+      .mockResolvedValueOnce(json({ total_count: 150, repositories: repos(100, 50) }));
+    const client = createGitHubClient(config, fetchMock as unknown as typeof fetch);
+    const listed = await client.listInstallationRepos(5);
+    expect(listed).toHaveLength(150);
+    expect(fetchMock.mock.calls[2]![0]).toBe('https://api.github.com/installation/repositories?per_page=100&page=2');
+  });
 });

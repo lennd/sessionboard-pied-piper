@@ -115,5 +115,17 @@ describe('RepositoriesPage', () => {
     expect(await screen.findByRole('option', { name: 'lennd/api · GitHub (lennd)' })).toBeInTheDocument();
     expect(screen.queryByTestId('create-app')).toBeNull();
   });
+
+  it('explains GitHub errors and pending approvals after returning from GitHub', async () => {
+    mockApi({ integrations: { github: gh({ configured: true, source: 'manifest', appSlug: 'rd' }), demo: { available: false } }, available: [], repos: [] });
+    render('/orgs/o1/settings/repositories?github_error=installation_not_yours');
+    expect(await screen.findByTestId('github-error')).toHaveTextContent('belongs to a GitHub account you cannot access');
+  });
+
+  it('tells the user when an organization admin must approve the installation', async () => {
+    mockApi({ integrations: { github: gh({ configured: true, source: 'manifest', appSlug: 'rd' }), demo: { available: false } }, available: [], repos: [] });
+    render('/orgs/o1/settings/repositories?github=pending');
+    expect(await screen.findByTestId('github-pending')).toHaveTextContent('admin');
+  });
 });
 

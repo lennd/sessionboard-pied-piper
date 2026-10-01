@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildAppManifest, exchangeManifestCode, isLocalUrl, manifestPostUrl } from '../src/index';
+import { buildAppManifest, exchangeManifestCode, exchangeUserCode, isLocalUrl, listUserInstallations, manifestPostUrl } from '../src/index';
 
 describe('buildAppManifest', () => {
   it('creates a public read-only app whose URLs go through the web origin', () => {
@@ -11,6 +11,8 @@ describe('buildAppManifest', () => {
       redirect_url: 'http://localhost:5177/api/github/manifest/callback',
       setup_url: 'http://localhost:5177/api/github/setup',
       setup_on_update: true,
+      request_oauth_on_install: true,
+      callback_urls: ['http://localhost:5177/api/github/setup'],
       public: true,
       default_permissions: { contents: 'read', metadata: 'read', pull_requests: 'read' },
       default_events: ['push'],
@@ -46,3 +48,28 @@ describe('exchangeManifestCode', () => {
     await expect(exchangeManifestCode('bad', fetchMock as unknown as typeof fetch)).rejects.toThrow('GitHub API 404: Not Found');
   });
 });
+
+describe('user verification', () => {
+  it('exchanges an OAuth code for a user token', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ access_token: 'ghu_1', token_type: 'bearer' }), { status: 200 }));
+    expect(await exchangeUserCode({ clientId: 'Iv1', clientSecret: 'cs', code: 'c1', redirectUri: 'http://localhost:5177/api/github/setup' }, fetchMock as unknown as typeof fetch)).toBe('ghu_1');
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe('https://github.com/login/oauth/access_token');
+    expect(JSON.parse(init.body)).toEqual({ client_id: 'Iv1', client_secret: 'cs', code: 'c1', redirect_uri: 'http://localhost:5177/api/github/setup' });
+    const rejected = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'bad_verification_code' }), { status: 200 }));
+    await expect(exchangeUserCode({ clientId: 'a', clientSecret: 'b', code: 'x', redirectUri: 'r' }, rejected as unknown as typeof fetch)).rejects.toThrow('bad_verification_code');
+  });
+
+  it('lists every installation the user can access across pages', async () => {
+    const page = (ids: number[], total: number) => new Response(JSON.stringify({ total_count: total, installations: ids.map((id) => ({ id, account: { login: `acc${id}` } })) }), { status: 200 });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(page(Array.from({ length: 100 }, (_, i) => i + 1), 101))
+      .mockResolvedValueOnce(page([101], 101));
+    const installations = await listUserInstallations('ghu_1', fetchMock as unknown as typeof fetch);
+    expect(installations).toHaveLength(101);
+    expect(installations[100]).toEqual({ id: 101, accountLogin: 'acc101' });
+    expect(fetchMock.mock.calls[1]![0]).toBe('https://api.github.com/user/installations?per_page=100&page=2');
+    expect(fetchMock.mock.calls[0]![1].headers.authorization).toBe('Bearer ghu_1');
+  });
+});
+

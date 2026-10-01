@@ -12,6 +12,8 @@ export type ActiveGithubApp = {
   client: GitHubClient;
   htmlUrl: string | null;
   ownerLogin: string | null;
+  /** OAuth credentials used to prove which GitHub user installed the App; null for env Apps without them. */
+  oauth: { clientId: string; clientSecret: string } | null;
 };
 
 const clients = new Map<string, GitHubClient>();
@@ -27,12 +29,12 @@ const clientFor = (row: { appId: string; privateKey: string; slug: string }, fet
 
 /** The active GitHub App: env configuration first, then (outside production) the manifest-created one. */
 export const resolveGithubApp = async (deps: GithubDeps): Promise<ActiveGithubApp | null> => {
-  if (deps.config.github && deps.github) return { source: 'env', config: deps.config.github, client: deps.github, htmlUrl: null, ownerLogin: null };
+  if (deps.config.github && deps.github) return { source: 'env', config: deps.config.github, client: deps.github, htmlUrl: null, ownerLogin: null, oauth: null };
   if (deps.config.nodeEnv === PRODUCTION) return null;
   const row = await loadGithubAppRow(deps.pool);
   if (!row) return null;
   const config = { appId: row.appId, privateKey: row.privateKey, slug: row.slug, webhookSecret: row.webhookSecret, stateSecret: row.stateSecret };
-  return { source: 'manifest', config, client: clientFor(row, deps.fetch ?? fetch), htmlUrl: row.htmlUrl, ownerLogin: row.ownerLogin };
+  return { source: 'manifest', config, client: clientFor(row, deps.fetch ?? fetch), htmlUrl: row.htmlUrl, ownerLogin: row.ownerLogin, oauth: { clientId: row.clientId, clientSecret: row.clientSecret } };
 };
 
 export const manifestAvailable = async (deps: GithubDeps): Promise<boolean> =>

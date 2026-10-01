@@ -54,12 +54,12 @@ describe('GitHub App flow', () => {
   it('rejects forged or foreign state', async () => {
     const { owner, org } = await setup();
     const forged = await ctx.app.inject({ method: 'GET', url: `/api/github/setup?installation_id=1&state=${org.id}.1.bad`, headers: { cookie: owner.cookie } });
-    expect(forged.json()).toEqual({ error: { code: 'invalid_state' } });
+    expect(forged.headers.location).toContain('github_error=invalid_state');
     const other = await setup();
     const foreign = await setupCall(owner, 1, await stateFor(other.owner, other.org.id));
-    expect(foreign.json()).toEqual({ error: { code: 'invalid_state' } });
+    expect(foreign.headers.location).toContain('github_error=invalid_state');
     const unsignedUser = await setupCall(owner, 1, signState('state-secret', org.id));
-    expect(unsignedUser.json()).toEqual({ error: { code: 'invalid_state' } });
+    expect(unsignedUser.headers.location).toContain('github_error=invalid_state');
   });
 
   it('verifies webhook signatures and enqueues re-indexing on pushes to the default branch', async () => {
@@ -83,7 +83,7 @@ describe('GitHub App flow', () => {
     const { owner, org } = await setup();
     const state = await stateFor(owner, org.id);
     expect((await setupCall(owner, 5151, state)).statusCode).toBe(302);
-    expect((await setupCall(owner, 5152, state)).json()).toEqual({ error: { code: 'invalid_state' } });
+    expect((await setupCall(owner, 5152, state)).headers.location).toContain('github_error=invalid_state');
   });
 
   it('refuses to take over an installation that belongs to another organization', async () => {
@@ -91,7 +91,7 @@ describe('GitHub App flow', () => {
     expect((await setupCall(victim.owner, 6161, await stateFor(victim.owner, victim.org.id))).statusCode).toBe(302);
     const attacker = await setup();
     const res = await setupCall(attacker.owner, 6161, await stateFor(attacker.owner, attacker.org.id));
-    expect(res.json()).toEqual({ error: { code: 'installation_taken' } });
+    expect(res.headers.location).toContain('github_error=installation_taken');
     const victimView = (await ctx.app.inject({ method: 'GET', url: `/api/orgs/${victim.org.id}/integrations`, headers: { cookie: victim.owner.cookie } })).json();
     expect(victimView.github.installations).toEqual([{ accountLogin: 'acme' }]);
     const attackerRepos = await ctx.app.inject({ method: 'GET', url: `/api/orgs/${attacker.org.id}/available-repos`, headers: { cookie: attacker.owner.cookie } });

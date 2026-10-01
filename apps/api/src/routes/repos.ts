@@ -21,13 +21,13 @@ export const repoRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const installations = await listInstallationsForOrg(deps.pool, orgId);
     const active = await resolveGithubApp(deps);
     if (installations.length > 0 && active) {
-      const perInstallation = await Promise.all(
+      const perInstallation = await Promise.allSettled(
         installations.map(async (installation) =>
           (await active.client.listInstallationRepos(Number(installation.installation_id))).map((r) => ({
             fullName: r.fullName, defaultBranch: r.defaultBranch, source: 'github' as const, account: installation.account_login, installationRowId: installation.id,
           }))),
       );
-      return perInstallation.flat();
+      return perInstallation.flatMap((result) => (result.status === 'fulfilled' ? result.value : []));
     }
     return deps.config.demoRepos ? DEMO_REPOS.map((r) => ({ fullName: r.fullName, defaultBranch: r.defaultBranch, source: 'demo' as const })) : [];
   };

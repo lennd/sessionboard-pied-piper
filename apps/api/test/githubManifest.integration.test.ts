@@ -11,11 +11,19 @@ const REPOS: Record<string, { full_name: string; default_branch: string; private
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 const fakeGithub: typeof fetch = async (input, init) => {
   const url = String(input);
+  if (url === 'https://github.com/login/oauth/access_token') {
+    const { code } = JSON.parse(String(init?.body)) as { code: string };
+    return json(code === 'c-hugo' ? { access_token: 'utok-hugo' } : { error: 'bad_verification_code' });
+  }
+  if (url.startsWith('https://api.github.com/user/installations')) {
+    const auth = (init?.headers as Record<string, string>).authorization;
+    return json(auth === 'Bearer utok-hugo' ? { total_count: 2, installations: [{ id: 11, account: { login: 'hugo' } }, { id: 22, account: { login: 'lennd' } }] } : { message: 'Bad credentials' }, auth === 'Bearer utok-hugo' ? 200 : 401);
+  }
   if (url.endsWith('/app-manifests/good/conversions')) {
     return json({ id: 77, slug: 'rd-test', name: 'RD test', html_url: 'https://github.com/apps/rd-test', owner: { login: 'hugo' }, pem: PEM, webhook_secret: 'whs', client_id: 'c', client_secret: 's' }, 201);
   }
   let match = /\/app\/installations\/(\d+)\/access_tokens$/.exec(url);
-  if (match) return json({ token: `tok-${match[1]}` }, 201);
+  if (match) return match[1] === '33' ? json({ message: 'Not Found' }, 404) : json({ token: `tok-${match[1]}` }, 201);
   match = /\/app\/installations\/(\d+)$/.exec(url);
   if (match) return json({ account: { login: ACCOUNTS[match[1] ?? ""] } });
   if (url.endsWith('/installation/repositories?per_page=100')) return json({ repositories: REPOS[(init?.headers as Record<string, string>).authorization ?? ""] ?? [] });
@@ -53,14 +61,14 @@ describe('GitHub App manifest flow', () => {
   it('stores the app once and continues to the installation page', async () => {
     const { owner, org } = await setup();
     const forged = await get(owner, '/api/github/manifest/callback?code=good&state=nope');
-    expect(forged.json()).toEqual({ error: { code: 'invalid_state' } });
+    expect(forged.headers.location).toBe('http://localhost:5177/?github_error=invalid_state');
     expect((await ctx.pool.query('select count(*)::int as n from github_app')).rows[0].n).toBe(0);
     const manifest = (await get(owner, `/api/orgs/${org.id}/github/manifest?owner=user&name=RD%20test`)).json();
     const state = stateOf(manifest.action);
     const callback = await get(owner, `/api/github/manifest/callback?code=good&state=${encodeURIComponent(state)}`);
     expect(callback.statusCode).toBe(302);
     expect(callback.headers.location).toMatch(/^https:\/\/github\.com\/apps\/rd-test\/installations\/new\?state=/);
-    expect((await get(owner, `/api/github/manifest/callback?code=good&state=${encodeURIComponent(state)}`)).json()).toEqual({ error: { code: 'invalid_state' } });
+    expect((await get(owner, `/api/github/manifest/callback?code=good&state=${encodeURIComponent(state)}`)).headers.location).toBe('http://localhost:5177/?github_error=invalid_state');
     expect((await get(owner, `/api/orgs/${org.id}/github/manifest?owner=user&name=again`)).json()).toEqual({ error: { code: 'github_already_configured' } });
     expect((await get(owner, `/api/orgs/${org.id}/integrations`)).json().github).toMatchObject({ configured: true, source: 'manifest', appSlug: 'rd-test', appUrl: 'https://github.com/apps/rd-test', manifestAvailable: false });
   });
@@ -71,15 +79,15 @@ describe('GitHub App manifest flow', () => {
     await ctx.pool.query("insert into memberships (org_id, user_id, role) values ($1, $2, 'member')", [org.id, colleague.userId]);
     expect((await get(colleague, `/api/orgs/${org.id}/github/manifest?owner=user&name=x`)).statusCode).toBe(403);
     const manifest = (await get(owner, `/api/orgs/${org.id}/github/manifest?owner=user&name=x`)).json();
-    expect((await get(colleague, `/api/github/manifest/callback?code=good&state=${encodeURIComponent(stateOf(manifest.action))}`)).json()).toEqual({ error: { code: 'invalid_state' } });
+    expect((await get(colleague, `/api/github/manifest/callback?code=good&state=${encodeURIComponent(stateOf(manifest.action))}`)).headers.location).toBe('http://localhost:5177/?github_error=invalid_state');
   });
 
   it('connects several GitHub accounts to one organization and keeps each repo on its installation', async () => {
     const { owner, org } = await setup();
     const first = await createApp(owner, org.id);
-    expect((await get(owner, `/api/github/setup?installation_id=11&state=${encodeURIComponent(stateOf(first.headers.location as string))}`)).statusCode).toBe(302);
+    expect((await get(owner, `/api/github/setup?installation_id=11&code=c-hugo&state=${encodeURIComponent(stateOf(first.headers.location as string))}`)).statusCode).toBe(302);
     const install = (await get(owner, `/api/orgs/${org.id}/github/install-url`)).json();
-    expect((await get(owner, `/api/github/setup?installation_id=22&state=${encodeURIComponent(stateOf(install.url))}`)).statusCode).toBe(302);
+    expect((await get(owner, `/api/github/setup?installation_id=22&code=c-hugo&state=${encodeURIComponent(stateOf(install.url))}`)).statusCode).toBe(302);
     expect((await get(owner, `/api/orgs/${org.id}/integrations`)).json().github.installations).toEqual([{ accountLogin: 'hugo' }, { accountLogin: 'lennd' }]);
     const available = (await get(owner, `/api/orgs/${org.id}/available-repos`)).json();
     expect(available).toEqual([
@@ -92,4 +100,46 @@ describe('GitHub App manifest flow', () => {
     const rows = (await ctx.pool.query('select r.full_name, gi.installation_id::int as installation from repos r join github_installations gi on gi.id = r.installation_id where r.org_id = $1 order by r.full_name', [org.id])).rows;
     expect(rows).toEqual([{ full_name: 'hugo/notes', installation: 11 }, { full_name: 'lennd/api', installation: 22 }]);
   });
+
+  it('rejects installations that do not belong to the GitHub user who installed them', async () => {
+    const { owner, org } = await setup();
+    await createApp(owner, org.id);
+    await get(owner, `/api/orgs/${org.id}/github/install-url`);
+    const res = await get(owner, '/api/github/setup?installation_id=99&code=c-hugo&setup_action=install');
+    expect(res.headers.location).toBe(`http://localhost:5177/orgs/${org.id}/settings/repositories?github_error=installation_not_yours`);
+    expect((await ctx.pool.query('select count(*)::int as n from github_installations')).rows[0].n).toBe(0);
+  });
+
+  it('asks GitHub to identify the user when the installation callback has no OAuth code', async () => {
+    const { owner, org } = await setup();
+    await createApp(owner, org.id);
+    await get(owner, `/api/orgs/${org.id}/github/install-url`);
+    const first = await get(owner, '/api/github/setup?installation_id=11&setup_action=install');
+    const authorize = new URL(first.headers.location as string);
+    expect(`${authorize.origin}${authorize.pathname}`).toBe('https://github.com/login/oauth/authorize');
+    expect(authorize.searchParams.get('client_id')).toBe('c');
+    expect(authorize.searchParams.get('redirect_uri')).toBe('http://localhost:5177/api/github/setup');
+    const done = await get(owner, `/api/github/setup?code=c-hugo&state=${encodeURIComponent(authorize.searchParams.get('state')!)}`);
+    expect(done.headers.location).toBe(`http://localhost:5177/orgs/${org.id}/settings/repositories?connected=github`);
+    expect((await get(owner, `/api/orgs/${org.id}/integrations`)).json().github.installations).toEqual([{ accountLogin: 'hugo' }]);
+  });
+
+  it('sends pending approvals and failures back to the repositories page', async () => {
+    const { owner, org } = await setup();
+    const manifest = (await get(owner, `/api/orgs/${org.id}/github/manifest?owner=user&name=x`)).json();
+    const failed = await get(owner, `/api/github/manifest/callback?code=bad&state=${encodeURIComponent(stateOf(manifest.action))}`);
+    expect(failed.headers.location).toBe(`http://localhost:5177/orgs/${org.id}/settings/repositories?github_error=manifest_failed`);
+    expect((await ctx.pool.query('select count(*)::int as n from github_app')).rows[0].n).toBe(0);
+    await createApp(owner, org.id);
+    await get(owner, `/api/orgs/${org.id}/github/install-url`);
+    expect((await get(owner, '/api/github/setup?setup_action=request')).headers.location).toBe(`http://localhost:5177/orgs/${org.id}/settings/repositories?github=pending`);
+  });
+
+  it('keeps listing repositories when one connected installation is broken', async () => {
+    const { owner, org } = await setup();
+    await createApp(owner, org.id);
+    await ctx.pool.query("insert into github_installations (org_id, installation_id, account_login) values ($1, 11, 'hugo'), ($1, 33, 'gone')", [org.id]);
+    expect((await get(owner, `/api/orgs/${org.id}/available-repos`)).json()).toEqual([{ fullName: 'hugo/notes', defaultBranch: 'main', source: 'github', account: 'hugo' }]);
+  });
 });
+
