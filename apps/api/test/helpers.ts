@@ -9,7 +9,7 @@ import { createDevMailer } from '../src/mail/mailer';
 import type { IndexJobData } from '../src/queue/indexQueue';
 import { TEST_DATABASE_URL, TEST_REDIS_URL } from './setup/env';
 
-const TABLES = ['repos', 'github_installations', 'invitations', 'email_tokens', 'sessions', 'memberships', 'orgs', 'users'];
+const TABLES = ['github_app', 'repos', 'github_installations', 'invitations', 'email_tokens', 'sessions', 'memberships', 'orgs', 'users'];
 const RATE_PREFIX = 'rltest';
 
 export const createTestContext = async (options: { github?: Config['github']; githubClient?: GitHubClient; llm?: LlmClient | null; heartbeatMs?: number } = {}) => {
