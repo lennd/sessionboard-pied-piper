@@ -5,12 +5,13 @@ export type ChatEvent =
   | { type: 'text'; delta: string }
   | { type: 'tool'; name: string; status: 'running' | 'done' | 'error'; summary: string }
   | { type: 'scene'; id: string; scene: unknown }
+  | { type: 'solution'; id: string; n: number; title: string }
   | { type: 'error'; code: string; message: string }
   | { type: 'done'; sceneIds: string[]; usage: { input: number; output: number } };
 export type AskBody = { text: string; language?: string; focus?: { label: string; graphRef: string } | null };
 
 const SEPARATOR = /\r?\n\r?\n/;
-const EVENT_TYPES = new Set(['text', 'tool', 'scene', 'error', 'done']);
+const EVENT_TYPES = new Set(['text', 'tool', 'scene', 'solution', 'error', 'done']);
 
 export const parseSse = (buffer: string): { messages: SseMessage[]; rest: string } => {
   const parts = buffer.split(SEPARATOR);

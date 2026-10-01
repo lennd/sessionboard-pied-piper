@@ -1,4 +1,5 @@
 export const shellEn = {
+  'chat.solution': 'Solution: {title} · v{n}',
   'nav.solutions': 'Solutions',
   'nav.tokens': 'Access tokens',
   'solutions.title': 'Solutions',
@@ -228,6 +229,7 @@ export type ShellKey = keyof typeof shellEn;
 type ShellCatalog = Record<ShellKey, string>;
 
 export const shellEs: ShellCatalog = {
+  'chat.solution': 'Solución: {title} · v{n}',
   'nav.solutions': 'Soluciones',
   'nav.tokens': 'Tokens de acceso',
   'solutions.title': 'Soluciones',
@@ -454,6 +456,7 @@ export const shellEs: ShellCatalog = {
 };
 
 export const shellPt: ShellCatalog = {
+  'chat.solution': 'Solução: {title} · v{n}',
   'nav.solutions': 'Soluções',
   'nav.tokens': 'Tokens de acesso',
   'solutions.title': 'Soluções',
