@@ -25,14 +25,15 @@ const sceneFor = (language: string): Scene => sampleRegistry[`checkout-${languag
 
 const NO_SCENES: Scene[] = [];
 
-export type ChatContext = { openScene(scene: Scene): void; selected: { label: string; graphRef: string } | null; scene: Scene };
+export type ChatContext = { openScene(scene: Scene): void; selectNode(id: string): void; selected: { label: string; graphRef: string } | null; scene: Scene };
+export type WorkspacePanel = { id: string; glyph: string; title: string; render: (ctx: ChatContext) => ReactNode };
 
-type WorkspaceProps = { chat?: (ctx: ChatContext) => ReactNode; loadCode?: (code: CodeRef) => Promise<string>; extraScenes?: Scene[]; theme?: ThemeId; onTheme?: (theme: ThemeId) => void; onLanguage?: (language: UiLanguage) => void; initialLevel?: Level; homeHref?: string };
+type WorkspaceProps = { chat?: (ctx: ChatContext) => ReactNode; panels?: WorkspacePanel[]; initialPanel?: string; loadCode?: (code: CodeRef) => Promise<string>; extraScenes?: Scene[]; theme?: ThemeId; onTheme?: (theme: ThemeId) => void; onLanguage?: (language: UiLanguage) => void; initialLevel?: Level; homeHref?: string };
 
-export const Workspace = ({ chat, loadCode, extraScenes = NO_SCENES, theme: controlledTheme, onTheme, onLanguage, initialLevel = DEFAULT_LEVEL, homeHref }: WorkspaceProps = {}) => {
-  const { language } = useI18n();
+export const Workspace = ({ chat, panels, initialPanel, loadCode, extraScenes = NO_SCENES, theme: controlledTheme, onTheme, onLanguage, initialLevel = DEFAULT_LEVEL, homeHref }: WorkspaceProps = {}) => {
+  const { language, t } = useI18n();
   const [chatScenes, setChatScenes] = useState<Scene[]>([]);
-  const [sidebar, setSidebar] = useState<'explorer' | 'chat'>('explorer');
+  const [sidebar, setSidebar] = useState<string>(initialPanel ?? 'explorer');
   const scenes = useMemo(() => {
     const seen = new Set<string>();
     return [...chatScenes, ...extraScenes, ...sampleScenes].filter((s) => (seen.has(s.id) ? false : (seen.add(s.id), true)));
@@ -101,9 +102,11 @@ export const Workspace = ({ chat, loadCode, extraScenes = NO_SCENES, theme: cont
   };
   const chatContext: ChatContext = {
     openScene,
+    selectNode: (id) => dispatchRaw({ type: 'selectNode', nodeId: id }),
     scene,
     selected: selectedNode?.graphRef ? { label: selectedNode.label, graphRef: selectedNode.graphRef } : null,
   };
+  const allPanels: WorkspacePanel[] = [...(chat ? [{ id: 'chat', glyph: '✦', title: t('chat.title'), render: chat }] : []), ...(panels ?? [])];
 
   return (
     <div className="ws">
@@ -113,13 +116,13 @@ export const Workspace = ({ chat, loadCode, extraScenes = NO_SCENES, theme: cont
         onToggleOverlay={() => dispatchRaw({ type: 'toggleScaleOverlay' })} onTheme={setTheme}
         onLanguage={onLanguage} homeHref={homeHref}
       />
-      <div className={sidebar === 'chat' && chat ? 'ws-body chat-open' : 'ws-body'}>
+      <div className={sidebar !== 'explorer' && allPanels.some((p) => p.id === sidebar) ? 'ws-body chat-open' : 'ws-body'}>
         <ExplorerPanel
           scene={scene} index={index} model={model} explorer={explorer} flat={flat} cursor={frame.index} numbering={numbering} byNode={byNode}
           onSelectNode={(id) => dispatchRaw({ type: 'selectNode', nodeId: id })} onToggleExpand={(id) => dispatchRaw({ type: 'toggleExpand', nodeId: id })}
           onSeek={(i) => dispatchPlayer({ type: 'seek', stepIndex: i })} onToggleStep={(id) => dispatchRaw({ type: 'toggleStep', stepId: id })}
           onSelectRisk={(id) => dispatchRaw({ type: 'selectRisk', riskId: id })} onSetMode={(mode) => { setSidebar('explorer'); dispatchRaw({ type: 'setMode', mode }); }}
-          chatSlot={chat ? chat(chatContext) : undefined} sidebar={chat ? sidebar : 'explorer'} onSidebar={setSidebar}
+          panels={allPanels.map((p) => ({ id: p.id, glyph: p.glyph, title: p.title, node: p.render(chatContext) }))} sidebar={sidebar} onSidebar={setSidebar}
         />
         <main className="ws-canvas">
           <Canvas

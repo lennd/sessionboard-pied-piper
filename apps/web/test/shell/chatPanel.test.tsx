@@ -25,7 +25,7 @@ const mockApi = (enabled = true, conversation: object = { id: 'c1', title: 'New 
 
 const render = (selected: { label: string; graphRef: string } | null = null) => {
   const openScene = vi.fn();
-  renderShell(<ChatPanel orgId="o1" language="es" ctx={{ openScene, selected, scene }} />, { session: sessionFixture() });
+  renderShell(<ChatPanel orgId="o1" language="es" ctx={{ openScene, selectNode: vi.fn(), selected, scene }} />, { session: sessionFixture() });
   return { openScene };
 };
 
@@ -97,7 +97,7 @@ describe('ChatPanel', () => {
         onEvent({ type: 'text', delta: ' two' });
       });
       const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const view = renderShell(<ChatPanel orgId="o1" language="es" ctx={{ openScene: vi.fn(), selected: null, scene }} />, { session: sessionFixture() });
+      const view = renderShell(<ChatPanel orgId="o1" language="es" ctx={{ openScene: vi.fn(), selectNode: vi.fn(), selected: null, scene }} />, { session: sessionFixture() });
       fireEvent.change(await screen.findByTestId('chat-input'), { target: { value: 'hi' } });
       await waitFor(() => expect(screen.getByTestId('chat-send')).toBeEnabled());
       fireEvent.click(screen.getByTestId('chat-send'));
