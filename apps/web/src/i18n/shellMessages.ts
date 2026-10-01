@@ -1,4 +1,15 @@
 export const shellEn = {
+  'repos.createApp': 'Create GitHub App',
+  'repos.createAppHelp': 'Creates a read-only GitHub App for this server on your account or an organization. You will confirm it on GitHub and then choose where to install it.',
+  'repos.appName': 'App name',
+  'repos.owner.label': 'Create it on',
+  'repos.owner.user': 'My GitHub account',
+  'repos.owner.org': 'An organization',
+  'repos.orgLogin': 'Organization login',
+  'repos.connectAnother': 'Connect another account',
+  'repos.connectedAccounts': 'Connected accounts:',
+  'repos.source.githubAccount': 'GitHub ({account})',
+  'errors.github_already_configured': 'A GitHub App is already configured.',
   'chat.solution': 'Solution: {title} · v{n}',
   'nav.solutions': 'Solutions',
   'nav.tokens': 'Access tokens',
@@ -229,6 +240,17 @@ export type ShellKey = keyof typeof shellEn;
 type ShellCatalog = Record<ShellKey, string>;
 
 export const shellEs: ShellCatalog = {
+  'repos.createApp': 'Crear GitHub App',
+  'repos.createAppHelp': 'Crea una GitHub App de solo lectura para este servidor en tu cuenta o en una organización. La confirmás en GitHub y después elegís dónde instalarla.',
+  'repos.appName': 'Nombre de la App',
+  'repos.owner.label': 'Crearla en',
+  'repos.owner.user': 'Mi cuenta de GitHub',
+  'repos.owner.org': 'Una organización',
+  'repos.orgLogin': 'Login de la organización',
+  'repos.connectAnother': 'Conectar otra cuenta',
+  'repos.connectedAccounts': 'Cuentas conectadas:',
+  'repos.source.githubAccount': 'GitHub ({account})',
+  'errors.github_already_configured': 'Ya hay una GitHub App configurada.',
   'chat.solution': 'Solución: {title} · v{n}',
   'nav.solutions': 'Soluciones',
   'nav.tokens': 'Tokens de acceso',
@@ -456,6 +478,17 @@ export const shellEs: ShellCatalog = {
 };
 
 export const shellPt: ShellCatalog = {
+  'repos.createApp': 'Criar GitHub App',
+  'repos.createAppHelp': 'Cria uma GitHub App somente leitura para este servidor na sua conta ou em uma organização. Você confirma no GitHub e depois escolhe onde instalá-la.',
+  'repos.appName': 'Nome da App',
+  'repos.owner.label': 'Criar em',
+  'repos.owner.user': 'Minha conta do GitHub',
+  'repos.owner.org': 'Uma organização',
+  'repos.orgLogin': 'Login da organização',
+  'repos.connectAnother': 'Conectar outra conta',
+  'repos.connectedAccounts': 'Contas conectadas:',
+  'repos.source.githubAccount': 'GitHub ({account})',
+  'errors.github_already_configured': 'Já existe uma GitHub App configurada.',
   'chat.solution': 'Solução: {title} · v{n}',
   'nav.solutions': 'Soluções',
   'nav.tokens': 'Tokens de acesso',
