@@ -158,5 +158,26 @@ describe('ChatPanel', () => {
     expect(await screen.findByTestId('chat-solution-sol1')).toHaveTextContent('Solution: Order cancellation · v1');
     expect(screen.getByTestId('chat-solution-open-sol1')).toHaveAttribute('href', '/orgs/o1/solutions/sol1');
   });
+
+  it('renders assistant answers as markdown and keeps user messages as plain text', async () => {
+    mockApi();
+    stream.mockImplementation(async (_o, _c, _b, onEvent: (e: ChatEvent) => void) => {
+      onEvent({ type: 'text', delta: '## Hallazgos\n\n- **SHA-1** por defecto\n- usar `sha256`\n\n| Riesgo | Nivel |\n|---|---|\n| Firma | alto |\n\n[docs](https://example.com) <script>alert(1)</script>' });
+    });
+    const { container } = renderShell(<ChatPanel orgId="o1" language="es" ctx={{ openScene: vi.fn(), selectNode: vi.fn(), selected: null, scene }} />, { session: sessionFixture() });
+    fireEvent.change(await screen.findByTestId('chat-input'), { target: { value: '**not bold** for me' } });
+    await waitFor(() => expect(screen.getByTestId('chat-send')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('chat-send'));
+    const answer = await screen.findByTestId('chat-message-1');
+    await waitFor(() => expect(answer.querySelector('h2')).toHaveTextContent('Hallazgos'));
+    expect(answer.querySelector('li strong')).toHaveTextContent('SHA-1');
+    expect(answer.querySelector('code')).toHaveTextContent('sha256');
+    expect(answer.querySelector('table td')).toHaveTextContent('Firma');
+    expect(answer.querySelector('a')).toHaveAttribute('target', '_blank');
+    expect(answer.querySelector('a')).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(container.querySelector('script')).toBeNull();
+    expect(screen.getByTestId('chat-message-0').querySelector('strong')).toBeNull();
+    expect(screen.getByTestId('chat-message-0')).toHaveTextContent('**not bold** for me');
+  });
 });
 
