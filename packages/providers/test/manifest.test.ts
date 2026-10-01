@@ -2,12 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildAppManifest, exchangeManifestCode, exchangeUserCode, isLocalUrl, listUserInstallations, manifestPostUrl } from '../src/index';
 
 describe('buildAppManifest', () => {
-  it('creates a public read-only app whose URLs go through the web origin', () => {
+  it('creates a public read-only app whose URLs go through the web origin, without a webhook on localhost', () => {
     const manifest = buildAppManifest({ name: 'Repository Designer abcd', appUrl: 'http://localhost:5177', publicApiUrl: 'http://localhost:4040' });
     expect(manifest).toEqual({
       name: 'Repository Designer abcd',
       url: 'http://localhost:5177',
-      hook_attributes: { url: 'http://localhost:4040/api/github/webhook', active: false },
       redirect_url: 'http://localhost:5177/api/github/manifest/callback',
       setup_url: 'http://localhost:5177/api/github/setup',
       setup_on_update: true,
@@ -15,9 +14,11 @@ describe('buildAppManifest', () => {
       callback_urls: ['http://localhost:5177/api/github/setup'],
       public: true,
       default_permissions: { contents: 'read', metadata: 'read', pull_requests: 'read' },
+    });
+    expect(buildAppManifest({ name: 'x', appUrl: 'https://app.example.com', publicApiUrl: 'https://api.example.com' })).toMatchObject({
+      hook_attributes: { url: 'https://api.example.com/api/github/webhook', active: true },
       default_events: ['push'],
     });
-    expect((buildAppManifest({ name: 'x', appUrl: 'https://app.example.com', publicApiUrl: 'https://api.example.com' }).hook_attributes as { active: boolean }).active).toBe(true);
   });
 
   it('posts to the user or organization settings page with the state', () => {
