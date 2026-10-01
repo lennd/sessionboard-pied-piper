@@ -2,6 +2,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { EDGE_TYPES, NODE_LABELS, type GraphNode, type OrgGraph } from '@rdi/indexer';
 import { sceneSchema, solutionDraftInputSchema, validateScene, validateSolutionDraft, type Scene } from '@rdi/scene';
 import { SolutionError } from '../solutions/service';
+import { repairScene } from './repairScene';
 import { z } from 'zod';
 
 export type ToolContext = {
@@ -204,34 +205,6 @@ const getPrDiff = async (input: z.infer<typeof prInput>, ctx: ToolContext): Prom
     return { filename: f.filename, status: f.status, pieceId: pieceId && ids.has(pieceId) ? pieceId : null, ...(f.patch === undefined ? {} : { patch: clipText(f.patch, MAX_PATCH_CHARS) }) };
   });
   return { content: JSON.stringify({ files: mapped, truncated: files.length > MAX_PR_FILES }), summary: `get_pr_diff #${input.number} → ${mapped.length} files` };
-};
-
-type RawNode = { id?: unknown; parent?: unknown; role?: unknown; complexity?: unknown };
-type RawGroup = { nodeIds?: unknown };
-
-/** Fixes harmless rule slips models make (grouping internal pieces, complexity on non-logic pieces) instead of rejecting the scene. */
-const repairScene = (input: unknown): { scene: unknown; fixes: string[] } => {
-  if (!input || typeof input !== 'object') return { scene: input, fixes: [] };
-  const raw = input as { nodes?: unknown; groups?: unknown };
-  const fixes: string[] = [];
-  const nodes = Array.isArray(raw.nodes) ? (raw.nodes as RawNode[]) : [];
-  const topLevel = new Set(nodes.filter((n) => !n.parent).map((n) => n.id));
-  const repairedNodes = nodes.map((n) => {
-    if (n.complexity === undefined || n.role === 'logic') return n;
-    fixes.push(`removed complexity from non-logic piece "${String(n.id)}"`);
-    const { complexity: _ignored, ...rest } = n;
-    return rest;
-  });
-  const groups = Array.isArray(raw.groups) ? (raw.groups as RawGroup[]) : undefined;
-  const repairedGroups = groups
-    ?.map((g) => {
-      const ids = Array.isArray(g.nodeIds) ? g.nodeIds : [];
-      const kept = ids.filter((id) => topLevel.has(id));
-      if (kept.length < ids.length) fixes.push('removed internal pieces from groups (only top-level pieces can be grouped)');
-      return { ...g, nodeIds: kept };
-    })
-    .filter((g) => g.nodeIds.length > 0);
-  return { scene: { ...raw, nodes: repairedNodes, ...(repairedGroups ? { groups: repairedGroups } : {}) }, fixes: [...new Set(fixes)] };
 };
 
 const emitScene = (input: unknown): ToolOutcome => {
