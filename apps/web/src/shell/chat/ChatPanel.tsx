@@ -7,6 +7,7 @@ import type { MessageKey } from '../../i18n/messages';
 import type { ChatContext } from '../../workspace/Workspace';
 import { ApiError, apiFetch } from '../api';
 import { streamChat, type ChatEvent } from './chatApi';
+import { Markdown } from './Markdown';
 
 type Item = { role: 'user' | 'assistant'; text: string; turn: number };
 type SceneEntry = { id: string; turn: number; scene: Scene };
@@ -153,7 +154,7 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
         {visibleItems.length === 0 && <p className="muted">{t('chat.empty')}</p>}
         {visibleItems.map((item, i) => (
           <div key={i}>
-            <div className={`chat-msg ${item.role}`} data-testid={`chat-message-${i}`}>{item.text}</div>
+            <div className={`chat-msg ${item.role}`} data-testid={`chat-message-${i}`}>{item.role === 'assistant' ? <Markdown text={item.text} /> : item.text}</div>
             {item.role === 'assistant' && solutions.filter((s) => s.turn === item.turn).map((s) => (
               <div key={`${s.id}-${s.n}`} className="chat-scene" data-testid={`chat-solution-${s.id}`}>
                 <span>☰ {t('chat.solution', { title: s.title, n: s.n })}</span>
