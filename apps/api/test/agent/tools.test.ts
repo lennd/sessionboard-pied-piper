@@ -95,9 +95,9 @@ describe('emit_scene', () => {
   });
 
   it('returns validation errors for an invalid scene', async () => {
-    const outcome = await run('emit_scene', { id: 'x', title: 'X', language: 'en', nodes: [{ id: 'a', label: 'A', role: 'compute', kind: 'svc', summary: 's' }], edges: [{ id: 'e', from: 'a', to: 'ghost', kind: 'sync' }] });
+    const outcome = await run('emit_scene', { id: 'x', title: 'X', language: 'en', nodes: [{ id: 'a', label: 'A', role: 'wizard', kind: 'svc', summary: 's' }] });
     expect(outcome).toMatchObject({ isError: true });
-    expect(outcome.content).toMatch(/ghost/);
+    expect(outcome.content).toMatch(/role/);
     expect(outcome.scene).toBeUndefined();
   });
 
@@ -162,6 +162,34 @@ describe('emit_scene repairs', () => {
     expect(outcome.scene!.nodes.find((n) => n.id === 'api')!.complexity).toBeUndefined();
     expect(outcome.scene!.nodes.find((n) => n.id === 'router')!.complexity).toEqual({ time: 'O(n)' });
     expect(outcome.content).toContain('Auto-fixed');
+  });
+
+  it('repairs dangling references and misplaced sub-steps by lifting them into the walkthrough', async () => {
+    const scene = {
+      id: 'saml', title: 'SAML', language: 'en',
+      nodes: [
+        { id: 'api', label: 'API', role: 'compute', kind: 'svc', summary: 's' },
+        { id: 'job', label: 'Rotation job', role: 'compute', kind: 'cron', summary: 's', parent: 'ghost' },
+        { id: 'db', label: 'DB', role: 'storage', kind: 'pg', summary: 's' },
+      ],
+      edges: [{ id: 'e1', from: 'api', to: 'db', kind: 'write' }, { id: 'e2', from: 'api', to: 'nowhere', kind: 'sync' }],
+      steps: [
+        { id: 's1', narration: 'Writes the IdP', focus: ['api', 'missing'], travel: { edgeId: 'e2' } },
+        { id: 's2', narration: 'Rotation', expand: 'detalle de la rotación', substeps: [{ id: 's2a', narration: 'Generate cert', focus: ['job'] }] },
+        { id: 's3', narration: 'Orphan substeps', substeps: [{ id: 's3a', narration: 'Inner', focus: ['db'], travel: { edgeId: 'e1' } }] },
+      ],
+      risks: [{ id: 'r1', category: 'security', severity: 'high', title: 'Expired cert', explanation: 'x', nodeIds: ['job', 'ghost'] }, { id: 'r2', category: 'security', severity: 'low', title: 'Gone', explanation: 'x', nodeIds: ['ghost'] }],
+    };
+    const outcome = await run('emit_scene', scene);
+    expect(outcome.isError).toBeFalsy();
+    const repaired = outcome.scene!;
+    expect(repaired.steps.map((st) => st.id)).toEqual(['s1', 's2', 's2a', 's3', 's3a']);
+    expect(repaired.steps[0]).toMatchObject({ focus: ['api'] });
+    expect(repaired.steps[0]!.travel).toBeUndefined();
+    expect(repaired.steps[4]!.travel).toMatchObject({ edgeId: 'e1' });
+    expect(repaired.edges.map((e) => e.id)).toEqual(['e1']);
+    expect(repaired.nodes.find((n) => n.id === 'job')!.parent).toBeUndefined();
+    expect(repaired.risks.map((r) => [r.id, r.nodeIds])).toEqual([['r1', ['job']]]);
   });
 });
 
