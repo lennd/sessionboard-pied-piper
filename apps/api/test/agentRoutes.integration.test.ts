@@ -272,3 +272,40 @@ describe('solutions from chat', () => {
     expect(detail.version.draft.plan.length).toBeGreaterThan(0);
   });
 });
+
+describe('chat modes and scope', () => {
+  it('sends the chosen mode to the model', async () => {
+    const { llm, inputs } = scriptedLlm([() => reply([{ type: 'text', text: 'Plan saved.' }], 'end_turn')]);
+    const local = await createTestContext({ llm });
+    try {
+      const { owner, org } = await setup(local);
+      const conv = await newConversation(owner, org.id, local);
+      await ask(owner, org.id, conv.id, { text: 'Switch signatures to SHA-256', mode: 'plan' }, local);
+      expect(JSON.stringify(inputs[0]!.messages.at(-1)!.content)).toContain('Mode: plan');
+    } finally {
+      await local.close();
+    }
+  });
+
+  it('refuses off-topic questions without calling the agent and keeps them out of the history', async () => {
+    let called = 0;
+    const llm: LlmClient = { model: 'spy', async turn() { called++; throw new Error('should not run'); } };
+    const local = await createTestContext({ llm, scopeGuard: async () => ({ inScope: false, usage: { input: 7, output: 1 } }) });
+    try {
+      const { owner, org } = await setup(local);
+      const conv = await newConversation(owner, org.id, local);
+      const stream = events((await ask(owner, org.id, conv.id, { text: '¿Qué clima hace hoy?', language: 'es' }, local)).body);
+      expect(stream.map((e) => e.event)).toEqual(['text', 'done']);
+      expect(stream[0]!.data.delta).toMatch(/^Solo puedo ayudarte/);
+      expect(called).toBe(0);
+      const rows = (await local.pool.query('select role, excluded from conversation_messages where conversation_id = $1 order by id', [conv.id])).rows;
+      expect(rows).toEqual([{ role: 'user', excluded: true }, { role: 'assistant', excluded: true }]);
+      expect((await local.pool.query('select input_tokens, output_tokens from agent_usage where org_id = $1', [org.id])).rows[0]).toEqual({ input_tokens: '7', output_tokens: '1' });
+      const detail = (await local.app.inject({ method: 'GET', url: `/api/orgs/${org.id}/conversations/${conv.id}`, headers: { cookie: owner.cookie } })).json();
+      expect(detail.items.map((i: { role: string }) => i.role)).toEqual(['user', 'assistant']);
+    } finally {
+      await local.close();
+    }
+  });
+});
+

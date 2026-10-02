@@ -17,7 +17,8 @@ describe('userTurn', () => {
     const texts = (turn.content as { type: string; text: string }[]).map((b) => b.text);
     expect(texts[0]).toBe('Respond in Spanish (es). Scene titles, labels, summaries and narration must be in that language.');
     expect(texts[1]).toBe('Indexed repositories: acme/api, acme/worker.');
-    expect(texts[2]).toBe('The user is looking at "worker" (graph id svc:r1).');
+    expect(texts[2]).toMatch(/^Mode: analyze/);
+    expect(texts[3]).toBe('The user is looking at "worker" (graph id svc:r1).');
     expect(texts.at(-1)).toBe('How are orders paid?');
     expect(questionOf(turn)).toBe('How are orders paid?');
   });
@@ -29,3 +30,22 @@ describe('userTurn', () => {
     expect(questionOf({ role: 'user', content: [{ type: 'tool_result', tool_use_id: 'x', content: 'y' }] })).toBeNull();
   });
 });
+
+describe('modes and scope', () => {
+  it('frames the turn for analysis or planning', () => {
+    const analyze = JSON.stringify(userTurn('How does login work?', { language: 'en', repos: [], mode: 'analyze' }).content);
+    const plan = JSON.stringify(userTurn('Switch to SHA-256', { language: 'en', repos: [], mode: 'plan' }).content);
+    expect(analyze).toContain('Mode: analyze');
+    expect(analyze).toContain('Do not create a Solution');
+    expect(plan).toContain('Mode: plan');
+    expect(plan).toContain('upsert_solution');
+    expect(JSON.stringify(userTurn('q', { language: 'en', repos: [] }).content)).toContain('Mode: analyze');
+  });
+
+  it('keeps the agent on the repositories and explains pull request reviews', () => {
+    expect(SYSTEM_PROMPT).toContain('Only help with');
+    expect(SYSTEM_PROMPT).toContain('get_pr_diff');
+    expect(SYSTEM_PROMPT).toMatch(/pull request/i);
+  });
+});
+

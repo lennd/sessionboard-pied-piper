@@ -7,6 +7,7 @@ import { windowHistory } from '../agent/history';
 import { resolveGithubApp } from '../github/app';
 import { questionOf, SYSTEM_PROMPT, userTurn } from '../agent/prompt';
 import { runAgent, type AgentEvent } from '../agent/runAgent';
+import { refusalFor } from '../agent/scopeGuard';
 import { translateScene, TranslateError } from '../agent/translate';
 import type { ToolContext } from '../agent/tools';
 import { createRateLimiter } from '../auth/rateLimit';
@@ -30,6 +31,7 @@ const askBody = z.object({
   text: z.string().trim().min(1).max(MAX_QUESTION),
   language: z.string().regex(LANGUAGE_TAG).optional(),
   focus: z.object({ label: z.string().min(1).max(200), graphRef: z.string().min(1).max(500) }).nullish(),
+  mode: z.enum(['analyze', 'plan']).default('analyze'),
 });
 
 const publicConversation = (c: ConversationRow) => ({ id: c.id, title: c.title, updatedAt: c.updated_at.toISOString() });
@@ -109,7 +111,7 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const history = windowHistory(stored.filter((m) => !m.excluded).map(({ role, content }) => ({ role, content })) as Anthropic.Beta.BetaMessageParam[]);
     const language = body.language ?? req.auth!.user.explanation_language ?? req.member!.org.default_explanation_language;
     const repos = (await listRepos(deps.pool, orgId)).filter((r) => r.status === 'ready').map((r) => r.full_name);
-    const user = userTurn(body.text, { language, focus: body.focus ?? null, repos });
+    const user = userTurn(body.text, { language, focus: body.focus ?? null, repos, mode: body.mode });
 
     let graph: ReturnType<ToolContext['loadGraph']> | null = null;
     const toolContext: ToolContext = {
@@ -141,6 +143,24 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const send = (event: string, data: unknown) => {
       if (!reply.raw.writableEnded) reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     };
+
+    const previous = [...stored].reverse().find((m) => m.role === 'user' && !m.excluded && questionOf(m));
+    const verdict = deps.scopeGuard
+      ? await deps.scopeGuard({ question: body.text, mode: body.mode, repos, previous: previous ? questionOf(previous) : null })
+      : { inScope: true, usage: { input: 0, output: 0 } };
+    if (!verdict.inScope) {
+      const refusal = refusalFor(language);
+      send('text', { delta: refusal });
+      try {
+        await appendMessages(deps.pool, conversation.id, [{ ...user, excluded: true }, { role: 'assistant', content: [{ type: 'text', text: refusal }], excluded: true }] as unknown as Stored[]);
+        await addUsage(deps.pool, orgId, currentMonth(nowOf(deps)), verdict.usage.input, verdict.usage.output);
+      } catch (error) {
+        req.log.error(error);
+      }
+      send('done', { sceneIds: [], usage: verdict.usage });
+      reply.raw.end();
+      return reply;
+    }
 
     const sceneIds: string[] = [];
     const emit = async (event: AgentEvent) => {
