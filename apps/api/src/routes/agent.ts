@@ -145,8 +145,12 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
     };
 
     const previous = [...stored].reverse().find((m) => m.role === 'user' && !m.excluded && questionOf(m));
+    const lastAnswer = [...stored].reverse().find((m) => m.role === 'assistant' && !m.excluded);
+    const previousAnswer = lastAnswer && Array.isArray(lastAnswer.content)
+      ? (lastAnswer.content as { type: string; text?: string }[]).filter((b) => b.type === 'text').map((b) => b.text ?? '').join(' ').trim() || null
+      : null;
     const verdict = deps.scopeGuard
-      ? await deps.scopeGuard({ question: body.text, mode: body.mode, repos, previous: previous ? questionOf(previous) : null })
+      ? await deps.scopeGuard({ question: body.text, mode: body.mode, repos, previous: previous ? questionOf(previous) : null, previousAnswer, focus: body.focus?.label ?? null, signal: controller.signal })
       : { inScope: true, usage: { input: 0, output: 0 } };
     if (!verdict.inScope) {
       const refusal = refusalFor(language);
@@ -174,7 +178,7 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
       send(type, data);
     };
 
-    const usage = { input: 0, output: 0 };
+    const usage = { input: verdict.usage.input, output: verdict.usage.output };
     const heartbeat = setInterval(() => {
       if (!reply.raw.writableEnded) reply.raw.write(': ping\n\n');
     }, deps.config.agent.heartbeatMs);

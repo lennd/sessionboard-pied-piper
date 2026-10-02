@@ -9,6 +9,7 @@ import type { AppDeps } from '../http/deps';
 
 const CACHE_PREFIX = 'rdi:pulls:';
 const CACHE_TTL_SECONDS = 60;
+const REFRESH_MIN_INTERVAL_MS = 10_000;
 const SEGMENT = /^[A-Za-z0-9._-]{1,100}$/;
 
 const listQuery = z.object({ refresh: z.string().optional() });
@@ -22,9 +23,12 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const active = await resolveGithubApp(deps);
     if (!active) return { configured: false, repos: [] };
     const cacheKey = `${CACHE_PREFIX}${orgId}`;
-    if (!listQuery.parse(req.query).refresh) {
-      const cached = await deps.redis.get(cacheKey);
-      if (cached) return JSON.parse(cached) as unknown;
+    const cachedRaw = await deps.redis.get(cacheKey);
+    const cached = cachedRaw ? (JSON.parse(cachedRaw) as { fetchedAt?: number }) : null;
+    const refresh = Boolean(listQuery.parse(req.query).refresh);
+    if (cached && (!refresh || Date.now() - (cached.fetchedAt ?? 0) < REFRESH_MIN_INTERVAL_MS)) {
+      const { fetchedAt: _ignored, ...body } = cached;
+      return body;
     }
     const repos = await listRepoInstallations(deps.pool, orgId);
     const results = await Promise.allSettled(repos.map((r) => active.client.listOpenPulls(r.installation_id, r.full_name)));
@@ -35,7 +39,7 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
         return result.status === 'fulfilled' ? { repo: r.full_name, status: 'ok', pulls: result.value } : { repo: r.full_name, status: 'unavailable', pulls: [] };
       }),
     };
-    await deps.redis.set(cacheKey, JSON.stringify(body), 'EX', CACHE_TTL_SECONDS);
+    await deps.redis.set(cacheKey, JSON.stringify({ ...body, fetchedAt: Date.now() }), 'EX', CACHE_TTL_SECONDS);
     return body;
   });
 
@@ -47,16 +51,23 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const installation = await findRepoInstallation(deps.pool, orgId, fullName);
     const active = installation !== null ? await resolveGithubApp(deps) : null;
     if (installation === null || !active) return fail(reply, 404, 'not_found');
+    let pull: Awaited<ReturnType<typeof active.client.getPull>>;
+    let files: Awaited<ReturnType<typeof active.client.listPullFiles>>;
     try {
-      const [pull, files] = await Promise.all([
+      [pull, files] = await Promise.all([
         active.client.getPull(installation, fullName, params.data.number),
         active.client.listPullFiles(installation, fullName, params.data.number),
       ]);
-      const graph = deps.graph ? await deps.graph.readOrgGraph(orgId) : { nodes: [], edges: [] };
-      const scene = buildPullRequestImpact({ graph, repoFullName: fullName, pull, files });
-      return { pull, files: files.map(({ patch: _patch, ...file }) => file), scene };
     } catch {
       return fail(reply, 502, 'github_failed');
     }
+    let scene: unknown = null;
+    try {
+      const graph = deps.graph ? await deps.graph.readOrgGraph(orgId) : { nodes: [], edges: [] };
+      scene = buildPullRequestImpact({ graph, repoFullName: fullName, pull, files });
+    } catch (error) {
+      req.log.error(error);
+    }
+    return { pull, files: files.map(({ patch: _patch, ...file }) => file), scene };
   });
 };

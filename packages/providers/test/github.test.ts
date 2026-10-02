@@ -112,4 +112,19 @@ describe('createGitHubClient', () => {
     expect(files).toHaveLength(101);
     expect(files[100]).toEqual({ filename: 'new.ts', status: 'renamed', additions: 0, deletions: 0, previousFilename: 'old.ts' });
   });
+
+  it('reuses an installation token until shortly before it expires', async () => {
+    const fetchMock = vi.fn(async (url: string) =>
+      String(url).endsWith('/access_tokens') ? json({ token: 'ghs_cached', expires_at: new Date(Date.now() + 60 * 60_000).toISOString() }, 201) : json([]));
+    const client = createGitHubClient(config, fetchMock as unknown as typeof fetch);
+    await client.listOpenPulls(9, 'acme/api');
+    await client.listOpenPulls(9, 'acme/web');
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/access_tokens'))).toHaveLength(1);
+    const expiring = vi.fn(async (url: string) =>
+      String(url).endsWith('/access_tokens') ? json({ token: 'ghs_short', expires_at: new Date(Date.now() + 60_000).toISOString() }, 201) : json([]));
+    const shortLived = createGitHubClient(config, expiring as unknown as typeof fetch);
+    await shortLived.listOpenPulls(9, 'acme/api');
+    await shortLived.listOpenPulls(9, 'acme/api');
+    expect(expiring.mock.calls.filter(([url]) => String(url).endsWith('/access_tokens'))).toHaveLength(2);
+  });
 });

@@ -13,6 +13,7 @@ const MAX_LABEL = 110;
 const MAX_SUMMARY = 2000;
 const MAX_PATCH = 4000;
 const MAX_ID = 100;
+const MAX_STEPS = 80;
 const BIG_CHANGE_LINES = 500;
 const CODE_PREVIEW_LINES = 80;
 const SECURITY_PATH = /(auth|sso|saml|oauth|token|permission|session|password|crypto|certificate|secret)/i;
@@ -35,6 +36,8 @@ export const buildPullRequestImpact = ({ graph, repoFullName, pull, files }: { g
   const repoNode = graph.nodes.find((n) => n.label === 'Repo' && n.props.fullName === repoFullName);
   const repoId = repoNode?.repoId ?? null;
   const service = repoId ? nodesById.get(`svc:${repoId}`) : undefined;
+  const importers = new Map<string, Set<string>>();
+  for (const e of edges) if (e.type === 'IMPORTS') importers.set(e.to, (importers.get(e.to) ?? new Set()).add(e.from));
   const serviceOfFile = new Map(edges.filter((e) => e.type === 'CONTAINS' && nodesById.get(e.to)?.label === 'File').map((e) => [e.to, e.from]));
 
   const ordered = [...files].sort((a, b) => b.additions + b.deletions - (a.additions + a.deletions) || byText(a.filename, b.filename));
@@ -69,18 +72,17 @@ export const buildPullRequestImpact = ({ graph, repoFullName, pull, files }: { g
       id, label: clip(file.filename), role: 'logic', kind: 'file', parent: 'svc', change,
       summary: clip(`${change} in this pull request (+${file.additions} −${file.deletions}).${file.previousFilename ? ` Renamed from ${file.previousFilename}.` : ''}`, MAX_SUMMARY),
       ...(graphFile ? { graphRef: graphFile.id } : {}),
-      ...(change === 'modified' && graphFile ? { code: { repo: clip(repoFullName), path: file.filename, startLine: 1, endLine: Math.max(1, Math.min(loc, CODE_PREVIEW_LINES)), language } } : {}),
+      ...(change === 'modified' && graphFile ? { code: { repo: clip(repoFullName), path: typeof graphFile.props.path === 'string' ? graphFile.props.path : file.filename, startLine: 1, endLine: Math.max(1, Math.min(loc, CODE_PREVIEW_LINES)), language } } : {}),
     });
   });
 
-  const importersOf = (fileId: string) => edges.filter((e) => e.type === 'IMPORTS' && e.to === fileId).map((e) => e.from);
   const endpointScene = new Map<string, string>();
   const endpointTargets = new Map<string, string[]>();
   for (const e of edges) {
     if (e.type !== 'HANDLES') continue;
     const endpoint = nodesById.get(e.from);
     if (!endpoint || endpoint.repoId !== repoId) continue;
-    const reached = [...changedGraphFiles].filter((f) => f === e.to || importersOf(f).includes(e.to));
+    const reached = [...changedGraphFiles].filter((f) => f === e.to || importers.get(f)?.has(e.to));
     if (reached.length === 0) continue;
     if (!endpointScene.has(endpoint.id) && endpointScene.size >= MAX_ENDPOINTS) continue;
     if (!endpointScene.has(endpoint.id)) {
@@ -116,7 +118,7 @@ export const buildPullRequestImpact = ({ graph, repoFullName, pull, files }: { g
   }
 
   const callerScene = new Map<string, string>();
-  const callerSteps: StepInput[] = [];
+  const callerCalls = new Map<string, { names: string[]; edgeId: string; focus: string }>();
   for (const e of edges) {
     if (e.type !== 'CALLS_HTTP' || !endpointScene.has(e.to)) continue;
     const callerService = nodesById.get(serviceOfFile.get(e.from) ?? '');
@@ -133,11 +135,17 @@ export const buildPullRequestImpact = ({ graph, repoFullName, pull, files }: { g
     const endpointNode = endpointScene.get(e.to)!;
     const before = sceneEdges.length;
     addEdge(callerScene.get(callerService.id)!, endpointNode, 'sync', nodesById.get(e.to)?.name);
-    if (sceneEdges.length > before) {
-      const edge = sceneEdges.at(-1)!;
-      callerSteps.push({ id: `cs${callerSteps.length + 1}`, narration: `${callerService.name} calls ${nodesById.get(e.to)?.name ?? 'an endpoint'}, which this pull request affects. Check that the contract still holds.`, focus: [endpointNode], travel: { edgeId: edge.id } });
-    }
+    if (sceneEdges.length === before) continue;
+    const call = callerCalls.get(callerService.id) ?? { names: [], edgeId: sceneEdges.at(-1)!.id, focus: endpointNode };
+    call.names.push(nodesById.get(e.to)?.name ?? 'an endpoint');
+    callerCalls.set(callerService.id, call);
   }
+  const callerSteps: StepInput[] = [...callerCalls.entries()].map(([serviceId, call], i) => ({
+    id: `cs${i + 1}`,
+    narration: clip(`${nodesById.get(serviceId)?.name ?? 'Another service'} calls ${list(call.names)}, which this pull request affects. Check that the contract still holds.`, MAX_SUMMARY),
+    focus: [call.focus],
+    travel: { edgeId: call.edgeId },
+  }));
 
   shown.forEach((file, i) => {
     const id = `f${i + 1}`;
@@ -154,6 +162,7 @@ export const buildPullRequestImpact = ({ graph, repoFullName, pull, files }: { g
     });
   });
   steps.push(...callerSteps);
+  steps.splice(MAX_STEPS);
 
   const risks: SceneInput['risks'] = [];
   const fileIdsMatching = (pattern: RegExp) => shown.flatMap((f, i) => (pattern.test(f.filename) ? [`f${i + 1}`] : []));

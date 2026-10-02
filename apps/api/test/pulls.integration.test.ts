@@ -59,7 +59,31 @@ describe('open pull requests', () => {
     await get(owner, `/api/orgs/${org.id}/pulls`);
     expect(calls.length).toBe(first);
     await get(owner, `/api/orgs/${org.id}/pulls?refresh=1`);
-    expect(calls.length).toBeGreaterThan(first);
+    expect(calls.length).toBe(first);
+    const key = `rdi:pulls:${org.id}`;
+    await ctx.redis.set(key, JSON.stringify({ ...JSON.parse((await ctx.redis.get(key))!), fetchedAt: 0 }), 'EX', 60);
+    await get(owner, `/api/orgs/${org.id}/pulls?refresh=1`);
+    const refreshed = calls.length;
+    expect(refreshed).toBeGreaterThan(first);
+    await get(owner, `/api/orgs/${org.id}/pulls?refresh=1`);
+    expect(calls.length).toBe(refreshed);
+  });
+
+  it('still opens a pull request when the impact diagram cannot be built', async () => {
+    const broken = await createTestContext({ fetch: fakeGithub, graph: (real) => ({ ...real, readOrgGraph: async () => { throw new Error('neo4j down'); } }) });
+    try {
+      const owner = await signupVerified(broken);
+      const org = (await broken.app.inject({ method: 'POST', url: '/api/orgs', headers: authed(owner), payload: { name: 'Acme' } })).json();
+      await saveGithubApp(broken.pool, { appId: '78', slug: 'rd-test', name: 'RD', htmlUrl: 'https://github.com/apps/rd-test', ownerLogin: 'hugo', privateKey: PEM, webhookSecret: 'w', clientId: 'c', clientSecret: 's', stateSecret: 'st' });
+      const inst = (await broken.pool.query<{ id: string }>("insert into github_installations (org_id, installation_id, account_login) values ($1, 11, 'hugo') returning id", [org.id])).rows[0]!.id;
+      await broken.pool.query("insert into repos (org_id, full_name, installation_id) values ($1, 'hugo/notes', $2)", [org.id, inst]);
+      const res = await broken.app.inject({ method: 'GET', url: `/api/orgs/${org.id}/pulls/hugo/notes/5`, headers: { cookie: owner.cookie } });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toMatchObject({ pull: { number: 5 }, scene: null });
+      expect(res.json().files).toHaveLength(2);
+    } finally {
+      await broken.close();
+    }
   });
 
   it('opens a pull request with its files and an impact diagram', async () => {

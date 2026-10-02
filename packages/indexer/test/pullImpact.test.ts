@@ -35,7 +35,7 @@ describe('buildPullRequestImpact', () => {
   it('walks through each changed file with its patch and flags the contract risk', async () => {
     const scene = buildPullRequestImpact({ graph: await orgGraph(), repoFullName: 'acme-demo/shop-api', pull, files });
     expect(scene.steps[0]).toMatchObject({ narration: expect.stringMatching(/^src\/orders\.ts: modified \(\+20 −4\)/), payload: { format: 'text', after: files[0]!.patch } });
-    expect(scene.steps.map((s) => s.narration)).toEqual(expect.arrayContaining([expect.stringMatching(/^shop-web calls POST \/api\/orders/)]));
+    expect(scene.steps.map((s) => s.narration)).toEqual(expect.arrayContaining([expect.stringMatching(/^shop-web calls .*POST \/api\/orders/)]));
     expect(scene.risks.map((r) => [r.category, r.title])).toEqual(expect.arrayContaining([['reliability', 'Endpoints used by other repositories change']]));
   });
 
@@ -65,6 +65,36 @@ describe('buildPullRequestImpact', () => {
     });
     expect(scene.nodes.filter((n) => n.kind === 'file').map((n) => n.change)).toEqual(['modified', 'modified']);
     expect(scene.risks.map((r) => r.title)).not.toContain('Large change');
+  });
+
+  it('stays fast on large graphs and within the step limit when many callers depend on many changed handlers', () => {
+    const nodes: OrgGraph['nodes'] = [{ id: 'repo:api', label: 'Repo', name: 'acme/api', summary: '', repoId: 'api', props: { fullName: 'acme/api' } }, { id: 'svc:api', label: 'Service', name: 'api', summary: '', repoId: 'api', props: { repo: 'acme/api' } }];
+    const edges: OrgGraph['edges'] = [];
+    for (let i = 0; i < 2000; i++) {
+      nodes.push({ id: `file:api:src/f${i}.ts`, label: 'File', name: `src/f${i}.ts`, summary: '', repoId: 'api', props: { path: `src/f${i}.ts`, language: 'typescript', loc: 10 } });
+      edges.push({ from: 'svc:api', to: `file:api:src/f${i}.ts`, type: 'CONTAINS', props: {} });
+      if (i > 0) edges.push({ from: `file:api:src/f${i}.ts`, to: `file:api:src/f${i - 1}.ts`, type: 'IMPORTS', props: {} });
+    }
+    for (let e = 0; e < 800; e++) {
+      nodes.push({ id: `ep:api:GET /r/${e}`, label: 'Endpoint', name: `GET /r/${e}`, summary: '', repoId: 'api', props: {} });
+      edges.push({ from: `ep:api:GET /r/${e}`, to: `file:api:src/f${e % 40}.ts`, type: 'HANDLES', props: {} });
+    }
+    for (const caller of ['web', 'admin']) {
+      nodes.push({ id: `svc:${caller}`, label: 'Service', name: caller, summary: '', repoId: caller, props: { repo: `acme/${caller}` } }, { id: `file:${caller}:a.ts`, label: 'File', name: 'a.ts', summary: '', repoId: caller, props: {} });
+      edges.push({ from: `svc:${caller}`, to: `file:${caller}:a.ts`, type: 'CONTAINS', props: {} });
+      for (let e = 0; e < 40; e++) edges.push({ from: `file:${caller}:a.ts`, to: `ep:api:GET /r/${e}`, type: 'CALLS_HTTP', props: {} });
+    }
+    const changed = Array.from({ length: 40 }, (_, i) => ({ filename: `src/f${i}.ts`, status: 'modified', additions: 1, deletions: 1 }));
+    const started = performance.now();
+    const scene = buildPullRequestImpact({ graph: { nodes, edges }, repoFullName: 'acme/api', pull, files: changed });
+    expect(performance.now() - started).toBeLessThan(1000);
+    expect(validateScene(scene).ok).toBe(true);
+    expect(scene.steps.length).toBeLessThanOrEqual(80);
+  });
+
+  it('previews renamed files at the path that was indexed', async () => {
+    const scene = buildPullRequestImpact({ graph: await orgGraph(), repoFullName: 'acme-demo/shop-api', pull, files: [{ filename: 'src/orders-v2.ts', previousFilename: 'src/orders.ts', status: 'renamed', additions: 1, deletions: 1 }] });
+    expect(scene.nodes.find((n) => n.kind === 'file')!.code).toMatchObject({ path: 'src/orders.ts' });
   });
 });
 

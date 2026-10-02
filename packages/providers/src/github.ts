@@ -26,6 +26,8 @@ const toPullSummary = (p: RawPull): PullSummary => ({
 
 const JWT_BACKDATE_SECONDS = 60;
 const PAGE_SIZE = 100;
+const TOKEN_REFRESH_MARGIN_MS = 5 * 60_000;
+const DEFAULT_TOKEN_LIFETIME_MS = 50 * 60_000;
 const MAX_PAGES = 10;
 const JWT_LIFETIME_SECONDS = 540;
 const DEFAULT_API = 'https://api.github.com';
@@ -65,8 +67,16 @@ export const createGitHubClient = (config: GitHubAppConfig, fetchImpl: typeof fe
     return items;
   };
   const appAuth = () => `Bearer ${createAppJwt(config)}`;
-  const installationToken = async (installationId: number) =>
-    (await request<{ token: string }>(`/app/installations/${installationId}/access_tokens`, appAuth(), 'POST')).token;
+  const tokens = new Map<number, { token: string; expiresAt: number }>();
+  /** Installation tokens live about an hour; reuse them until five minutes before they expire. */
+  const installationToken = async (installationId: number) => {
+    const cached = tokens.get(installationId);
+    if (cached && cached.expiresAt - TOKEN_REFRESH_MARGIN_MS > Date.now()) return cached.token;
+    const body = await request<{ token: string; expires_at?: string }>(`/app/installations/${installationId}/access_tokens`, appAuth(), 'POST');
+    const expiresAt = body.expires_at ? Date.parse(body.expires_at) : Date.now() + DEFAULT_TOKEN_LIFETIME_MS;
+    tokens.set(installationId, { token: body.token, expiresAt });
+    return body.token;
+  };
 
   return {
     installationToken,

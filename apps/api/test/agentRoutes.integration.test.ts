@@ -307,5 +307,18 @@ describe('chat modes and scope', () => {
       await local.close();
     }
   });
+
+  it('counts the scope guard tokens for questions that are answered too', async () => {
+    const { llm } = scriptedLlm([() => reply([{ type: 'text', text: 'Answer.' }], 'end_turn')]);
+    const local = await createTestContext({ llm, scopeGuard: async () => ({ inScope: true, usage: { input: 7, output: 1 } }) });
+    try {
+      const { owner, org } = await setup(local);
+      const conv = await newConversation(owner, org.id, local);
+      await ask(owner, org.id, conv.id, { text: 'How does login work?' }, local);
+      expect((await local.pool.query('select input_tokens, output_tokens from agent_usage where org_id = $1', [org.id])).rows[0]).toEqual({ input_tokens: '57', output_tokens: '6' });
+    } finally {
+      await local.close();
+    }
+  });
 });
 

@@ -1,4 +1,4 @@
-import { createGraphStore } from '@rdi/graph';
+import { createGraphStore, type GraphStore } from '@rdi/graph';
 import type { GitHubClient } from '@rdi/providers';
 import type { LlmClient } from '../src/agent/llm';
 import type { ScopeGuard } from '../src/agent/scopeGuard';
@@ -13,7 +13,7 @@ import { TEST_DATABASE_URL, TEST_REDIS_URL } from './setup/env';
 const TABLES = ['github_app', 'repos', 'github_installations', 'invitations', 'email_tokens', 'sessions', 'memberships', 'orgs', 'users'];
 const RATE_PREFIX = 'rltest';
 
-export const createTestContext = async (options: { github?: Config['github']; githubClient?: GitHubClient; llm?: LlmClient | null; heartbeatMs?: number; fetch?: typeof fetch; scopeGuard?: ScopeGuard } = {}) => {
+export const createTestContext = async (options: { github?: Config['github']; githubClient?: GitHubClient; llm?: LlmClient | null; heartbeatMs?: number; fetch?: typeof fetch; scopeGuard?: ScopeGuard; graph?: (real: GraphStore) => GraphStore } = {}) => {
   const base = loadConfig({ DATABASE_URL: TEST_DATABASE_URL, REDIS_URL: TEST_REDIS_URL, RDI_DEV_ROUTES: 'true', RATE_LIMIT_PREFIX: RATE_PREFIX });
   const config: Config = { ...base, github: options.github ?? null, agent: { ...base.agent, heartbeatMs: options.heartbeatMs ?? base.agent.heartbeatMs } };
   const pool = createPgPool(config.databaseUrl, 5);
@@ -23,7 +23,7 @@ export const createTestContext = async (options: { github?: Config['github']; gi
   await graph.ensureSchema();
   const jobs: IndexJobData[] = [];
   const indexQueue = { enqueue: async (job: IndexJobData) => { jobs.push(job); }, close: async () => {} };
-  const app = buildApp({ checks: {}, deps: { config, pool, redis, mailer, graph, indexQueue, github: options.githubClient ?? null, llm: options.llm ?? null, fetch: options.fetch, scopeGuard: options.scopeGuard } });
+  const app = buildApp({ checks: {}, deps: { config, pool, redis, mailer, graph: options.graph ? options.graph(graph) : graph, indexQueue, github: options.githubClient ?? null, llm: options.llm ?? null, fetch: options.fetch, scopeGuard: options.scopeGuard } });
   await app.ready();
   const reset = async () => {
     await pool.query(`truncate ${TABLES.join(', ')} cascade`);
