@@ -55,6 +55,16 @@ describe('buildPullRequestImpact', () => {
   it('works for repositories that are not indexed yet', () => {
     const scene = buildPullRequestImpact({ graph: { nodes: [], edges: [] }, repoFullName: 'acme/new', pull, files });
     expect(validateScene(scene).ok).toBe(true);
-    expect(scene.nodes.filter((n) => n.change === 'added').map((n) => n.label).sort()).toEqual(['src/cancel.ts', 'src/orders.ts']);
+    expect(scene.nodes.filter((n) => n.kind === 'file').map((n) => [n.label, n.change])).toEqual([['src/orders.ts', 'modified'], ['src/cancel.ts', 'added']]);
+  });
+
+  it('trusts GitHub for the change type and ignores lockfiles when judging size', async () => {
+    const scene = buildPullRequestImpact({
+      graph: await orgGraph(), repoFullName: 'acme-demo/shop-api', pull: { ...pull, additions: 2400, deletions: 1800 },
+      files: [{ filename: 'package.json', status: 'modified', additions: 2, deletions: 2 }, { filename: 'package-lock.json', status: 'modified', additions: 2398, deletions: 1798 }],
+    });
+    expect(scene.nodes.filter((n) => n.kind === 'file').map((n) => n.change)).toEqual(['modified', 'modified']);
+    expect(scene.risks.map((r) => r.title)).not.toContain('Large change');
   });
 });
+

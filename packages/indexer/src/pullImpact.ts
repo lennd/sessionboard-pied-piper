@@ -17,13 +17,15 @@ const BIG_CHANGE_LINES = 500;
 const CODE_PREVIEW_LINES = 80;
 const SECURITY_PATH = /(auth|sso|saml|oauth|token|permission|session|password|crypto|certificate|secret)/i;
 const MIGRATION_PATH = /(^|\/)(migrations?|db\/migrate)\//i;
+const LOCKFILE = /(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|Pipfile\.lock|Gemfile\.lock|composer\.lock|go\.sum|Cargo\.lock)$/;
 const SHARED_EDGES: Partial<Record<EdgeType, EdgeKind>> = { PUBLISHES: 'async', CONSUMES: 'async', READS: 'read', WRITES: 'write', CALLS: 'calls' };
 const SHARED_ROLE: Record<string, 'channel' | 'storage' | 'external'> = { Queue: 'channel', Table: 'storage', External: 'external' };
 
 const clip = (text: string, max = MAX_LABEL) => (text.length <= max ? text : `${text.slice(0, max - 1)}…`);
 const byText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
-const changeOf = (file: PullFileInput, known: boolean): 'added' | 'modified' | 'removed' =>
-  file.status === 'removed' ? 'removed' : file.status === 'added' || !known ? 'added' : 'modified';
+/** GitHub's file status is the source of truth; the graph only knows indexed source files. */
+const changeOf = (file: PullFileInput): 'added' | 'modified' | 'removed' =>
+  file.status === 'removed' ? 'removed' : file.status === 'added' ? 'added' : 'modified';
 const list = (names: string[]) => (names.length <= 3 ? names.join(', ') : `${names.slice(0, 3).join(', ')} and ${names.length - 3} more`);
 
 /** Deterministic diagram of what a pull request changes and what those changes reach, built from the System Graph. */
@@ -55,7 +57,7 @@ export const buildPullRequestImpact = ({ graph, repoFullName, pull, files }: { g
   const changedGraphFiles = new Set<string>();
   shown.forEach((file, i) => {
     const graphFile = graphFileOf(file);
-    const change = changeOf(file, Boolean(graphFile));
+    const change = changeOf(file);
     const id = `f${i + 1}`;
     if (graphFile) {
       fileScene.set(graphFile.id, id);
@@ -163,8 +165,9 @@ export const buildPullRequestImpact = ({ graph, repoFullName, pull, files }: { g
   if (migrations.length > 0) {
     risks.push({ id: 'r-migration', category: 'reliability', severity: 'medium', title: 'Includes database migrations', explanation: clip(`Migrations change the schema: ${list(migrations.map((f) => f.filename))}.`, MAX_SUMMARY), nodeIds: fileIdsMatching(MIGRATION_PATH).length > 0 ? fileIdsMatching(MIGRATION_PATH) : ['svc'], mitigation: 'Check they are reversible and safe to run on production data volumes.' });
   }
-  if (pull.additions + pull.deletions > BIG_CHANGE_LINES) {
-    risks.push({ id: 'r-size', category: 'complexity', severity: 'medium', title: 'Large change', explanation: `${pull.additions + pull.deletions} changed lines are hard to review in one pass.`, nodeIds: ['svc'], mitigation: 'Ask for smaller pull requests or review by area.' });
+  const reviewedLines = files.filter((f) => !LOCKFILE.test(f.filename)).reduce((sum, f) => sum + f.additions + f.deletions, 0);
+  if (reviewedLines > BIG_CHANGE_LINES) {
+    risks.push({ id: 'r-size', category: 'complexity', severity: 'medium', title: 'Large change', explanation: `${reviewedLines} changed lines (excluding lockfiles) are hard to review in one pass.`, nodeIds: ['svc'], mitigation: 'Ask for smaller pull requests or review by area.' });
   }
   const calledEndpoints = [...new Set(sceneEdges.filter((e) => e.kind === 'sync').map((e) => e.to))];
   if (calledEndpoints.length > 0) {
