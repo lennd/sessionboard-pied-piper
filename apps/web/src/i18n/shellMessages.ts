@@ -1,4 +1,6 @@
 export const shellEn = {
+  'pulls.noDiagram': 'The change diagram could not be built for this pull request; the files are listed below.',
+  'errors.github_failed': 'GitHub could not be reached. Try again in a moment.',
   'pulls.title': 'Pull requests',
   'pulls.refresh': 'Refresh',
   'pulls.loading': 'Loading pull requests…',
@@ -267,6 +269,8 @@ export type ShellKey = keyof typeof shellEn;
 type ShellCatalog = Record<ShellKey, string>;
 
 export const shellEs: ShellCatalog = {
+  'pulls.noDiagram': 'No se pudo armar el diagrama de cambios para este pull request; abajo están los archivos.',
+  'errors.github_failed': 'No se pudo contactar a GitHub. Probá de nuevo en un momento.',
   'pulls.title': 'Pull requests',
   'pulls.refresh': 'Actualizar',
   'pulls.loading': 'Cargando pull requests…',
@@ -532,6 +536,8 @@ export const shellEs: ShellCatalog = {
 };
 
 export const shellPt: ShellCatalog = {
+  'pulls.noDiagram': 'Não foi possível montar o diagrama de mudanças deste pull request; os arquivos estão abaixo.',
+  'errors.github_failed': 'Não foi possível acessar o GitHub. Tente novamente em instantes.',
   'pulls.title': 'Pull requests',
   'pulls.refresh': 'Atualizar',
   'pulls.loading': 'Carregando pull requests…',

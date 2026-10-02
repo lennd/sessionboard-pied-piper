@@ -105,6 +105,7 @@ export const Workspace = ({ chat, panels, initialPanel, loadCode, extraScenes = 
     dispatchPlayer({ type: 'reset' });
   };
   const [pendingQuestion, setPendingQuestion] = useState<PendingQuestion | null>(null);
+  const questionCounter = useRef(0);
   const openScene = (next: Scene, mode?: Mode) => {
     setChatScenes((current) => [next, ...current.filter((s) => s.id !== next.id)]);
     previousFlat.current = [];
@@ -116,7 +117,7 @@ export const Workspace = ({ chat, panels, initialPanel, loadCode, extraScenes = 
     openScene,
     selectNode: (id) => dispatchRaw({ type: 'selectNode', nodeId: id }),
     ask: (text, mode) => {
-      setPendingQuestion({ id: Date.now(), text, mode });
+      setPendingQuestion((current) => (current?.text === text ? current : { id: (questionCounter.current += 1), text, mode }));
       setSidebar('chat');
     },
     pendingQuestion,

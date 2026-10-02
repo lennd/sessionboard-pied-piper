@@ -36,6 +36,9 @@ describe('Workspace panels', () => {
       </I18nProvider>,
     );
     act(() => captured!.ask!('Review pull request a/b#1', 'analyze'));
+    const first = captured!.pendingQuestion!.id;
+    act(() => captured!.ask!('Review pull request a/b#1', 'analyze'));
+    expect(captured!.pendingQuestion!.id).toBe(first);
     expect(screen.getByTestId('chat-slot')).toBeVisible();
     expect(screen.getByTestId('chat-slot')).toHaveTextContent('Review pull request a/b#1');
   });

@@ -45,6 +45,9 @@ describe('PullsPanel', () => {
     expect(screen.getByTestId('pull-github')).toHaveAttribute('href', 'https://github.com/hugo/notes/pull/5');
     fireEvent.click(screen.getByTestId('pull-review'));
     expect(context.ask).toHaveBeenCalledWith(expect.stringMatching(/^Review pull request hugo\/notes#5/), 'analyze');
+    fireEvent.click(screen.getByTestId('pull-review'));
+    expect(context.ask).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('pull-review')).toBeDisabled();
     fireEvent.click(screen.getByTestId('pull-back'));
     expect(screen.getByTestId('pull-hugo/notes#5')).toBeInTheDocument();
   });
@@ -60,4 +63,18 @@ describe('PullsPanel', () => {
     fireEvent.click(screen.getByTestId('pulls-refresh'));
     await waitFor(() => expect(api).toHaveBeenCalledWith('/orgs/o1/pulls?refresh=1'));
   });
+
+  it('still shows the pull request when no diagram could be built', async () => {
+    api.mockImplementation(async (path) =>
+      (String(path).startsWith('/orgs/o1/pulls/hugo/notes/5')
+        ? { pull: pull(5, { body: '', additions: 1, deletions: 0, changedFiles: 1 }), files: [{ filename: 'a.ts', status: 'modified', additions: 1, deletions: 0 }], scene: null }
+        : { configured: true, repos: [{ repo: 'hugo/notes', status: 'ok', pulls: [pull(5)] }] }) as never);
+    const context = ctx();
+    renderShell(<PullsPanel orgId="o1" ctx={context} />, { session: sessionFixture() });
+    fireEvent.click(await screen.findByTestId('pull-hugo/notes#5'));
+    expect(await screen.findByTestId('pull-no-diagram')).toBeInTheDocument();
+    expect(context.openScene).not.toHaveBeenCalled();
+    expect(screen.getByTestId('pull-file-a.ts')).toBeInTheDocument();
+  });
 });
+

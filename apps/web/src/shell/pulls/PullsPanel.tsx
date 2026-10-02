@@ -12,7 +12,7 @@ type PullSummary = { number: number; title: string; author: string; draft: boole
 type PullsList = { configured: boolean; repos: { repo: string; status: 'ok' | 'unavailable'; pulls: PullSummary[] }[] };
 type PullFile = { filename: string; status: string; additions: number; deletions: number; previousFilename?: string };
 type PullDetail = { pull: PullSummary & { body: string; additions: number; deletions: number; changedFiles: number }; files: PullFile[]; scene: unknown };
-type Opened = { repo: string; detail: PullDetail };
+type Opened = { repo: string; detail: PullDetail; hasDiagram: boolean; reviewed: boolean };
 
 const STATUS_GLYPH: Record<string, string> = { added: '+', removed: '−', modified: '~', renamed: '→' };
 
@@ -39,9 +39,9 @@ export const PullsPanel = ({ orgId, ctx }: { orgId: string; ctx: ChatContext }) 
     setLoading(`${repo}#${number}`);
     try {
       const detail = await apiFetch<PullDetail>(`/orgs/${orgId}/pulls/${repo}/${number}`);
-      const scene = validateScene(detail.scene);
-      if (scene.ok) ctx.openScene(scene.scene, 'changes');
-      setOpened({ repo, detail });
+      const scene = detail.scene ? validateScene(detail.scene) : null;
+      if (scene?.ok) ctx.openScene(scene.scene, 'changes');
+      setOpened({ repo, detail, hasDiagram: Boolean(scene?.ok), reviewed: false });
     } catch (err) {
       setError(errorText(t, err));
     } finally {
@@ -49,8 +49,10 @@ export const PullsPanel = ({ orgId, ctx }: { orgId: string; ctx: ChatContext }) 
     }
   };
 
-  const review = (repo: string, pull: PullSummary) =>
+  const review = (repo: string, pull: PullSummary) => {
+    setOpened((current) => (current ? { ...current, reviewed: true } : current));
     ctx.ask?.(`Review pull request ${repo}#${pull.number}: "${pull.title}". Explain what it changes, what it affects in the system and the risks it introduces.`, 'analyze');
+  };
 
   if (opened) {
     const { pull, files } = opened.detail;
@@ -61,9 +63,10 @@ export const PullsPanel = ({ orgId, ctx }: { orgId: string; ctx: ChatContext }) 
         <div className="muted">{opened.repo} · {pull.author} · {pull.headRef} → {pull.baseRef}</div>
         <div className="pull-size"><span className="add">+{pull.additions}</span> <span className="del">−{pull.deletions}</span> · {t('pulls.files', { count: pull.changedFiles })}</div>
         <div className="row pulls-actions">
-          <button type="button" className="btn-primary btn-small" data-testid="pull-review" onClick={() => review(opened.repo, pull)}>✦ {t('pulls.review')}</button>
+          <button type="button" className="btn-primary btn-small" data-testid="pull-review" disabled={opened.reviewed} onClick={() => review(opened.repo, pull)}>✦ {t('pulls.review')}</button>
           <a className="btn" data-testid="pull-github" href={pull.url} target="_blank" rel="noopener noreferrer">{t('pulls.openGithub')} ↗</a>
         </div>
+        {!opened.hasDiagram && <p className="muted" data-testid="pull-no-diagram">{t('pulls.noDiagram')}</p>}
         {pull.body && <div className="pull-body"><Markdown text={pull.body} /></div>}
         <div className="sec-title">{t('pulls.changedFiles')}</div>
         <ul className="pull-files">
@@ -86,7 +89,7 @@ export const PullsPanel = ({ orgId, ctx }: { orgId: string; ctx: ChatContext }) 
     <div className="pulls" data-testid="pulls-panel">
       <div className="pulls-head">
         <b>{t('pulls.title')}</b>
-        <button type="button" className="btn" data-testid="pulls-refresh" onClick={() => void refresh()} title={t('pulls.refresh')}>↻</button>
+        <button type="button" className="btn" data-testid="pulls-refresh" onClick={() => void refresh()} title={t('pulls.refresh')} aria-label={t('pulls.refresh')}>↻</button>
       </div>
       {pulls.isLoading && <p className="muted">{t('pulls.loading')}</p>}
       {data && !data.configured && <p className="chat-notice" data-testid="pulls-not-configured">{t('pulls.notConfigured')}</p>}
