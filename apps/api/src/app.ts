@@ -13,6 +13,7 @@ import { githubRoutes } from './routes/github';
 import { invitationRoutes } from './routes/invitations';
 import { meRoutes } from './routes/me';
 import { orgRoutes } from './routes/orgs';
+import { pullRoutes } from './routes/pulls';
 import { repoRoutes } from './routes/repos';
 import { solutionRoutes } from './routes/solutions';
 import { tokenRoutes } from './routes/tokens';
@@ -74,6 +75,7 @@ export const buildApp = ({ checks, onClose, checkTimeoutMs = DEFAULT_CHECK_TIMEO
         agentRoutes(api, deps);
         solutionRoutes(api, deps);
         tokenRoutes(api, deps);
+        pullRoutes(api, deps);
         if (deps.config.devRoutes) devRoutes(api, deps);
       },
       { prefix: '/api' },

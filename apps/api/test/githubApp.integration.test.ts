@@ -35,7 +35,7 @@ describe('GitHub App resolution', () => {
   });
 
   it('prefers an App configured through the environment', async () => {
-    const client = { installationToken: async () => 't', listInstallationRepos: async () => [], getInstallation: async () => ({ accountLogin: 'a' }), installUrl: () => 'env', listPullFiles: async () => [] };
+    const client = { installationToken: async () => 't', listInstallationRepos: async () => [], getInstallation: async () => ({ accountLogin: 'a' }), installUrl: () => 'env', listOpenPulls: async () => [], getPull: async () => { throw new Error('unused'); }, listPullFiles: async () => [] };
     const deps = { config: { ...ctx.config, github: { appId: '9', privateKey: 'k', slug: 'env-app', webhookSecret: 'w', stateSecret: 's' } }, pool: ctx.pool, github: client };
     expect(await resolveGithubApp(deps)).toMatchObject({ source: 'env', config: { slug: 'env-app' }, client });
     expect(await manifestAvailable(deps)).toBe(false);

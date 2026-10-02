@@ -174,7 +174,7 @@ describe('robustness', () => {
       () => reply([{ type: 'tool_use', id: 't1', name: 'get_pr_diff', input: { repo: 'acme/api', number: 404 } }], 'tool_use'),
       () => reply([{ type: 'text', text: 'That PR does not exist.' }], 'end_turn'),
     ]);
-    const githubClient = { installationToken: async () => 'x', listInstallationRepos: async () => [], getInstallation: async () => ({ accountLogin: 'a' }), installUrl: () => '', listPullFiles: async () => { throw new Error('GitHub API 404: Not Found'); } };
+    const githubClient = { installationToken: async () => 'x', listInstallationRepos: async () => [], getInstallation: async () => ({ accountLogin: 'a' }), installUrl: () => '', listOpenPulls: async () => [], getPull: async () => { throw new Error('unused'); }, listPullFiles: async () => { throw new Error('GitHub API 404: Not Found'); } };
     const local = await createTestContext({ llm, githubClient });
     try {
       const { owner, org } = await setup(local);
