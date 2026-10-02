@@ -61,7 +61,7 @@ describe('createGitHubClient', () => {
       .mockResolvedValueOnce(json({ token: 'ghs_pr' }, 201))
       .mockResolvedValueOnce(json([{ filename: 'src/a.ts', status: 'modified', patch: '@@ -1 +1 @@', additions: 1 }]));
     const client = createGitHubClient(config, fetchMock as unknown as typeof fetch);
-    expect(await client.listPullFiles(9, 'acme/api', 42)).toEqual([{ filename: 'src/a.ts', status: 'modified', patch: '@@ -1 +1 @@' }]);
+    expect(await client.listPullFiles(9, 'acme/api', 42)).toEqual([{ filename: 'src/a.ts', status: 'modified', additions: 1, deletions: 0, patch: '@@ -1 +1 @@' }]);
     expect(fetchMock.mock.calls[1]![0]).toBe('https://api.github.com/repos/acme/api/pulls/42/files?per_page=100');
     expect(fetchMock.mock.calls[1]![1].headers.authorization).toBe('token ghs_pr');
   });
@@ -76,5 +76,40 @@ describe('createGitHubClient', () => {
     const listed = await client.listInstallationRepos(5);
     expect(listed).toHaveLength(150);
     expect(fetchMock.mock.calls[2]![0]).toBe('https://api.github.com/installation/repositories?per_page=100&page=2');
+  });
+
+  it('lists the open pull requests of a repository across pages', async () => {
+    const pull = (n: number) => ({ number: n, title: `PR ${n}`, user: { login: 'hugo' }, draft: n === 2, head: { ref: `feature/${n}` }, base: { ref: 'main' }, updated_at: '2026-10-01T10:00:00Z', html_url: `https://github.com/acme/api/pull/${n}` });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(json({ token: 'ghs_l' }, 201))
+      .mockResolvedValueOnce(json(Array.from({ length: 100 }, (_, i) => pull(i + 1))))
+      .mockResolvedValueOnce(json([pull(101)]));
+    const client = createGitHubClient(config, fetchMock as unknown as typeof fetch);
+    const pulls = await client.listOpenPulls(9, 'acme/api');
+    expect(pulls).toHaveLength(101);
+    expect(pulls[1]).toEqual({ number: 2, title: 'PR 2', author: 'hugo', draft: true, headRef: 'feature/2', baseRef: 'main', updatedAt: '2026-10-01T10:00:00Z', url: 'https://github.com/acme/api/pull/2' });
+    expect(fetchMock.mock.calls[1]![0]).toBe('https://api.github.com/repos/acme/api/pulls?state=open&per_page=100');
+    expect(fetchMock.mock.calls[2]![0]).toBe('https://api.github.com/repos/acme/api/pulls?state=open&per_page=100&page=2');
+  });
+
+  it('reads a pull request with its description and size', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(json({ token: 'ghs_g' }, 201))
+      .mockResolvedValueOnce(json({ number: 7, title: 'Rotate certs', user: { login: 'ana' }, draft: false, head: { ref: 'feat' }, base: { ref: 'main' }, updated_at: '2026-10-01T10:00:00Z', html_url: 'u', body: null, additions: 40, deletions: 2, changed_files: 3 }));
+    const client = createGitHubClient(config, fetchMock as unknown as typeof fetch);
+    expect(await client.getPull(9, 'acme/api', 7)).toEqual({ number: 7, title: 'Rotate certs', author: 'ana', draft: false, headRef: 'feat', baseRef: 'main', updatedAt: '2026-10-01T10:00:00Z', url: 'u', body: '', additions: 40, deletions: 2, changedFiles: 3 });
+    expect(fetchMock.mock.calls[1]![0]).toBe('https://api.github.com/repos/acme/api/pulls/7');
+  });
+
+  it('pages through pull request files and keeps renames', async () => {
+    const file = (i: number) => ({ filename: `f${i}.ts`, status: 'modified', additions: 1, deletions: 1 });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(json({ token: 'ghs_f' }, 201))
+      .mockResolvedValueOnce(json(Array.from({ length: 100 }, (_, i) => file(i))))
+      .mockResolvedValueOnce(json([{ filename: 'new.ts', previous_filename: 'old.ts', status: 'renamed', additions: 0, deletions: 0 }]));
+    const client = createGitHubClient(config, fetchMock as unknown as typeof fetch);
+    const files = await client.listPullFiles(9, 'acme/api', 7);
+    expect(files).toHaveLength(101);
+    expect(files[100]).toEqual({ filename: 'new.ts', status: 'renamed', additions: 0, deletions: 0, previousFilename: 'old.ts' });
   });
 });
