@@ -5,3 +5,4 @@ export * from './summarize';
 export * from './repoGraph';
 export * from './link';
 export * from './systemMap';
+export * from './pullImpact';
