@@ -179,3 +179,21 @@ button, select, input { font: inherit; color: inherit; }
 
 .chat-modes { align-self: flex-start; }
 .chat-modes button { font-size: 12px; }
+
+.pulls { display: flex; flex-direction: column; gap: 6px; padding: 10px; overflow: auto; height: 100%; }
+.pulls-head { display: flex; justify-content: space-between; align-items: center; }
+.pull-item { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; padding: 8px; margin-bottom: 6px; border: 1px solid var(--line); border-radius: var(--radius); background: transparent; color: var(--text); cursor: pointer; font: inherit; font-size: 12px; }
+.pull-item:hover { border-color: var(--accent); }
+.pull-item-title { font-weight: 600; font-size: 13px; }
+.pull-draft { margin-left: 6px; font-size: 10px; }
+.pulls-back { align-self: flex-start; }
+.pull-title { font-size: 14px; }
+.pull-size .add { color: var(--ok, #3ccf91); }
+.pull-size .del { color: var(--bad, #ff6b81); }
+.pulls-actions { gap: 6px; flex-wrap: wrap; }
+.pull-body { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px; max-height: 220px; overflow: auto; }
+.pull-files { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
+.pull-file { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; gap: 6px; align-items: baseline; }
+.pull-file-name { overflow-wrap: anywhere; }
+.pull-file.is-added .pull-file-status { color: var(--ok, #3ccf91); }
+.pull-file.is-removed .pull-file-status { color: var(--bad, #ff6b81); }
