@@ -176,3 +176,6 @@ button, select, input { font: inherit; color: inherit; }
 .md table { border-collapse: collapse; font-size: 12px; }
 .md th, .md td { border: 1px solid var(--line); padding: 4px 6px; text-align: left; vertical-align: top; }
 .md th { background: color-mix(in srgb, var(--text) 6%, transparent); }
+
+.chat-modes { align-self: flex-start; }
+.chat-modes button { font-size: 12px; }

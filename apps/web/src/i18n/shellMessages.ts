@@ -1,4 +1,8 @@
 export const shellEn = {
+  'chat.mode.label': 'Chat mode',
+  'chat.mode.analyze': 'Analyze',
+  'chat.mode.plan': 'Plan',
+  'chat.placeholder.plan': 'Describe the change you want to plan: what should change, for whom and why…',
   'repos.githubPending': 'The installation was requested. An organization admin must approve it on GitHub; then press "Connect another account" and save to finish.',
   'githubError.invalid_state': 'That GitHub link expired or was already used. Start again from this page.',
   'githubError.invalid_request': 'GitHub sent an unexpected response. Start again from this page.',
@@ -250,6 +254,10 @@ export type ShellKey = keyof typeof shellEn;
 type ShellCatalog = Record<ShellKey, string>;
 
 export const shellEs: ShellCatalog = {
+  'chat.mode.label': 'Modo del chat',
+  'chat.mode.analyze': 'Analizar',
+  'chat.mode.plan': 'Planificar',
+  'chat.placeholder.plan': 'Describí el cambio que querés planificar: qué debería cambiar, para quién y por qué…',
   'repos.githubPending': 'Se pidió la instalación. Un admin de la organización tiene que aprobarla en GitHub; después tocá "Conectar otra cuenta" y guardá para terminar.',
   'githubError.invalid_state': 'Ese enlace de GitHub venció o ya se usó. Empezá de nuevo desde esta página.',
   'githubError.invalid_request': 'GitHub envió una respuesta inesperada. Empezá de nuevo desde esta página.',
@@ -498,6 +506,10 @@ export const shellEs: ShellCatalog = {
 };
 
 export const shellPt: ShellCatalog = {
+  'chat.mode.label': 'Modo do chat',
+  'chat.mode.analyze': 'Analisar',
+  'chat.mode.plan': 'Planejar',
+  'chat.placeholder.plan': 'Descreva a mudança que você quer planejar: o que deveria mudar, para quem e por quê…',
   'repos.githubPending': 'A instalação foi solicitada. Um admin da organização precisa aprová-la no GitHub; depois clique em "Conectar outra conta" e salve para terminar.',
   'githubError.invalid_state': 'Esse link do GitHub expirou ou já foi usado. Comece de novo por esta página.',
   'githubError.invalid_request': 'O GitHub enviou uma resposta inesperada. Comece de novo por esta página.',

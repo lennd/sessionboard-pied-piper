@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nProvider';
 import type { MessageKey } from '../../i18n/messages';
-import type { ChatContext } from '../../workspace/Workspace';
+import type { ChatContext, ChatMode } from '../../workspace/Workspace';
 import { ApiError, apiFetch } from '../api';
 import { streamChat, type ChatEvent } from './chatApi';
 import { Markdown } from './Markdown';
@@ -15,6 +15,7 @@ type Conversation = { id: string; title: string; items: Item[]; scenes: { id: st
 type Summary = { id: string; title: string; updatedAt: string };
 type Agent = { enabled: boolean; model: string; tokensUsed: number; tokenBudget: number };
 
+const MODE_STORAGE_KEY = 'rdi.chatMode';
 const LANGUAGE_LABEL: Record<string, string> = { en: 'English', es: 'Español', pt: 'Português' };
 
 const validScenes = (rows: Conversation['scenes']): SceneEntry[] =>
@@ -39,6 +40,8 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
   const [error, setError] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
   const justCreated = useRef<string | null>(null);
+  const handledQuestion = useRef<number | null>(null);
+  const [mode, setMode] = useState<ChatMode>(() => (localStorage.getItem(MODE_STORAGE_KEY) === 'plan' ? 'plan' : 'analyze'));
   const autoSelected = useRef(false);
   const logEnd = useRef<HTMLDivElement | null>(null);
 
@@ -80,20 +83,30 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
     void client.setQueryData(['conversations', orgId], (list: Summary[] | undefined) => list ?? []);
   };
 
-  const send = async () => {
-    const text = draft.trim();
+  const chooseMode = (next: ChatMode) => {
+    setMode(next);
+    localStorage.setItem(MODE_STORAGE_KEY, next);
+  };
+
+  const submit = async (text: string, options: { fresh: boolean; mode: ChatMode }) => {
     if (!text || busy) return;
+    autoSelected.current = true;
     setBusy(true);
     setError(null);
     setDraft('');
     try {
-      const id = conversationId ?? (await apiFetch<Summary>(`/orgs/${orgId}/conversations`, { method: 'POST', body: {} })).id;
-      if (!conversationId) {
+      const existing = options.fresh ? null : conversationId;
+      const id = existing ?? (await apiFetch<Summary>(`/orgs/${orgId}/conversations`, { method: 'POST', body: {} })).id;
+      if (!existing) {
         justCreated.current = id;
         setConversationId(id);
       }
-      const turn = (items.filter((i) => i.role === 'user').at(-1)?.turn ?? 0) + 1;
-      setItems((current) => [...current, { role: 'user', text, turn }, { role: 'assistant', text: '', turn }]);
+      if (options.fresh) {
+        setScenes([]);
+        setSolutions([]);
+      }
+      const turn = options.fresh ? 1 : (items.filter((i) => i.role === 'user').at(-1)?.turn ?? 0) + 1;
+      setItems((current) => [...(options.fresh ? [] : current), { role: 'user', text, turn }, { role: 'assistant', text: '', turn }]);
       const controller = new AbortController();
       abort.current = controller;
       const onEvent = (event: ChatEvent) => {
@@ -112,7 +125,7 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
           setError(errorText(event.code));
         }
       };
-      await streamChat(orgId, id, { text, language, focus }, onEvent, controller.signal);
+      await streamChat(orgId, id, { text, language, focus, mode: options.mode }, onEvent, controller.signal);
       setFocus(null);
       void client.invalidateQueries({ queryKey: ['conversations', orgId] });
       void client.invalidateQueries({ queryKey: ['agent', orgId] });
@@ -123,6 +136,19 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
       setBusy(false);
     }
   };
+
+  const send = () => submit(draft.trim(), { fresh: false, mode });
+
+  useEffect(() => {
+    const question = ctx.pendingQuestion;
+    if (!question || busy || handledQuestion.current === question.id) return;
+    handledQuestion.current = question.id;
+    ctx.consumeQuestion?.(question.id);
+    chooseMode(question.mode);
+    void submit(question.text, { fresh: true, mode: question.mode });
+    // submit reads the latest state through the render it was created in; the question id guards re-entry.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx.pendingQuestion, busy]);
 
   const translate = async (entry: SceneEntry) => {
     setError(null);
@@ -183,8 +209,13 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
           <button type="button" className="btn chat-chip" data-testid="chat-ask-about" onClick={() => setFocus(ctx.selected)}>＋ {t('chat.askAbout', { label: ctx.selected.label })}</button>
         )}
         {focus && <span className="tag chat-chip" data-testid="chat-focus">◎ {focus.label} <button type="button" className="btn" onClick={() => setFocus(null)}>×</button></span>}
+        <div className="seg chat-modes" role="group" aria-label={t('chat.mode.label')}>
+          {(['analyze', 'plan'] as const).map((m) => (
+            <button key={m} type="button" data-testid={`chat-mode-${m}`} aria-pressed={mode === m} onClick={() => chooseMode(m)}>{t(`chat.mode.${m}`)}</button>
+          ))}
+        </div>
         <textarea
-          data-testid="chat-input" aria-label={t('chat.title')} placeholder={t('chat.placeholder')} value={draft} disabled={disabled}
+          data-testid="chat-input" aria-label={t('chat.title')} placeholder={t(mode === 'plan' ? 'chat.placeholder.plan' : 'chat.placeholder')} value={draft} disabled={disabled}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {

@@ -23,4 +23,29 @@ describe('Workspace panels', () => {
     act(() => captured!.selectNode(firstNode.id));
     expect(screen.getByTestId('card')).toHaveTextContent(firstNode.label);
   });
+
+  it('opens the chat with a pending question when a panel asks the agent', () => {
+    let captured: ChatContext | null = null;
+    render(
+      <I18nProvider initialLanguage="en">
+        <Workspace
+          initialPanel="pulls"
+          panels={[{ id: 'pulls', glyph: '⇄', title: 'Pull requests', render: (ctx) => { captured = ctx; return <div data-testid="pulls-slot">pulls</div>; } }]}
+          chat={(ctx) => <div data-testid="chat-slot">{ctx.pendingQuestion?.text ?? 'none'}</div>}
+        />
+      </I18nProvider>,
+    );
+    act(() => captured!.ask!('Review pull request a/b#1', 'analyze'));
+    expect(screen.getByTestId('chat-slot')).toBeVisible();
+    expect(screen.getByTestId('chat-slot')).toHaveTextContent('Review pull request a/b#1');
+  });
+
+  it('opens scenes in the requested mode', () => {
+    let captured: ChatContext | null = null;
+    render(<I18nProvider initialLanguage="en"><Workspace panels={[{ id: 'p', glyph: 'P', title: 'P', render: (ctx) => { captured = ctx; return null; } }]} /></I18nProvider>);
+    const base = captured!.scene;
+    act(() => captured!.openScene({ ...base, id: 'changed', title: 'Changed', nodes: base.nodes.map((n, i) => (i === 0 ? { ...n, change: 'modified' as const } : n)) }, 'changes'));
+    expect(screen.getByTestId('mode-changes')).toHaveAttribute('aria-selected', 'true');
+  });
 });
+
