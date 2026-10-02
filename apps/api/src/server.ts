@@ -2,6 +2,7 @@ import { createGraphStore } from '@rdi/graph';
 import { createGitHubClient } from '@rdi/providers';
 import { createAnthropicLlm } from './agent/anthropicLlm';
 import { createFakeLlm } from './agent/fakeLlm';
+import { createAnthropicScopeGuard, createFakeScopeGuard } from './agent/scopeGuard';
 import { buildApp } from './app';
 import { createInfraChecks, createPgPool, createRedisClient } from './checks';
 import { loadConfig } from './config';
@@ -23,6 +24,7 @@ const graph = createGraphStore(config.neo4jUrl, config.neo4jUser, config.neo4jPa
 await graph.ensureSchema();
 const indexQueue = createIndexQueue(config.redisUrl);
 const llm = config.agent.fake ? createFakeLlm() : config.agent.enabled ? createAnthropicLlm(config.agent.model) : null;
+const scopeGuard = config.agent.fake ? createFakeScopeGuard() : config.agent.enabled ? createAnthropicScopeGuard() : undefined;
 const github = config.github ? createGitHubClient({ appId: config.github.appId, privateKey: config.github.privateKey, slug: config.github.slug }) : null;
 const infra = createInfraChecks(config);
 
@@ -35,7 +37,7 @@ const app = buildApp({
     await indexQueue.close();
     await graph.close();
   },
-  deps: { config, pool, redis, mailer, graph, indexQueue, github, llm },
+  deps: { config, pool, redis, mailer, graph, indexQueue, github, llm, scopeGuard },
 });
 
 await app.listen({ port: config.port, host: '0.0.0.0' });

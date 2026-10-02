@@ -7,6 +7,7 @@ import type { CodeRef } from '../../workspace/panels/CodeDrawer';
 import { Workspace } from '../../workspace/Workspace';
 import { ApiError, apiFetch } from '../api';
 import { ChatPanel } from '../chat/ChatPanel';
+import { PullsPanel } from '../pulls/PullsPanel';
 import { Splash } from '../components/Splash';
 import { effectiveExplanationLanguage, effectiveLevel, effectiveTheme } from '../preferences';
 import { useSession, useUpdateMe } from '../session';
@@ -47,6 +48,7 @@ export const ExplorePage = () => {
       {systemMap.isError && <p className="alert error" role="alert" data-testid="system-map-error" style={ERROR_STYLE}>{t('explore.mapError')}</p>}
       <Workspace
         loadCode={loadCode}
+        panels={[{ id: 'pulls', glyph: '⇄', title: t('pulls.title'), render: (ctx) => <PullsPanel orgId={org.id} ctx={ctx} /> }]}
         chat={(ctx) => <ChatPanel orgId={org.id} ctx={ctx} language={effectiveExplanationLanguage(session.user, org, language)} />}
       extraScenes={systemMap.data ? [systemMap.data] : []}
       theme={effectiveTheme(session.user, org)}

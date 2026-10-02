@@ -8,7 +8,7 @@ import { useI18n } from '../i18n/I18nProvider';
 import type { UiLanguage } from '../i18n/messages';
 import { applyTheme, resolveTheme, THEME_STORAGE_KEY, type ThemeId } from '../theme/themes';
 import { Canvas } from './canvas/Canvas';
-import { initialExplorerState, reduceExplorer, type ExplorerAction } from './engine/explorerState';
+import { initialExplorerState, reduceExplorer, type ExplorerAction, type Mode } from './engine/explorerState';
 import { frameAt } from './engine/frame';
 import { stepPhase } from './engine/phase';
 import { resequenceCursor } from './engine/resequence';
@@ -25,7 +25,17 @@ const sceneFor = (language: string): Scene => sampleRegistry[`checkout-${languag
 
 const NO_SCENES: Scene[] = [];
 
-export type ChatContext = { openScene(scene: Scene): void; selectNode(id: string): void; selected: { label: string; graphRef: string } | null; scene: Scene };
+export type ChatMode = 'analyze' | 'plan';
+export type PendingQuestion = { id: number; text: string; mode: ChatMode };
+export type ChatContext = {
+  openScene(scene: Scene, mode?: Mode): void;
+  selectNode(id: string): void;
+  selected: { label: string; graphRef: string } | null;
+  scene: Scene;
+  ask?(text: string, mode: ChatMode): void;
+  pendingQuestion?: PendingQuestion | null;
+  consumeQuestion?(id: number): void;
+};
 export type WorkspacePanel = { id: string; glyph: string; title: string; render: (ctx: ChatContext) => ReactNode };
 
 type WorkspaceProps = { chat?: (ctx: ChatContext) => ReactNode; panels?: WorkspacePanel[]; initialPanel?: string; loadCode?: (code: CodeRef) => Promise<string>; extraScenes?: Scene[]; theme?: ThemeId; onTheme?: (theme: ThemeId) => void; onLanguage?: (language: UiLanguage) => void; initialLevel?: Level; homeHref?: string };
@@ -94,15 +104,24 @@ export const Workspace = ({ chat, panels, initialPanel, loadCode, extraScenes = 
     dispatchRaw({ type: 'loadScene', sceneId: id, level: explorer.level, mode: (next && availableModes(next)[0]) ?? 'walkthrough' });
     dispatchPlayer({ type: 'reset' });
   };
-  const openScene = (next: Scene) => {
+  const [pendingQuestion, setPendingQuestion] = useState<PendingQuestion | null>(null);
+  const questionCounter = useRef(0);
+  const openScene = (next: Scene, mode?: Mode) => {
     setChatScenes((current) => [next, ...current.filter((s) => s.id !== next.id)]);
     previousFlat.current = [];
-    dispatchRaw({ type: 'loadScene', sceneId: next.id, level: explorer.level, mode: availableModes(next)[0] ?? 'walkthrough' });
+    const modes = availableModes(next);
+    dispatchRaw({ type: 'loadScene', sceneId: next.id, level: explorer.level, mode: mode && modes.includes(mode) ? mode : modes[0] ?? 'walkthrough' });
     dispatchPlayer({ type: 'reset' });
   };
   const chatContext: ChatContext = {
     openScene,
     selectNode: (id) => dispatchRaw({ type: 'selectNode', nodeId: id }),
+    ask: (text, mode) => {
+      setPendingQuestion((current) => (current?.text === text ? current : { id: (questionCounter.current += 1), text, mode }));
+      setSidebar('chat');
+    },
+    pendingQuestion,
+    consumeQuestion: (id) => setPendingQuestion((current) => (current?.id === id ? null : current)),
     scene,
     selected: selectedNode?.graphRef ? { label: selectedNode.label, graphRef: selectedNode.graphRef } : null,
   };

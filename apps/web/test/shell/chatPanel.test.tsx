@@ -55,7 +55,7 @@ describe('ChatPanel', () => {
     await screen.findByTestId('chat-input');
     fireEvent.change(screen.getByTestId('chat-input'), { target: { value: 'How do readings flow?' } });
     fireEvent.click(screen.getByTestId('chat-send'));
-    await waitFor(() => expect(stream).toHaveBeenCalledWith('o1', 'c1', { text: 'How do readings flow?', language: 'es', focus: null }, expect.any(Function), expect.any(AbortSignal)));
+    await waitFor(() => expect(stream).toHaveBeenCalledWith('o1', 'c1', { text: 'How do readings flow?', language: 'es', focus: null, mode: 'analyze' }, expect.any(Function), expect.any(AbortSignal)));
     expect(await screen.findByText('Readings flow to the broker.')).toBeInTheDocument();
     expect(screen.getByTestId('chat-message-0')).toHaveTextContent('How do readings flow?');
     expect(screen.getByTestId('chat-scene-sc1')).toHaveTextContent('IoT telemetry ingestion');
@@ -70,7 +70,7 @@ describe('ChatPanel', () => {
     fireEvent.change(screen.getByTestId('chat-input'), { target: { value: 'Why?' } });
     await waitFor(() => expect(screen.getByTestId('chat-send')).toBeEnabled());
     fireEvent.click(screen.getByTestId('chat-send'));
-    await waitFor(() => expect(stream).toHaveBeenCalledWith('o1', 'c1', { text: 'Why?', language: 'es', focus: { label: 'MQTT broker', graphRef: 'svc:broker' } }, expect.any(Function), expect.any(AbortSignal)));
+    await waitFor(() => expect(stream).toHaveBeenCalledWith('o1', 'c1', { text: 'Why?', language: 'es', focus: { label: 'MQTT broker', graphRef: 'svc:broker' }, mode: 'analyze' }, expect.any(Function), expect.any(AbortSignal)));
     fireEvent.click(await screen.findByTestId('chat-translate-sc1'));
     await waitFor(() => expect(api).toHaveBeenCalledWith('/orgs/o1/scenes/sc1/translate', { method: 'POST', body: { language: 'es' } }));
     await waitFor(() => expect(openScene).toHaveBeenCalledWith(expect.objectContaining({ language: 'es' })));
@@ -178,6 +178,33 @@ describe('ChatPanel', () => {
     expect(container.querySelector('script')).toBeNull();
     expect(screen.getByTestId('chat-message-0').querySelector('strong')).toBeNull();
     expect(screen.getByTestId('chat-message-0')).toHaveTextContent('**not bold** for me');
+  });
+
+  it('sends the selected Analyze or Plan mode and remembers it', async () => {
+    localStorage.removeItem('rdi.chatMode');
+    mockApi();
+    stream.mockResolvedValue(undefined);
+    render();
+    fireEvent.click(await screen.findByTestId('chat-mode-plan'));
+    expect(screen.getByTestId('chat-mode-plan')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('chat-input')).toHaveAttribute('placeholder', expect.stringMatching(/change/i));
+    fireEvent.change(screen.getByTestId('chat-input'), { target: { value: 'Switch to SHA-256' } });
+    await waitFor(() => expect(screen.getByTestId('chat-send')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('chat-send'));
+    await waitFor(() => expect(stream).toHaveBeenCalledWith('o1', 'c1', expect.objectContaining({ text: 'Switch to SHA-256', mode: 'plan' }), expect.any(Function), expect.any(AbortSignal)));
+    expect(localStorage.getItem('rdi.chatMode')).toBe('plan');
+    localStorage.removeItem('rdi.chatMode');
+  });
+
+  it('sends a question asked from another panel in a new conversation', async () => {
+    mockApi(true, { id: 'c1', title: 'old', items: [{ role: 'user', text: 'old question', turn: 1 }], scenes: [] }, [{ id: 'c1', title: 'old', updatedAt: '2026-09-28T10:00:00Z' }], 'c2');
+    stream.mockResolvedValue(undefined);
+    const consumeQuestion = vi.fn();
+    renderShell(<ChatPanel orgId="o1" language="es" ctx={{ openScene: vi.fn(), selectNode: vi.fn(), selected: null, scene, pendingQuestion: { id: 1, text: 'Review pull request hugo/notes#5', mode: 'analyze' }, consumeQuestion }} />, { session: sessionFixture() });
+    await waitFor(() => expect(stream).toHaveBeenCalledWith('o1', 'c2', expect.objectContaining({ text: 'Review pull request hugo/notes#5', mode: 'analyze' }), expect.any(Function), expect.any(AbortSignal)));
+    expect(consumeQuestion).toHaveBeenCalledWith(1);
+    expect(await screen.findByTestId('chat-message-0')).toHaveTextContent('Review pull request hugo/notes#5');
+    expect(screen.queryByText('old question')).toBeNull();
   });
 });
 

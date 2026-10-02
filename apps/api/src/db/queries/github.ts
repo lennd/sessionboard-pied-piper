@@ -26,3 +26,11 @@ export const findReposForInstallationAndName = async (db: Db, installationId: nu
       [installationId, fullName],
     )
   ).rows;
+
+export const listRepoInstallations = async (db: Db, orgId: string): Promise<{ full_name: string; installation_id: number }[]> =>
+  (
+    await db.query<{ full_name: string; installation_id: string }>(
+      'select r.full_name, gi.installation_id::text from repos r join github_installations gi on gi.id = r.installation_id where r.org_id = $1 order by r.full_name',
+      [orgId],
+    )
+  ).rows.map((r) => ({ full_name: r.full_name, installation_id: Number(r.installation_id) }));
