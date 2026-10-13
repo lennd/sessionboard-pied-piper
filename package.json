@@ -10,7 +10,9 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "desktop:dev": "npm run dev -w @rdi/web & npm run dev -w @rdi/desktop; kill %1",
+    "desktop:build": "npm run build -w @rdi/desktop"
   },
   "devDependencies": {
     "turbo": "^2.11.5",

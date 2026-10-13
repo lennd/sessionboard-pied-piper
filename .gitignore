@@ -9,3 +9,6 @@ test-results/
 repos
 .rdi/
 .DS_Store
+apps/desktop/dist/
+apps/desktop/resources/
+apps/desktop/release/

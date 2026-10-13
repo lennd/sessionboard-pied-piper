@@ -1,0 +1,54 @@
+{
+  "name": "@rdi/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Repository Designer \u2014 local companion for Claude Code",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "build:main": "esbuild src/main.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/main.cjs && esbuild src/preload.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/preload.cjs",
+    "build:core": "esbuild ../core/src/server.ts --bundle --platform=node --format=esm --target=node20 --external:@anthropic-ai/claude-agent-sdk-darwin-arm64 --external:@anthropic-ai/claude-agent-sdk-darwin-x64 --external:@anthropic-ai/claude-agent-sdk-linux-x64 --external:@anthropic-ai/claude-agent-sdk-linux-arm64 --banner:js=\"import { createRequire as __rdiCreateRequire } from 'node:module'; const require = __rdiCreateRequire(import.meta.url);\" --outfile=resources/core/server.mjs",
+    "build:web": "cd ../web && npm run build",
+    "dev": "npm run build:main && RDI_DEV=1 electron .",
+    "build": "npm run build:main && npm run build:core && npm run build:web && electron-builder --dir",
+    "dist": "npm run build:main && npm run build:core && npm run build:web && electron-builder",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "electron": "41.10.7",
+    "electron-builder": "^26.0.0",
+    "esbuild": "^0.27.0"
+  },
+  "build": {
+    "appId": "dev.repodesigner.app",
+    "productName": "Repository Designer",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/core",
+        "to": "core"
+      },
+      {
+        "from": "../web/dist",
+        "to": "web"
+      },
+      {
+        "from": "../../node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64",
+        "to": "core/node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64"
+      }
+    ],
+    "mac": {
+      "target": [
+        "dir"
+      ],
+      "category": "public.app-category.developer-tools"
+    },
+    "electronVersion": "41.10.7"
+  },
+  "author": "Repository Designer"
+}
