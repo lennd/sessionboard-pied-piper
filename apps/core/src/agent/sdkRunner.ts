@@ -1,4 +1,4 @@
-import { createSdkMcpServer, query, tool, type Options, type SDKMessage } from '@anthropic-ai/claude-agent-sdk';
+import { createSdkMcpServer, query, tool, type CanUseTool, type Options, type SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { Scene } from '@rdi/scene';
 import { isAbsolute, relative, sep } from 'node:path';
 import type { Config } from '../config';
@@ -15,7 +15,7 @@ export type AgentEvent =
 export type ErrorCode = Extract<AgentEvent, { type: 'error' }>['code'];
 export type RunUsage = { input: number; output: number; costUsd: number };
 export type RunResult = { sessionId: string | null; scenes: Scene[]; text: string; usage: RunUsage; stop: 'end_turn' | 'error'; errorCode?: ErrorCode };
-export type RunMode = 'analyze' | 'plan' | 'map' | 'translate';
+export type RunMode = 'analyze' | 'plan' | 'map' | 'translate' | 'run';
 
 export type QueryLike = AsyncIterable<SDKMessage> & { interrupt?: () => Promise<unknown>; close?: () => void };
 /** What the runner needs from the SDK; the fake implementation uses `local` to call the in-process tools. */
@@ -25,8 +25,11 @@ export type QueryFn = (params: { prompt: string; options: Options }, local: Loca
 export const createSdkQuery = (): QueryFn => (params) => query(params);
 
 const READ_ONLY_TOOLS = ['Read', 'Grep', 'Glob', 'Bash(git log:*)', 'Bash(git diff:*)', 'Bash(git show:*)', 'Bash(git status:*)', 'Bash(git blame:*)', 'Bash(ls:*)', 'Bash(wc:*)'];
-const WRITE_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'WebFetch', 'WebSearch', 'Agent', 'Task', 'KillShell'];
-const TURNS_BY_MODE: Record<RunMode, number | null> = { analyze: null, plan: null, map: null, translate: 4 };
+const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
+const WRITE_TOOLS = [...EDIT_TOOLS, 'WebFetch', 'WebSearch', 'Agent', 'Task', 'KillShell'];
+const RUN_DISALLOWED = ['WebFetch', 'WebSearch'];
+const RUN_MAX_TURNS = 200;
+const TURNS_BY_MODE: Record<RunMode, number | null> = { analyze: null, plan: null, map: null, translate: 4, run: RUN_MAX_TURNS };
 const MAX_SUMMARY = 80;
 const WRAP_UP_NOTE = 'The agent needed too many steps to answer.';
 
@@ -51,16 +54,22 @@ export const relativizeScene = (scene: Scene, cwd: string): Scene => ({
 
 const toCallResult = (outcome: ToolOutcome) => ({ content: [{ type: 'text' as const, text: outcome.content }], ...(outcome.isError ? { isError: true } : {}) });
 
-export const buildOptions = (input: { cwd: string; mode: RunMode; resume?: string | null; agent: Config['agent']; abortController: AbortController; local: LocalTools }): Options => {
+export type BuildInput = { cwd: string; mode: RunMode; resume?: string | null; agent: Config['agent']; abortController: AbortController; local: LocalTools; canUseTool?: CanUseTool; mcpHttpUrl?: string };
+
+/** Run mode implements a Solution: edits are pre-approved, every other tool goes through `canUseTool`, and the Solutions MCP is reached over HTTP. */
+export const buildOptions = (input: BuildInput): Options => {
   const tools = TOOL_NAMES.map((name) => tool(name, TOOL_DESCRIPTIONS[name], TOOL_SHAPES[name], async (args) => toCallResult(await input.local.call(name, args)), { alwaysLoad: true }));
-  const allowed = input.mode === 'translate' ? [mcpToolName('emit_scene')] : [...READ_ONLY_TOOLS, ...TOOL_NAMES.map(mcpToolName)];
+  const run = input.mode === 'run';
+  const allowed = input.mode === 'translate' ? [mcpToolName('emit_scene')] : run ? [...READ_ONLY_TOOLS, ...EDIT_TOOLS, `mcp__${MCP_SERVER_NAME}__*`] : [...READ_ONLY_TOOLS, ...TOOL_NAMES.map(mcpToolName)];
+  const mcpServers: Options['mcpServers'] = run && input.mcpHttpUrl ? { [MCP_SERVER_NAME]: { type: 'http', url: input.mcpHttpUrl } } : { [MCP_SERVER_NAME]: createSdkMcpServer({ name: MCP_SERVER_NAME, tools }) };
   return {
     cwd: input.cwd,
     abortController: input.abortController,
-    permissionMode: 'dontAsk',
+    permissionMode: run ? 'default' : 'dontAsk',
     allowedTools: allowed,
-    disallowedTools: WRITE_TOOLS,
-    mcpServers: { [MCP_SERVER_NAME]: createSdkMcpServer({ name: MCP_SERVER_NAME, tools }) },
+    disallowedTools: run ? RUN_DISALLOWED : WRITE_TOOLS,
+    ...(run && input.canUseTool ? { canUseTool: input.canUseTool } : {}),
+    mcpServers,
     systemPrompt: { type: 'preset', preset: 'claude_code', append: SYSTEM_PROMPT },
     maxTurns: TURNS_BY_MODE[input.mode] ?? input.agent.maxTurns,
     ...(input.agent.maxBudgetUsd === null ? {} : { maxBudgetUsd: input.agent.maxBudgetUsd }),
@@ -77,7 +86,7 @@ const ERROR_BY_SUBTYPE: Record<string, ErrorCode> = { error_max_turns: 'max_iter
 
 export const runAgent = async (
   queryFn: QueryFn,
-  input: { cwd: string; prompt: string; mode: RunMode; resume?: string | null; signal?: AbortSignal; agent: Config['agent']; ctx: ToolContext; emit: (event: AgentEvent) => void | Promise<void> },
+  input: { cwd: string; prompt: string; mode: RunMode; resume?: string | null; signal?: AbortSignal; agent: Config['agent']; ctx: ToolContext; emit: (event: AgentEvent) => void | Promise<void>; canUseTool?: CanUseTool; mcpHttpUrl?: string },
 ): Promise<RunResult> => {
   const scenes: Scene[] = [];
   const usage: RunUsage = { input: 0, output: 0, costUsd: 0 };
@@ -104,7 +113,7 @@ export const runAgent = async (
     return { sessionId, scenes, text: texts.join(''), usage, stop: 'error', errorCode: code };
   };
 
-  const options = buildOptions({ cwd: input.cwd, mode: input.mode, resume: input.resume, agent: input.agent, abortController, local });
+  const options = buildOptions({ cwd: input.cwd, mode: input.mode, resume: input.resume, agent: input.agent, abortController, local, canUseTool: input.canUseTool, mcpHttpUrl: input.mcpHttpUrl });
   let stream: QueryLike;
   try {
     stream = queryFn({ prompt: input.prompt, options }, local);
@@ -112,8 +121,17 @@ export const runAgent = async (
     input.signal?.removeEventListener('abort', onAbort);
     return fail('llm_error', error instanceof Error ? error.message : String(error));
   }
+  const aborted = new Promise<never>((_resolve, reject) => {
+    if (abortController.signal.aborted) reject(new Error('aborted'));
+    abortController.signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+  });
+  aborted.catch(() => undefined);
+  const iterator = stream[Symbol.asyncIterator]();
   try {
-    for await (const message of stream) {
+    for (;;) {
+      const step = await Promise.race([iterator.next(), aborted]);
+      if (step.done) break;
+      const message = step.value;
       sessionId = (message as { session_id?: string }).session_id ?? sessionId;
       if (message.type === 'assistant') {
         for (const block of blocksOf(message.message.content)) {
@@ -149,6 +167,7 @@ export const runAgent = async (
     return fail('llm_error', error instanceof Error ? error.message : String(error));
   } finally {
     input.signal?.removeEventListener('abort', onAbort);
+    if (abortController.signal.aborted) void stream!.interrupt?.().catch(() => undefined);
     stream!.close?.();
   }
   if (input.signal?.aborted) return fail('aborted', 'The request was cancelled.');

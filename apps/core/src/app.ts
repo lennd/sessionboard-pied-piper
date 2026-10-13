@@ -8,6 +8,7 @@ import { agentRoutes } from './routes/agent';
 import { codeRoutes } from './routes/code';
 import { prefsRoutes } from './routes/prefs';
 import { repoRoutes } from './routes/repos';
+import { runRoutes } from './routes/runs';
 import { sessionRoutes } from './routes/sessions';
 import { solutionRoutes } from './routes/solutions';
 
@@ -36,6 +37,7 @@ export const buildApp = (deps: AppDeps): FastifyInstance => {
       agentRoutes(api, deps);
       solutionRoutes(api, deps);
       sessionRoutes(api, deps);
+      runRoutes(api, deps);
     },
     { prefix: API_PREFIX },
   );

@@ -1,5 +1,5 @@
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
-import { EXPLAIN_MARKER, MAP_MARKER, TRANSLATE_MARKER } from './prompt';
+import { EXPLAIN_MARKER, MAP_MARKER, RUN_MARKER, TRANSLATE_MARKER } from './prompt';
 import type { QueryFn, QueryLike } from './sdkRunner';
 
 export const FAKE_MODEL = 'fake-scripted';
@@ -66,6 +66,20 @@ export const createFakeQuery = (): QueryFn => (params, local) => {
       const scene = JSON.parse(rest.at(-1)!.trim()) as Record<string, unknown>;
       yield* useTool('emit_scene', { ...scene, language: target });
       yield result(sessionId, 'Translated.');
+      return;
+    }
+    if (params.prompt.startsWith(RUN_MARKER)) {
+      yield assistant(sessionId, [{ type: 'text', text: 'Reading the solution. ' }]);
+      const id = nextId('toolu');
+      const input = { command: 'npm test', description: 'Run the tests' };
+      yield assistant(sessionId, [{ type: 'tool_use', id, name: 'Bash', input }]);
+      const decision = params.options.canUseTool
+        ? await params.options.canUseTool('Bash', input, { signal: params.options.abortController?.signal ?? new AbortController().signal, toolUseID: id, requestId: nextId('req') })
+        : { behavior: 'allow' as const };
+      const denied = decision?.behavior === 'deny';
+      yield user(sessionId, [{ type: 'tool_result', tool_use_id: id, content: denied ? decision.message : 'ok', ...(denied ? { is_error: true } : {}) }]);
+      yield assistant(sessionId, [{ type: 'text', text: denied ? 'Stopping: the command was denied.' : 'Task t1 done.' }]);
+      yield result(sessionId, denied ? 'Denied.' : 'Done.');
       return;
     }
     if (params.prompt.startsWith(EXPLAIN_MARKER)) {

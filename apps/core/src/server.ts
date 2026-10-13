@@ -4,11 +4,12 @@ import { createFakeQuery } from './agent/fakeQuery';
 import { createSdkQuery } from './agent/sdkRunner';
 import { buildApp } from './app';
 import { loadConfig } from './config';
+import { createRunRegistry } from './runs/registry';
 
 const config = loadConfig();
 await mkdir(config.home, { recursive: true });
 const queryFn = config.agent.fake ? createFakeQuery() : createSdkQuery();
-const app = buildApp({ config, queryFn, events: new EventEmitter() });
+const app = buildApp({ config, queryFn, events: new EventEmitter(), runs: createRunRegistry() });
 
 const address = await app.listen({ port: config.port, host: config.host });
 const port = Number(new URL(address).port);

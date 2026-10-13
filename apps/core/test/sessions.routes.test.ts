@@ -9,6 +9,7 @@ import { createFakeQuery } from '../src/agent/fakeQuery';
 import { fakeScene } from '../src/agent/fakeQuery';
 import { buildApp } from '../src/app';
 import { loadConfig } from '../src/config';
+import { createRunRegistry } from '../src/runs/registry';
 import { gitChanges, gitDiff } from '../src/git/git';
 import { projectDirFor } from '../src/observer/transcripts';
 import { writeSystemMap } from '../src/store/scenes';
@@ -31,7 +32,7 @@ beforeEach(async () => {
   git(repoPath, 'init', '-q');
   git(repoPath, 'add', '.');
   git(repoPath, 'commit', '-qm', 'init');
-  app = buildApp({ config: loadConfig({ RDI_HOME: home, RDI_CLAUDE_HOME: claudeHome, RDI_FAKE_AGENT: 'true' }), queryFn: createFakeQuery(), events: new EventEmitter() });
+  app = buildApp({ config: loadConfig({ RDI_HOME: home, RDI_CLAUDE_HOME: claudeHome, RDI_FAKE_AGENT: 'true' }), queryFn: createFakeQuery(), events: new EventEmitter(), runs: createRunRegistry() });
   await app.ready();
   repoId = (await app.inject({ method: 'POST', url: '/api/repos', payload: { path: repoPath } })).json().id;
   const dir = projectDirFor(claudeHome, repoPath);

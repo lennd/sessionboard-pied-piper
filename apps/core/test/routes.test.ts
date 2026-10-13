@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createFakeQuery } from '../src/agent/fakeQuery';
 import { buildApp } from '../src/app';
 import { loadConfig } from '../src/config';
+import { createRunRegistry } from '../src/runs/registry';
 import { parseSse } from './sse';
 
 let home: string;
@@ -21,7 +22,7 @@ beforeEach(async () => {
   repoPath = await mkdtemp(join(tmpdir(), 'rdi-repo-'));
   await mkdir(join(repoPath, 'src'), { recursive: true });
   await writeFile(join(repoPath, 'src', 'a.ts'), 'line1\nline2\nline3\n');
-  app = buildApp({ config: loadConfig({ RDI_HOME: home, RDI_FAKE_AGENT: 'true' }), queryFn: createFakeQuery(), events: new EventEmitter(), now: () => new Date('2026-10-13T10:00:00Z') });
+  app = buildApp({ config: loadConfig({ RDI_HOME: home, RDI_FAKE_AGENT: 'true' }), queryFn: createFakeQuery(), events: new EventEmitter(), runs: createRunRegistry(), now: () => new Date('2026-10-13T10:00:00Z') });
   await app.ready();
   const added = await app.inject({ method: 'POST', url: '/api/repos', payload: { path: repoPath } });
   repoId = added.json().id;
@@ -114,5 +115,27 @@ describe('solutions', () => {
     expect((await app.inject({ method: 'GET', url: `/api/repos/${repoId}/solutions/${id}?version=1` })).json().version.draft.summary).toBe('Throttle');
     expect((await app.inject({ method: 'PATCH', url: `/api/repos/${repoId}/solutions/${id}`, payload: { title: 'Renamed', status: 'archived' } })).statusCode).toBe(204);
     expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/solutions`, payload: { title: 'x', draft: { summary: '' } } })).statusCode).toBe(422);
+  });
+});
+
+describe('runs', () => {
+  it('starts a run for a solution, exposes it and settles permissions and cancellation through the API', async () => {
+    const draft = { summary: 'x', sceneProposed: scene, plan: [{ id: 't1', title: 'A' }] };
+    const { id } = (await app.inject({ method: 'POST', url: `/api/repos/${repoId}/solutions`, payload: { title: 'S', draft } })).json();
+    expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/solutions/00000000-0000-0000-0000-000000000000/run` })).statusCode).toBe(404);
+    const started = await app.inject({ method: 'POST', url: `/api/repos/${repoId}/solutions/${id}/run` });
+    expect(started.statusCode).toBe(201);
+    const runId = started.json().id;
+    expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/solutions/${id}/run` })).statusCode).toBe(409);
+    await new Promise((r) => setTimeout(r, 30));
+    const run = (await app.inject({ method: 'GET', url: `/api/repos/${repoId}/runs/${runId}` })).json();
+    expect(run.pending).toHaveLength(1);
+    expect((await app.inject({ method: 'GET', url: `/api/repos/${repoId}/runs` })).json()).toEqual([expect.objectContaining({ id: runId, status: 'running' })]);
+    expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/runs/${runId}/permissions/nope`, payload: { allow: true } })).statusCode).toBe(404);
+    expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/runs/${runId}/permissions/${run.pending[0]}`, payload: { allow: true } })).statusCode).toBe(204);
+    await new Promise((r) => setTimeout(r, 30));
+    expect((await app.inject({ method: 'GET', url: `/api/repos/${repoId}/runs/${runId}` })).json().status).toBe('done');
+    expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/runs/${runId}/cancel` })).statusCode).toBe(409);
+    expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/runs/zzz/cancel` })).statusCode).toBe(404);
   });
 });

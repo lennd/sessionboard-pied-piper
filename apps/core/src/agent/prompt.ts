@@ -4,6 +4,7 @@ export const LANGUAGE_NAMES: Record<string, string> = { en: 'English', es: 'Span
 export const TRANSLATE_MARKER = '[rdi:translate]';
 export const MAP_MARKER = '[rdi:system-map]';
 export const EXPLAIN_MARKER = '[rdi:explain]';
+export const RUN_MARKER = '[rdi:run-solution]';
 const MAX_MAP_PIECES = 25;
 
 export const SYSTEM_PROMPT = [
@@ -77,3 +78,12 @@ export const explainPrompt = (input: { language: string; repoName: string; sourc
     `Diff:\n\`\`\`diff\n${input.diff}\n\`\`\``,
     'Call emit_scene once with an impact scene (id "impact"): the pieces that changed with change added, modified or removed, the pieces that depend on them, a walkthrough of the main flow that goes through the change, and the risks the change introduces with concrete mitigations. Read only the changed files if the diff is not enough. Then answer with a short summary of what changed and what could break.',
   ].filter(Boolean).join('\n\n');
+
+/** Asks Claude Code to implement a Solution through the rdi MCP server. */
+export const runSolutionPrompt = (solutionId: string): string =>
+  [
+    RUN_MARKER,
+    `Use the rdi MCP server: call get_solution with id ${solutionId}, then implement the plan task by task in this repository.`,
+    'Call report_task_progress with in_progress when you start a task and done (with a short note such as the files changed or the commit) when it is finished; call it with blocked and the reason if you cannot complete a task.',
+    'Call update_solution if the plan must change. Run the tests that cover what you changed before marking a task done. Do not commit unless a task explicitly asks for it.',
+  ].join('\n\n');
