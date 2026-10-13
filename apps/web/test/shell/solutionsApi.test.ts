@@ -34,8 +34,8 @@ describe('subscribeSolution', () => {
     }
     vi.stubGlobal('EventSource', FakeEventSource);
     const onEvent = vi.fn();
-    const stop = subscribeSolution('o1', 'sol', onEvent);
-    expect(instances[0]!.url).toBe('/api/orgs/o1/solutions/sol/events');
+    const stop = subscribeSolution('r1', 'sol', onEvent);
+    expect(instances[0]!.url).toBe('/api/repos/r1/solutions/sol/events');
     instances[0]!.listeners.solution!();
     expect(onEvent).toHaveBeenCalled();
     stop();

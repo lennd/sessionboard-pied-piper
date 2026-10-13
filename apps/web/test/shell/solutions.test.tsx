@@ -3,12 +3,12 @@ import { Route, Routes } from 'react-router-dom';
 import { apiFetch } from '../../src/shell/api';
 import { SettingsLayout } from '../../src/shell/settings/SettingsLayout';
 import { SolutionsPage } from '../../src/shell/settings/SolutionsPage';
-import { renderShell, sessionFixture } from './render';
+import { prefsFixture, renderShell, repoFixture } from './render';
 
 vi.mock('../../src/shell/api', async (original) => ({ ...(await original<typeof import('../../src/shell/api')>()), apiFetch: vi.fn() }));
 const api = vi.mocked(apiFetch);
 const render = () =>
-  renderShell(<Routes><Route path=":orgId/settings" element={<SettingsLayout />}><Route path="*" element={<SolutionsPage />} /></Route></Routes>, { route: '/orgs/o1/settings/solutions', path: '/orgs/*', session: sessionFixture() });
+  renderShell(<Routes><Route path=":repoId/settings" element={<SettingsLayout />}><Route path="*" element={<SolutionsPage />} /></Route></Routes>, { route: '/repos/r1/settings/solutions', path: '/repos/*', prefs: prefsFixture(), repos: [repoFixture()] });
 
 describe('SolutionsPage', () => {
   beforeEach(() => api.mockReset());
@@ -21,7 +21,7 @@ describe('SolutionsPage', () => {
     expect(row).toHaveTextContent('in progress');
     expect(row).toHaveTextContent('v3');
     expect(row).toHaveTextContent('1 of 4 tasks');
-    expect(screen.getByTestId('solution-open-s1')).toHaveAttribute('href', '/orgs/o1/solutions/s1');
+    expect(screen.getByTestId('solution-open-s1')).toHaveAttribute('href', '/repos/r1/solutions/s1');
     expect(screen.getByTestId('nav-solutions')).toBeInTheDocument();
   });
 

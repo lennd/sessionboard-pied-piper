@@ -1,0 +1,25 @@
+{
+  "name": "@rdi/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15",
+    "vitest": "^5.0.2"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.296",
+    "@fastify/static": "^9.0.0",
+    "@modelcontextprotocol/sdk": "1.31.0",
+    "@rdi/scene": "*",
+    "fastify": "^5.12.5",
+    "zod": "^4.6.5"
+  }
+}

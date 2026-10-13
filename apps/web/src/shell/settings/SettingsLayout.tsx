@@ -1,36 +1,26 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { Link, Navigate, NavLink, Outlet, useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { Link, Navigate, NavLink, Outlet, useOutletContext, useParams } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nProvider';
 import type { MessageKey } from '../../i18n/messages';
-import { apiFetch } from '../api';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { AuroraBackground } from '../components/AuroraBackground';
-import { GhostButton } from '../components/Buttons';
-import { clearSession, useSession, type SessionData, type SessionOrg } from '../session';
+import { Splash } from '../components/Splash';
+import { usePrefs, useRepo, type Prefs, type RepoInfo } from '../local';
+import { EMPTY_PREFS } from '../preferences';
 
-export type SettingsContext = { org: SessionOrg; session: SessionData };
+export type SettingsContext = { repo: RepoInfo; prefs: Prefs };
 export const useSettingsContext = () => useOutletContext<SettingsContext>();
 
-const ORG_ITEMS: [string, MessageKey][] = [['general', 'nav.general'], ['members', 'nav.members'], ['repositories', 'nav.repositories'], ['usage', 'nav.usage'], ['solutions', 'nav.solutions']];
-const ACCOUNT_ITEMS: [string, MessageKey][] = [['preferences', 'nav.preferences'], ['security', 'nav.security'], ['tokens', 'nav.tokens']];
+const ITEMS: [string, MessageKey][] = [['preferences', 'nav.preferences'], ['solutions', 'nav.solutions']];
 
 export const SettingsLayout = () => {
   const { t } = useI18n();
-  const { orgId } = useParams();
-  const navigate = useNavigate();
-  const client = useQueryClient();
-  const { data: session } = useSession();
-  if (!session) return null;
-  const org = session.orgs.find((o) => o.id === orgId);
-  if (!org) return <Navigate to="/" replace />;
-
-  const signOut = async () => {
-    await apiFetch('/auth/logout', { method: 'POST', body: {} }).catch(() => undefined);
-    await Promise.resolve(navigate('/login', { replace: true }));
-    clearSession(client);
-  };
+  const { repoId = '' } = useParams();
+  const repo = useRepo(repoId);
+  const prefs = usePrefs();
+  if (repo.isError) return <Navigate to="/" replace />;
+  if (!repo.data) return <Splash />;
   const item = ([slug, key]: [string, MessageKey]) => (
-    <NavLink key={slug} to={`/orgs/${org.id}/settings/${slug}`} data-testid={`nav-${slug}`} className={({ isActive }) => (isActive ? 'shell-nav-item is-active' : 'shell-nav-item')}>
+    <NavLink key={slug} to={`/repos/${repo.data.id}/settings/${slug}`} data-testid={`nav-${slug}`} className={({ isActive }) => (isActive ? 'shell-nav-item is-active' : 'shell-nav-item')}>
       {t(key)}
     </NavLink>
   );
@@ -40,22 +30,18 @@ export const SettingsLayout = () => {
       <div className="shell">
         <header className="shell-top">
           <AnimatedLogo size={28} />
-          <select aria-label={t('nav.switchOrg')} data-testid="org-switcher" value={org.id} onChange={(e) => navigate(`/orgs/${e.target.value}/settings/general`)}>
-            {session.orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-          </select>
+          <Link className="btn-ghost btn-small" to="/" data-testid="nav-repos">← {t('nav.repos')}</Link>
+          <b data-testid="repo-name">{repo.data.name}</b>
+          <span className="muted-a">{repo.data.branch ?? ''}</span>
           <span className="shell-spacer" />
-          <Link className="btn-primary btn-small" to={`/orgs/${org.id}/explore`} data-testid="nav-explore">{t('nav.explore')} →</Link>
-          <span className="muted-a">{session.user.email}</span>
-          <GhostButton onClick={signOut} data-testid="sign-out">{t('nav.signOut')}</GhostButton>
+          <Link className="btn-primary btn-small" to={`/repos/${repo.data.id}/explore`} data-testid="nav-explore">{t('nav.explore')} →</Link>
         </header>
         <nav className="shell-nav">
-          <div className="shell-nav-title">{t('nav.org')}</div>
-          {ORG_ITEMS.map(item)}
-          <div className="shell-nav-title">{t('nav.account')}</div>
-          {ACCOUNT_ITEMS.map(item)}
+          <div className="shell-nav-title">{t('nav.repo')}</div>
+          {ITEMS.map(item)}
         </nav>
         <main className="shell-content glass rise">
-          <Outlet context={{ org, session } satisfies SettingsContext} />
+          <Outlet context={{ repo: repo.data, prefs: prefs.data ?? EMPTY_PREFS } satisfies SettingsContext} />
         </main>
       </div>
     </AuroraBackground>

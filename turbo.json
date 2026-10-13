@@ -14,24 +14,10 @@
       "persistent": true,
       "passThroughEnv": [
         "NODE_ENV",
-        "API_PORT",
-        "APP_URL",
-        "PUBLIC_API_URL",
-        "DATABASE_URL",
-        "DB_ENSURE",
-        "REDIS_URL",
-        "NEO4J_*",
         "RDI_*",
         "AGENT_*",
-        "ANTHROPIC_*",
-        "GITHUB_*",
-        "DEMO_REPOS",
-        "COOKIE_SECURE",
-        "RATE_LIMIT*",
-        "TRUST_PROXY",
-        "WORK_DIR",
-        "FIXTURES_DIR",
-        "WORKER_CONCURRENCY"
+        "CLAUDE_*",
+        "VITE_API_URL"
       ]
     },
     "test": {

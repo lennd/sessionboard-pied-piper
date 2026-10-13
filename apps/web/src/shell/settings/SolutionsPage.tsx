@@ -8,8 +8,8 @@ import { useSettingsContext } from './SettingsLayout';
 
 export const SolutionsPage = () => {
   const { t, language } = useI18n();
-  const { org } = useSettingsContext();
-  const solutions = useQuery({ queryKey: ['solutions', org.id], queryFn: () => apiFetch<SolutionSummary[]>(`/orgs/${org.id}/solutions`) });
+  const { repo } = useSettingsContext();
+  const solutions = useQuery({ queryKey: ['solutions', repo.id], queryFn: () => apiFetch<SolutionSummary[]>(`/repos/${repo.id}/solutions`) });
   return (
     <section>
       <h1>{t('solutions.title')}</h1>
@@ -25,7 +25,7 @@ export const SolutionsPage = () => {
                 <td className="muted-a">{t('solutions.version', { n: s.latestVersion })}</td>
                 <td className="muted-a">{t('solutions.progress', { done: s.progress.done, total: s.progress.total })}</td>
                 <td className="muted-a">{formatRelative(s.updatedAt, language)}</td>
-                <td style={{ textAlign: 'right' }}><Link className="btn-primary btn-small" data-testid={`solution-open-${s.id}`} to={`/orgs/${org.id}/solutions/${s.id}`}>{t('solutions.open')} →</Link></td>
+                <td style={{ textAlign: 'right' }}><Link className="btn-primary btn-small" data-testid={`solution-open-${s.id}`} to={`/repos/${repo.id}/solutions/${s.id}`}>{t('solutions.open')} →</Link></td>
               </tr>
             ))}
           </tbody>

@@ -6,3 +6,6 @@ coverage/
 playwright-report/
 test-results/
 .superpowers/
+repos
+.rdi/
+.DS_Store

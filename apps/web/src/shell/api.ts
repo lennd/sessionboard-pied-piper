@@ -6,25 +6,12 @@ export class ApiError extends Error {
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 const NO_CONTENT = 204;
-let csrfToken: string | null = null;
-
-export const setCsrfToken = (token: string | null): void => {
-  csrfToken = token;
-};
-
-export const getCsrfToken = (): string | null => csrfToken;
 
 export const apiFetch = async <T>(path: string, init: { method?: Method; body?: unknown } = {}): Promise<T> => {
   const method = init.method ?? 'GET';
   const headers: Record<string, string> = {};
   if (init.body !== undefined) headers['content-type'] = 'application/json';
-  if (method !== 'GET' && csrfToken) headers['x-csrf-token'] = csrfToken;
-  const response = await fetch(`/api${path}`, {
-    method,
-    headers,
-    credentials: 'same-origin',
-    body: init.body === undefined ? undefined : JSON.stringify(init.body),
-  });
+  const response = await fetch(`/api${path}`, { method, headers, body: init.body === undefined ? undefined : JSON.stringify(init.body) });
   if (response.status === NO_CONTENT) return undefined as T;
   const data: unknown = await response.json().catch(() => null);
   if (!response.ok) {

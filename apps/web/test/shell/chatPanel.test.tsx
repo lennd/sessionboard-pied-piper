@@ -3,7 +3,7 @@ import { sampleRegistry } from '@rdi/scene';
 import { apiFetch } from '../../src/shell/api';
 import { ChatPanel } from '../../src/shell/chat/ChatPanel';
 import { streamChat, type ChatEvent } from '../../src/shell/chat/chatApi';
-import { renderShell, sessionFixture } from './render';
+import { prefsFixture, renderShell, repoFixture } from './render';
 
 vi.mock('../../src/shell/api', async (original) => ({ ...(await original<typeof import('../../src/shell/api')>()), apiFetch: vi.fn() }));
 vi.mock('../../src/shell/chat/chatApi', async (original) => ({ ...(await original<typeof import('../../src/shell/chat/chatApi')>()), streamChat: vi.fn() }));
@@ -14,18 +14,18 @@ const scene = sampleRegistry['iot-telemetry']!;
 const mockApi = (enabled = true, conversation: object = { id: 'c1', title: 'New conversation', items: [], scenes: [] }, list: object[] = [], createdId = 'c1') =>
   api.mockImplementation(async (path, init) => {
     const p = String(path);
-    if (p.endsWith('/agent')) return { enabled, model: 'm', tokensUsed: 0, tokenBudget: 10 } as never;
+    if (p.endsWith('/agent')) return { enabled, model: 'm', usage: { input: 0, output: 0, costUsd: 0 } } as never;
     if (p.endsWith('/conversations') && init?.method === 'POST') return { id: createdId, title: 'New conversation', updatedAt: '2026-09-28T10:00:00Z' } as never;
     if (p.endsWith('/conversations')) return list as never;
     if (p.includes('/translate')) return { id: 'sc2', scene: { ...scene, language: 'es' } } as never;
     if (p.includes('/conversations/c1')) return conversation as never;
     if (p.includes('/conversations/c2')) return { id: 'c2', title: 'second', items: [{ role: 'user', text: 'second question', turn: 1 }], scenes: [] } as never;
-    return sessionFixture() as never;
+    return prefsFixture() as never;
   });
 
 const render = (selected: { label: string; graphRef: string } | null = null) => {
   const openScene = vi.fn();
-  renderShell(<ChatPanel orgId="o1" language="es" ctx={{ openScene, selectNode: vi.fn(), selected, scene }} />, { session: sessionFixture() });
+  renderShell(<ChatPanel repoId="r1" language="es" ctx={{ openScene, selectNode: vi.fn(), selected, scene }} />, { prefs: prefsFixture(), repos: [repoFixture()] });
   return { openScene };
 };
 
@@ -55,7 +55,7 @@ describe('ChatPanel', () => {
     await screen.findByTestId('chat-input');
     fireEvent.change(screen.getByTestId('chat-input'), { target: { value: 'How do readings flow?' } });
     fireEvent.click(screen.getByTestId('chat-send'));
-    await waitFor(() => expect(stream).toHaveBeenCalledWith('o1', 'c1', { text: 'How do readings flow?', language: 'es', focus: null, mode: 'analyze' }, expect.any(Function), expect.any(AbortSignal)));
+    await waitFor(() => expect(stream).toHaveBeenCalledWith('r1', 'c1', { text: 'How do readings flow?', language: 'es', focus: null, mode: 'analyze' }, expect.any(Function), expect.any(AbortSignal)));
     expect(await screen.findByText('Readings flow to the broker.')).toBeInTheDocument();
     expect(screen.getByTestId('chat-message-0')).toHaveTextContent('How do readings flow?');
     expect(screen.getByTestId('chat-scene-sc1')).toHaveTextContent('IoT telemetry ingestion');
@@ -70,9 +70,9 @@ describe('ChatPanel', () => {
     fireEvent.change(screen.getByTestId('chat-input'), { target: { value: 'Why?' } });
     await waitFor(() => expect(screen.getByTestId('chat-send')).toBeEnabled());
     fireEvent.click(screen.getByTestId('chat-send'));
-    await waitFor(() => expect(stream).toHaveBeenCalledWith('o1', 'c1', { text: 'Why?', language: 'es', focus: { label: 'MQTT broker', graphRef: 'svc:broker' }, mode: 'analyze' }, expect.any(Function), expect.any(AbortSignal)));
+    await waitFor(() => expect(stream).toHaveBeenCalledWith('r1', 'c1', { text: 'Why?', language: 'es', focus: { label: 'MQTT broker', graphRef: 'svc:broker' }, mode: 'analyze' }, expect.any(Function), expect.any(AbortSignal)));
     fireEvent.click(await screen.findByTestId('chat-translate-sc1'));
-    await waitFor(() => expect(api).toHaveBeenCalledWith('/orgs/o1/scenes/sc1/translate', { method: 'POST', body: { language: 'es' } }));
+    await waitFor(() => expect(api).toHaveBeenCalledWith('/repos/r1/scenes/sc1/translate', { method: 'POST', body: { language: 'es' } }));
     await waitFor(() => expect(openScene).toHaveBeenCalledWith(expect.objectContaining({ language: 'es' })));
   });
 
@@ -97,7 +97,7 @@ describe('ChatPanel', () => {
         onEvent({ type: 'text', delta: ' two' });
       });
       const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const view = renderShell(<ChatPanel orgId="o1" language="es" ctx={{ openScene: vi.fn(), selectNode: vi.fn(), selected: null, scene }} />, { session: sessionFixture() });
+      const view = renderShell(<ChatPanel repoId="r1" language="es" ctx={{ openScene: vi.fn(), selectNode: vi.fn(), selected: null, scene }} />, { prefs: prefsFixture(), repos: [repoFixture()] });
       fireEvent.change(await screen.findByTestId('chat-input'), { target: { value: 'hi' } });
       await waitFor(() => expect(screen.getByTestId('chat-send')).toBeEnabled());
       fireEvent.click(screen.getByTestId('chat-send'));
@@ -120,7 +120,7 @@ describe('ChatPanel', () => {
     fireEvent.change(screen.getByTestId('chat-input'), { target: { value: 'fresh start' } });
     await waitFor(() => expect(screen.getByTestId('chat-send')).toBeEnabled());
     fireEvent.click(screen.getByTestId('chat-send'));
-    await waitFor(() => expect(stream).toHaveBeenCalledWith('o1', 'c2', expect.objectContaining({ text: 'fresh start' }), expect.any(Function), expect.any(AbortSignal)));
+    await waitFor(() => expect(stream).toHaveBeenCalledWith('r1', 'c2', expect.objectContaining({ text: 'fresh start' }), expect.any(Function), expect.any(AbortSignal)));
     expect(screen.queryByText('old question')).toBeNull();
   });
 
@@ -141,7 +141,7 @@ describe('ChatPanel', () => {
     await waitFor(() => expect(screen.getByTestId('chat-conversations')).toBeEnabled());
     fireEvent.change(screen.getByTestId('chat-conversations'), { target: { value: 'c1' } });
     fireEvent.change(screen.getByTestId('chat-conversations'), { target: { value: 'c2' } });
-    await waitFor(() => expect(api).toHaveBeenCalledWith('/orgs/o1/conversations/c2'));
+    await waitFor(() => expect(api).toHaveBeenCalledWith('/repos/r1/conversations/c2'));
     expect(await screen.findByText('second question')).toBeInTheDocument();
   });
 
@@ -156,7 +156,7 @@ describe('ChatPanel', () => {
     await waitFor(() => expect(screen.getByTestId('chat-send')).toBeEnabled());
     fireEvent.click(screen.getByTestId('chat-send'));
     expect(await screen.findByTestId('chat-solution-sol1')).toHaveTextContent('Solution: Order cancellation · v1');
-    expect(screen.getByTestId('chat-solution-open-sol1')).toHaveAttribute('href', '/orgs/o1/solutions/sol1');
+    expect(screen.getByTestId('chat-solution-open-sol1')).toHaveAttribute('href', '/repos/r1/solutions/sol1');
   });
 
   it('renders assistant answers as markdown and keeps user messages as plain text', async () => {
@@ -164,7 +164,7 @@ describe('ChatPanel', () => {
     stream.mockImplementation(async (_o, _c, _b, onEvent: (e: ChatEvent) => void) => {
       onEvent({ type: 'text', delta: '## Hallazgos\n\n- **SHA-1** por defecto\n- usar `sha256`\n\n| Riesgo | Nivel |\n|---|---|\n| Firma | alto |\n\n[docs](https://example.com) <script>alert(1)</script>' });
     });
-    const { container } = renderShell(<ChatPanel orgId="o1" language="es" ctx={{ openScene: vi.fn(), selectNode: vi.fn(), selected: null, scene }} />, { session: sessionFixture() });
+    const { container } = renderShell(<ChatPanel repoId="r1" language="es" ctx={{ openScene: vi.fn(), selectNode: vi.fn(), selected: null, scene }} />, { prefs: prefsFixture(), repos: [repoFixture()] });
     fireEvent.change(await screen.findByTestId('chat-input'), { target: { value: '**not bold** for me' } });
     await waitFor(() => expect(screen.getByTestId('chat-send')).toBeEnabled());
     fireEvent.click(screen.getByTestId('chat-send'));
@@ -191,7 +191,7 @@ describe('ChatPanel', () => {
     fireEvent.change(screen.getByTestId('chat-input'), { target: { value: 'Switch to SHA-256' } });
     await waitFor(() => expect(screen.getByTestId('chat-send')).toBeEnabled());
     fireEvent.click(screen.getByTestId('chat-send'));
-    await waitFor(() => expect(stream).toHaveBeenCalledWith('o1', 'c1', expect.objectContaining({ text: 'Switch to SHA-256', mode: 'plan' }), expect.any(Function), expect.any(AbortSignal)));
+    await waitFor(() => expect(stream).toHaveBeenCalledWith('r1', 'c1', expect.objectContaining({ text: 'Switch to SHA-256', mode: 'plan' }), expect.any(Function), expect.any(AbortSignal)));
     expect(localStorage.getItem('rdi.chatMode')).toBe('plan');
     localStorage.removeItem('rdi.chatMode');
   });
@@ -200,8 +200,8 @@ describe('ChatPanel', () => {
     mockApi(true, { id: 'c1', title: 'old', items: [{ role: 'user', text: 'old question', turn: 1 }], scenes: [] }, [{ id: 'c1', title: 'old', updatedAt: '2026-09-28T10:00:00Z' }], 'c2');
     stream.mockResolvedValue(undefined);
     const consumeQuestion = vi.fn();
-    renderShell(<ChatPanel orgId="o1" language="es" ctx={{ openScene: vi.fn(), selectNode: vi.fn(), selected: null, scene, pendingQuestion: { id: 1, text: 'Review pull request hugo/notes#5', mode: 'analyze' }, consumeQuestion }} />, { session: sessionFixture() });
-    await waitFor(() => expect(stream).toHaveBeenCalledWith('o1', 'c2', expect.objectContaining({ text: 'Review pull request hugo/notes#5', mode: 'analyze' }), expect.any(Function), expect.any(AbortSignal)));
+    renderShell(<ChatPanel repoId="r1" language="es" ctx={{ openScene: vi.fn(), selectNode: vi.fn(), selected: null, scene, pendingQuestion: { id: 1, text: 'Review pull request hugo/notes#5', mode: 'analyze' }, consumeQuestion }} />, { prefs: prefsFixture(), repos: [repoFixture()] });
+    await waitFor(() => expect(stream).toHaveBeenCalledWith('r1', 'c2', expect.objectContaining({ text: 'Review pull request hugo/notes#5', mode: 'analyze' }), expect.any(Function), expect.any(AbortSignal)));
     expect(consumeQuestion).toHaveBeenCalledWith(1);
     expect(await screen.findByTestId('chat-message-0')).toHaveTextContent('Review pull request hugo/notes#5');
     expect(screen.queryByText('old question')).toBeNull();

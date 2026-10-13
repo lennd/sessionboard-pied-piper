@@ -3,7 +3,7 @@ import { sampleRegistry } from '@rdi/scene';
 import { apiFetch } from '../../src/shell/api';
 import { SolutionPage } from '../../src/shell/pages/SolutionPage';
 import { subscribeSolution } from '../../src/shell/solutions/solutionsApi';
-import { renderShell, sessionFixture } from './render';
+import { prefsFixture, renderShell, repoFixture } from './render';
 
 vi.mock('../../src/shell/api', async (original) => ({ ...(await original<typeof import('../../src/shell/api')>()), apiFetch: vi.fn() }));
 vi.mock('../../src/shell/solutions/solutionsApi', async (original) => ({ ...(await original<typeof import('../../src/shell/solutions/solutionsApi')>()), subscribeSolution: vi.fn() }));
@@ -26,9 +26,9 @@ describe('SolutionPage', () => {
   it('opens the proposed scene with the plan panel and refreshes on live events', async () => {
     let version = 1;
     let notify: () => void = () => {};
-    api.mockImplementation(async (path) => (String(path).startsWith('/orgs/o1/solutions/sol') ? detail(version) : sessionFixture()) as never);
+    api.mockImplementation(async (path) => (String(path).startsWith('/repos/r1/solutions/sol') ? detail(version) : prefsFixture()) as never);
     subscribe.mockImplementation((_o, _s, onEvent) => { notify = onEvent; return () => {}; });
-    renderShell(<SolutionPage />, { route: '/orgs/o1/solutions/sol', path: '/orgs/:orgId/solutions/:solutionId', session: sessionFixture() });
+    renderShell(<SolutionPage />, { route: '/repos/r1/solutions/sol', path: '/repos/:repoId/solutions/:solutionId', prefs: prefsFixture(), repos: [repoFixture()] });
     await waitFor(() => expect(screen.getByTestId('workspace')).toHaveTextContent('sol-v1-proposed|plan|plan'));
     version = 2;
     await act(async () => notify());

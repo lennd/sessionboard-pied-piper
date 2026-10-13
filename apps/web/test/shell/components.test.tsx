@@ -6,7 +6,6 @@ import { AnimatedLogo } from '../../src/shell/components/AnimatedLogo';
 import { AuroraBackground } from '../../src/shell/components/AuroraBackground';
 import { Field } from '../../src/shell/components/Field';
 import { Segmented } from '../../src/shell/components/Segmented';
-import { AuthLayout } from '../../src/shell/layouts/AuthLayout';
 
 const wrap = (ui: React.ReactElement) => render(<I18nProvider initialLanguage="en"><MemoryRouter>{ui}</MemoryRouter></I18nProvider>);
 
@@ -28,13 +27,6 @@ describe('Aurora components', () => {
     const input = screen.getByLabelText('Email');
     expect(input).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByRole('alert')).toHaveTextContent('Required');
-  });
-
-  it('switches the UI language from the pills', () => {
-    wrap(<AuthLayout />);
-    fireEvent.click(screen.getByTestId('lang-es'));
-    expect(screen.getByTestId('lang-es')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByText('sin leer una línea de código.')).toBeInTheDocument();
   });
 
   it('segmented control reports changes', () => {

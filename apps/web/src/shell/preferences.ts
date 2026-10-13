@@ -1,27 +1,16 @@
 import { LEVELS, type Level } from '@rdi/scene';
 import type { UiLanguage } from '../i18n/messages';
 import { resolveTheme, type ThemeId } from '../theme/themes';
-import type { SessionOrg, SessionUser } from './session';
+import type { Prefs } from './local';
 
 const DEFAULT_LEVEL: Level = 'architecture';
+export const EMPTY_PREFS: Prefs = { uiLanguage: null, explanationLanguage: null, theme: null, initialLevel: null };
 
-export const effectiveUiLanguage = (user: SessionUser, org: SessionOrg | null, fallback: UiLanguage): UiLanguage =>
-  user.uiLanguage ?? org?.defaultUiLanguage ?? fallback;
+export const effectiveUiLanguage = (prefs: Prefs | undefined, fallback: UiLanguage): UiLanguage => prefs?.uiLanguage ?? fallback;
 
-export const effectiveExplanationLanguage = (user: SessionUser, org: SessionOrg | null, ui: UiLanguage): UiLanguage =>
-  user.explanationLanguage ?? org?.defaultExplanationLanguage ?? ui;
+export const effectiveExplanationLanguage = (prefs: Prefs | undefined, ui: UiLanguage): UiLanguage => prefs?.explanationLanguage ?? prefs?.uiLanguage ?? ui;
 
-export const effectiveTheme = (user: SessionUser, org: SessionOrg | null): ThemeId => resolveTheme(user.theme, org?.defaultTheme);
+export const effectiveTheme = (prefs: Prefs | undefined): ThemeId => resolveTheme(prefs?.theme ?? null);
 
-export const effectiveLevel = (user: SessionUser): Level =>
-  user.initialLevel && (LEVELS as readonly string[]).includes(user.initialLevel) ? user.initialLevel : DEFAULT_LEVEL;
-
-export const safeNext = (next: string | null, origin: string = window.location.origin): string => {
-  if (!next || !next.startsWith('/')) return '/';
-  try {
-    const url = new URL(next, origin);
-    return url.origin === origin ? `${url.pathname}${url.search}${url.hash}` : '/';
-  } catch {
-    return '/';
-  }
-};
+export const effectiveLevel = (prefs: Prefs | undefined): Level =>
+  prefs?.initialLevel && (LEVELS as readonly string[]).includes(prefs.initialLevel) ? prefs.initialLevel : DEFAULT_LEVEL;

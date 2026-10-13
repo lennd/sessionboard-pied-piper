@@ -13,7 +13,7 @@ type Item = { role: 'user' | 'assistant'; text: string; turn: number };
 type SceneEntry = { id: string; turn: number; scene: Scene };
 type Conversation = { id: string; title: string; items: Item[]; scenes: { id: string; turn: number; scene: unknown }[] };
 type Summary = { id: string; title: string; updatedAt: string };
-type Agent = { enabled: boolean; model: string; tokensUsed: number; tokenBudget: number };
+type Agent = { enabled: boolean; model: string; usage: { input: number; output: number; costUsd: number } };
 
 const MODE_STORAGE_KEY = 'rdi.chatMode';
 const LANGUAGE_LABEL: Record<string, string> = { en: 'English', es: 'Español', pt: 'Português' };
@@ -24,11 +24,11 @@ const validScenes = (rows: Conversation['scenes']): SceneEntry[] =>
     return result.ok ? [{ id: row.id, turn: row.turn, scene: result.scene }] : [];
   });
 
-export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatContext; language: string }) => {
+export const ChatPanel = ({ repoId, ctx, language }: { repoId: string; ctx: ChatContext; language: string }) => {
   const { t } = useI18n();
   const client = useQueryClient();
-  const agent = useQuery({ queryKey: ['agent', orgId], queryFn: () => apiFetch<Agent>(`/orgs/${orgId}/agent`) });
-  const conversations = useQuery({ queryKey: ['conversations', orgId], queryFn: () => apiFetch<Summary[]>(`/orgs/${orgId}/conversations`) });
+  const agent = useQuery({ queryKey: ['agent', repoId], queryFn: () => apiFetch<Agent>(`/repos/${repoId}/agent`) });
+  const conversations = useQuery({ queryKey: ['conversations', repoId], queryFn: () => apiFetch<Summary[]>(`/repos/${repoId}/conversations`) });
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [scenes, setScenes] = useState<SceneEntry[]>([]);
@@ -57,7 +57,7 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
     if (!conversationId || conversationId === justCreated.current) return;
     justCreated.current = null;
     let cancelled = false;
-    void apiFetch<Conversation>(`/orgs/${orgId}/conversations/${conversationId}`).then((c) => {
+    void apiFetch<Conversation>(`/repos/${repoId}/conversations/${conversationId}`).then((c) => {
       if (cancelled) return;
       setItems(c.items);
       setScenes(validScenes(c.scenes));
@@ -66,7 +66,7 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
     return () => {
       cancelled = true;
     };
-  }, [orgId, conversationId]);
+  }, [repoId, conversationId]);
 
   useEffect(() => () => abort.current?.abort(), []);
   useEffect(() => {
@@ -80,7 +80,7 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
     setScenes([]);
     setSolutions([]);
     setError(null);
-    void client.setQueryData(['conversations', orgId], (list: Summary[] | undefined) => list ?? []);
+    void client.setQueryData(['conversations', repoId], (list: Summary[] | undefined) => list ?? []);
   };
 
   const chooseMode = (next: ChatMode) => {
@@ -96,7 +96,7 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
     setDraft('');
     try {
       const existing = options.fresh ? null : conversationId;
-      const id = existing ?? (await apiFetch<Summary>(`/orgs/${orgId}/conversations`, { method: 'POST', body: {} })).id;
+      const id = existing ?? (await apiFetch<Summary>(`/repos/${repoId}/conversations`, { method: 'POST', body: {} })).id;
       if (!existing) {
         justCreated.current = id;
         setConversationId(id);
@@ -125,10 +125,10 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
           setError(errorText(event.code));
         }
       };
-      await streamChat(orgId, id, { text, language, focus, mode: options.mode }, onEvent, controller.signal);
+      await streamChat(repoId, id, { text, language, focus, mode: options.mode }, onEvent, controller.signal);
       setFocus(null);
-      void client.invalidateQueries({ queryKey: ['conversations', orgId] });
-      void client.invalidateQueries({ queryKey: ['agent', orgId] });
+      void client.invalidateQueries({ queryKey: ['conversations', repoId] });
+      void client.invalidateQueries({ queryKey: ['agent', repoId] });
     } catch (err) {
       setError(err instanceof ApiError ? errorText(err.code) : t('errors.unknown'));
     } finally {
@@ -153,7 +153,7 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
   const translate = async (entry: SceneEntry) => {
     setError(null);
     try {
-      const result = await apiFetch<{ id: string; scene: unknown }>(`/orgs/${orgId}/scenes/${entry.id}/translate`, { method: 'POST', body: { language } });
+      const result = await apiFetch<{ id: string; scene: unknown }>(`/repos/${repoId}/scenes/${entry.id}/translate`, { method: 'POST', body: { language } });
       const valid = validateScene(result.scene);
       if (!valid.ok) return;
       setScenes((current) => [...current, { id: result.id, turn: entry.turn, scene: valid.scene }]);
@@ -184,7 +184,7 @@ export const ChatPanel = ({ orgId, ctx, language }: { orgId: string; ctx: ChatCo
             {item.role === 'assistant' && solutions.filter((s) => s.turn === item.turn).map((s) => (
               <div key={`${s.id}-${s.n}`} className="chat-scene" data-testid={`chat-solution-${s.id}`}>
                 <span>☰ {t('chat.solution', { title: s.title, n: s.n })}</span>
-                <Link className="btn" data-testid={`chat-solution-open-${s.id}`} to={`/orgs/${orgId}/solutions/${s.id}`}>{t('chat.open')}</Link>
+                <Link className="btn" data-testid={`chat-solution-open-${s.id}`} to={`/repos/${repoId}/solutions/${s.id}`}>{t('chat.open')}</Link>
               </div>
             ))}
             {item.role === 'assistant' && scenes.filter((s) => s.turn === item.turn).map((entry) => (

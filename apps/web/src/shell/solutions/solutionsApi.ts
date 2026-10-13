@@ -10,7 +10,7 @@ export type SolutionDetail = {
 };
 type Translate = (key: MessageKey, params?: Record<string, string | number>) => string;
 
-export const solutionKey = (orgId: string, id: string, n?: number) => ['solution', orgId, id, n ?? 'latest'] as const;
+export const solutionKey = (repoId: string, id: string, n?: number) => ['solution', repoId, id, n ?? 'latest'] as const;
 
 export const solutionScenes = (detail: SolutionDetail, t: Translate): Scene[] => {
   const { n, draft } = detail.version;
@@ -28,8 +28,8 @@ export const solutionScenes = (detail: SolutionDetail, t: Translate): Scene[] =>
   return scenes;
 };
 
-export const subscribeSolution = (orgId: string, id: string, onEvent: () => void): (() => void) => {
-  const source = new EventSource(`/api/orgs/${orgId}/solutions/${id}/events`, { withCredentials: true });
+export const subscribeSolution = (repoId: string, id: string, onEvent: () => void): (() => void) => {
+  const source = new EventSource(`/api/repos/${repoId}/solutions/${id}/events`);
   source.addEventListener('solution', onEvent);
   return () => source.close();
 };
