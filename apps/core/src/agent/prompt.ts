@@ -3,6 +3,7 @@ export type ChatMode = 'analyze' | 'plan';
 export const LANGUAGE_NAMES: Record<string, string> = { en: 'English', es: 'Spanish', pt: 'Portuguese' };
 export const TRANSLATE_MARKER = '[rdi:translate]';
 export const MAP_MARKER = '[rdi:system-map]';
+export const EXPLAIN_MARKER = '[rdi:explain]';
 const MAX_MAP_PIECES = 25;
 
 export const SYSTEM_PROMPT = [
@@ -64,3 +65,15 @@ export const questionOf = (message: { role: string; content: unknown }): string 
   const texts = (message.content as { type: string; text?: string }[]).filter((b) => b.type === 'text');
   return texts.at(-1)?.text ?? null;
 };
+
+/** Asks for an impact scene of a set of changes: changed pieces marked, dependants shown, risks listed. */
+export const explainPrompt = (input: { language: string; repoName: string; source: string; touched: { path: string; change: string }[]; diff: string; systemMap: unknown | null }): string =>
+  [
+    EXPLAIN_MARKER,
+    languageLine(input.language),
+    `Explain the impact of the changes made to the repository "${input.repoName}" (${input.source}).`,
+    `Changed files:\n${input.touched.map((t) => `- ${t.path} (${t.change})`).join('\n') || '- (none detected)'}`,
+    input.systemMap ? `The architecture map of the repository, drawn earlier (reuse its piece ids and code paths where they apply):\n${JSON.stringify(input.systemMap)}` : '',
+    `Diff:\n\`\`\`diff\n${input.diff}\n\`\`\``,
+    'Call emit_scene once with an impact scene (id "impact"): the pieces that changed with change added, modified or removed, the pieces that depend on them, a walkthrough of the main flow that goes through the change, and the risks the change introduces with concrete mitigations. Read only the changed files if the diff is not enough. Then answer with a short summary of what changed and what could break.',
+  ].filter(Boolean).join('\n\n');

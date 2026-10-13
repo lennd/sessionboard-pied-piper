@@ -5,6 +5,7 @@ export type Config = {
   port: number;
   host: string;
   home: string;
+  claudeHome: string;
   nodeEnv: string;
   webDist: string | null;
   agent: { fake: boolean; model: string | null; maxTurns: number; maxBudgetUsd: number | null; heartbeatMs: number; claudeExecutable: string | null };
@@ -14,6 +15,7 @@ const DEFAULTS = {
   RDI_PORT: '4040',
   RDI_HOST: '127.0.0.1',
   RDI_HOME: '',
+  RDI_CLAUDE_HOME: '',
   NODE_ENV: 'development',
   RDI_WEB_DIST: '',
   RDI_FAKE_AGENT: 'false',
@@ -26,6 +28,7 @@ const DEFAULTS = {
 const PRODUCTION = 'production';
 const SSE_HEARTBEAT_MS = 15_000;
 const RDI_DIR = '.rdi';
+const CLAUDE_DIR = '.claude';
 
 const orNull = (value: string) => (value === '' ? null : value);
 
@@ -38,6 +41,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     port: Number(read('RDI_PORT')),
     host: read('RDI_HOST'),
     home: read('RDI_HOME') || join(homedir(), RDI_DIR),
+    claudeHome: read('RDI_CLAUDE_HOME') || join(homedir(), CLAUDE_DIR),
     nodeEnv,
     webDist: orNull(read('RDI_WEB_DIST')),
     agent: {

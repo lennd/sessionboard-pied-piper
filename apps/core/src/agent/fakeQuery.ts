@@ -1,5 +1,5 @@
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
-import { MAP_MARKER, TRANSLATE_MARKER } from './prompt';
+import { EXPLAIN_MARKER, MAP_MARKER, TRANSLATE_MARKER } from './prompt';
 import type { QueryFn, QueryLike } from './sdkRunner';
 
 export const FAKE_MODEL = 'fake-scripted';
@@ -66,6 +66,13 @@ export const createFakeQuery = (): QueryFn => (params, local) => {
       const scene = JSON.parse(rest.at(-1)!.trim()) as Record<string, unknown>;
       yield* useTool('emit_scene', { ...scene, language: target });
       yield result(sessionId, 'Translated.');
+      return;
+    }
+    if (params.prompt.startsWith(EXPLAIN_MARKER)) {
+      const scene = fakeScene(language, 'Impact', 'impact');
+      yield* useTool('emit_scene', { ...scene, nodes: scene.nodes.map((n) => (n.id === 'store' ? { ...n, change: 'modified' } : n)) });
+      yield assistant(sessionId, [{ type: 'text', text: 'The store changed; the API depends on it.' }]);
+      yield result(sessionId, 'Explained.');
       return;
     }
     if (params.prompt.startsWith(MAP_MARKER)) {
