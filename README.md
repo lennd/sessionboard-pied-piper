@@ -1,56 +1,59 @@
-# Repository Designer IDE
+# Repository Designer
 
-Chat + animated canvas to understand systems and changes without reading code.
-Spec: `docs/superpowers/specs/2026-09-28-repository-designer-ide-design.md`.
+A local desktop companion for Claude Code. It draws the map of a repository and
+shows, without reading code, which pieces a change touches, what depends on them
+and what could break.
 
-## Local development
+Everything runs on this computer. The agent is the [Claude Agent SDK](https://docs.claude.com/en/api/agent-sdk/overview)
+driving the Claude Code binary bundled with it, so every token goes through your
+own Claude login. Scenes, conversations and solutions are JSON files inside
+`<repo>/.rdi/` (self-ignored by git); the list of opened folders and your
+preferences live in `~/.rdi/`.
 
-| Service  | Port |
-|----------|------|
-| web      | 5177 |
-| api      | 4040 |
-| Postgres | 5548 |
-| Neo4j    | 7690 (bolt) / 7477 (browser) |
-| Redis    | 6391 |
+## What it does
 
-    cp .env.example .env
-    npm install
-    npm run infra:up
-    npm run dev
-    npm test
+- **Map** — one click asks Claude to draw the architecture of the folder
+  (pieces, flows, walkthrough, risks, scale). The map is cached per commit.
+- **Sessions** — the sessions you run with `claude` in that folder appear in
+  the workspace as a live timeline (prompts, edits with diffs, commands, tests).
+  Their edits are overlaid on the map in *changes* mode with zero tokens.
+  "Explain this change" asks Claude for a proper impact scene with risks.
+- **Chat** — analyze or plan over the repository; plans become versioned
+  Solutions.
+- **Run here** — a Solution can be implemented by Claude Code from the app:
+  edits are applied directly, other commands ask for your approval, progress
+  is reported back through a local MCP server (`/mcp/<repoId>`), and the run
+  shows up in the Sessions timeline like any other session.
 
-The API applies database migrations on start. With `RDI_DEV_ROUTES=true` (never in production) it also serves
-`/api/dev/mailbox?to=<email>` so you can read verification, reset and invitation emails locally.
+## Development
 
-### Indexing
+```bash
+npm install
+npm run dev             # core on http://127.0.0.1:4040 + web on http://localhost:5177
+RDI_FAKE_AGENT=true npm run dev   # scripted agent, no Claude calls
+npm test && npm run typecheck
+```
 
-`npm run dev` also starts `apps/worker`, which consumes the `index-repo` BullMQ queue. Without GitHub App settings
-(`GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_SLUG`, `GITHUB_WEBHOOK_SECRET`, `GITHUB_STATE_SECRET`) the
-Repositories screen offers the bundled demo repositories under `fixtures/repos`. The indexed graph lives in Neo4j
-(browser at http://localhost:7477) and the workspace opens an automatically generated **System map**.
+Open http://localhost:5177, add the path of a folder and draw its map.
 
-### Agent
+### Desktop app
 
-The chat in the workspace (✦ in the activity bar) talks to Claude through the Anthropic API. Set `ANTHROPIC_API_KEY`
-(or `AGENT_ENABLED=true` with an `ant auth login` profile) before `npm run dev`; `AGENT_MODEL` defaults to
-`claude-opus-5` and `AGENT_MONTHLY_TOKEN_BUDGET` to 2,000,000 tokens per organization. For offline development and the
-E2E suite, `RDI_FAKE_LLM=true` uses a deterministic scripted agent (never in production).
+```bash
+npm run desktop:dev     # Electron window over the dev servers
+npm run desktop:build   # packaged app in apps/desktop/release/
+```
 
-### Solutions and Claude Code
+### Layout
 
-Describe a change in the chat ("I want …") and the agent saves a versioned **Solution** (current vs proposed scene, task
-plan, risks) under Settings → Solutions. Open it to see the plan next to the canvas and press **Execute in Claude Code**:
-the dialog creates a personal access token and gives you the two commands to connect the remote MCP server
-(`POST /mcp`, Streamable HTTP, `Authorization: Bearer rdi_…`) and start Claude Code on the solution. Claude Code reads it
-with `get_solution`, queries the graph with `query_graph`, saves new versions with `update_solution` and reports
-`report_task_progress`; the Solution page updates live. Set `PUBLIC_API_URL` when the API is not on `http://localhost:4040`.
+| Workspace | Purpose |
+| --- | --- |
+| `apps/core` | Fastify core: repositories, JSON storage, Agent SDK runner, session observer, impact overlay, runs, MCP |
+| `apps/web` | React workspace (canvas, walkthrough, risks, scale) and shell |
+| `apps/desktop` | Electron shell that spawns the core and loads the web app |
+| `packages/scene` | Scene schema, validation, hierarchy, walkthrough, load simulator |
 
-### Connect your GitHub repositories
+Configuration is read from the environment (see `.env.example`): `RDI_PORT`,
+`RDI_HOME`, `RDI_CLAUDE_HOME`, `RDI_FAKE_AGENT`, `AGENT_MODEL`,
+`AGENT_MAX_TURNS`, `AGENT_MAX_BUDGET_USD`, `CLAUDE_EXECUTABLE`.
 
-In Settings → Repositories press **Create GitHub App** (shown on local/dev servers when no App is configured). Choose your
-account or an organization, confirm on GitHub, and you are taken straight to the installation page: install it on your
-account and/or on organizations. GitHub then asks you to authorize the App once, so the server can check that the
-installation really belongs to you. If an organization admin must approve the install, the page says so; once approved,
-press **Connect another account** and save on GitHub to finish. Press **Connect another account** to add more installations; repositories from every connected account are listed and indexed with their own installation
-token. On localhost the App's webhook is inactive, so use **Re-index** after pushing. Production deployments configure
-the App with `GITHUB_APP_*` environment variables instead; stored manifest credentials are ignored there.
+Design notes: `docs/superpowers/specs/2026-10-13-rdi-desktop-design.md`.
