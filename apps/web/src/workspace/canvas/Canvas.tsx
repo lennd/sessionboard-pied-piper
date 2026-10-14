@@ -23,6 +23,8 @@ const nodeTypes = { piece: PieceNode, container: ContainerNode, 'group-box': Gro
 const edgeTypes = { flow: FlowEdge };
 const CALLOUT_GAP = 12;
 const DATA_GAP = 16;
+const MIN_ZOOM = 0.15;
+const MAX_ZOOM = 2;
 
 type CanvasProps = {
   scene: Scene; index: SceneIndex; model: VisibleModel; projected: ProjectedEdges; frame: Frame; phase: Phase;
@@ -106,6 +108,8 @@ export const Canvas = (props: CanvasProps) => {
         onNodeClick={handleClick}
         onNodeDoubleClick={handleDoubleClick}
         zoomOnDoubleClick={false}
+        minZoom={MIN_ZOOM}
+        maxZoom={MAX_ZOOM}
         nodesDraggable
         nodesConnectable={false}
         fitView
