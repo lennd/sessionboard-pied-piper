@@ -233,6 +233,12 @@ export const shellEn = {
   'errors.unknown_repo': 'One of the repositories is not registered.',
   'errors.no_plan': 'Ask Claude for a plan first.',
   'errors.no_repositories': 'This feature has no available repositories.',
+  'sessions.app': 'started from Pied Piper',
+  'sessions.kind.explain': 'Explained a change',
+  'sessions.kind.system-map': 'Drew the system map',
+  'sessions.kind.run-solution': 'Implemented a solution',
+  'sessions.kind.translate': 'Translated a scene',
+  'sessions.kind.other': 'Pied Piper session',
 } as const;
 
 export type ShellKey = keyof typeof shellEn;
@@ -473,6 +479,12 @@ export const shellEs: ShellCatalog = {
   'errors.unknown_repo': 'Uno de los repositorios no está registrado.',
   'errors.no_plan': 'Pedile un plan a Claude primero.',
   'errors.no_repositories': 'Esta feature no tiene repositorios disponibles.',
+  'sessions.app': 'iniciada desde Pied Piper',
+  'sessions.kind.explain': 'Explicó un cambio',
+  'sessions.kind.system-map': 'Dibujó el mapa del sistema',
+  'sessions.kind.run-solution': 'Implementó una solution',
+  'sessions.kind.translate': 'Tradujo una escena',
+  'sessions.kind.other': 'Sesión de Pied Piper',
 };
 
 export const shellPt: ShellCatalog = {
@@ -710,4 +722,10 @@ export const shellPt: ShellCatalog = {
   'errors.unknown_repo': 'Um dos repositórios não está registrado.',
   'errors.no_plan': 'Peça um plano ao Claude primeiro.',
   'errors.no_repositories': 'Esta feature não tem repositórios disponíveis.',
+  'sessions.app': 'iniciada pelo Pied Piper',
+  'sessions.kind.explain': 'Explicou uma alteração',
+  'sessions.kind.system-map': 'Desenhou o mapa do sistema',
+  'sessions.kind.run-solution': 'Implementou uma solution',
+  'sessions.kind.translate': 'Traduziu uma cena',
+  'sessions.kind.other': 'Sessão do Pied Piper',
 };

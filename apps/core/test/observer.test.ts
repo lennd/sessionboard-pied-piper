@@ -38,7 +38,7 @@ describe('createSessionParser', () => {
   it('turns transcript lines into timeline events with statuses, paths and metadata', () => {
     const parser = createSessionParser(REPO);
     for (const l of transcript) parser.push(l);
-    expect(parser.meta).toEqual({ id: 's1', title: 'Fix the login bug', slug: 'fix-login', cwd: REPO, startedAt: '2026-10-13T10:00:00Z', updatedAt: '2026-10-13T10:00:01Z', version: '2.1.296' });
+    expect(parser.meta).toEqual({ id: 's1', title: 'Fix the login bug', slug: 'fix-login', cwd: REPO, startedAt: '2026-10-13T10:00:00Z', updatedAt: '2026-10-13T10:00:01Z', version: '2.1.296', origin: 'terminal', kind: null });
     const kinds = parser.events.map((e) => `${e.kind}${'status' in e ? `:${e.status}` : ''}${e.sidechain ? '!' : ''}`);
     expect(kinds).toEqual(['prompt', 'text', 'read:ok', 'edit:ok', 'write:ok', 'write:ok', 'bash:error', 'subagent:ok', 'prompt!', 'edit:pending']);
     expect(parser.events[0]).toMatchObject({ kind: 'prompt', text: 'Fix the login bug\nplease' });
@@ -48,6 +48,14 @@ describe('createSessionParser', () => {
     expect(parser.events[6]).toMatchObject({ kind: 'bash', git: 'commit', description: 'Test and commit' });
     expect(parser.events[7]).toMatchObject({ kind: 'subagent', description: 'Explore auth' });
     expect(touchedFiles(parser.events)).toEqual([{ path: 'src/auth.ts', change: 'modified' }, { path: 'src/new.ts', change: 'added' }]);
+  });
+
+  it('recognises sessions started by the app and shortens read targets inside the repository', () => {
+    const parser = createSessionParser(REPO);
+    parser.push(user('[rdi:explain]\nRespond in English.\nExplain the impact…'));
+    parser.push(assistant([toolUse('t1', 'Read', { file_path: `${REPO}/src/auth.ts` })]));
+    expect(parser.meta).toMatchObject({ origin: 'app', kind: 'explain', title: null });
+    expect(parser.events[1]).toMatchObject({ kind: 'read', target: 'src/auth.ts' });
   });
 
   it('reports only the events changed by each line', () => {

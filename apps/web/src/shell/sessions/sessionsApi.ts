@@ -13,7 +13,20 @@ export type TimelineEvent =
   | (Base & { kind: 'subagent'; description: string; status: EventStatus })
   | (Base & { kind: 'tool'; tool: string; summary: string; status: EventStatus });
 export type TouchedFile = { path: string; change: FileChange };
-export type SessionSummary = { id: string; title: string | null; slug: string | null; startedAt: string | null; updatedAt: string; version: string | null };
+export type SessionSummary = { id: string; title: string | null; slug: string | null; startedAt: string | null; updatedAt: string; version: string | null; origin: 'terminal' | 'app'; kind: string | null };
+
+/** What the person was looking at in the sessions panel of a repository, kept across navigation. */
+export type SessionsMemory = { selected: string | null; explanation: string | null; scene: Scene | null };
+const memory = new Map<string, SessionsMemory>();
+export const recallSessions = (repoId: string): SessionsMemory => memory.get(repoId) ?? { selected: null, explanation: null, scene: null };
+export const rememberSessions = (repoId: string, patch: Partial<SessionsMemory>): void => {
+  memory.set(repoId, { ...recallSessions(repoId), ...patch });
+};
+export const forgetSessions = (): void => memory.clear();
+
+const MCP_PREFIX = /^mcp__[a-z0-9_-]+__/i;
+/** Human label of a tool: drops the MCP server prefix. */
+export const toolLabel = (name: string): string => name.replace(MCP_PREFIX, '');
 export type SessionDetail = { session: SessionSummary; events: TimelineEvent[]; touched: TouchedFile[] };
 
 export const WORKTREE = 'worktree';

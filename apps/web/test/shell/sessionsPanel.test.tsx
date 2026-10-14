@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { sampleRegistry } from '@rdi/scene';
 import { ApiError, apiFetch } from '../../src/shell/api';
 import { SessionsPanel } from '../../src/shell/sessions/SessionsPanel';
-import { upsertEvent, type SessionDetail, type TimelineEvent } from '../../src/shell/sessions/sessionsApi';
+import { forgetSessions, upsertEvent, type SessionDetail, type TimelineEvent } from '../../src/shell/sessions/sessionsApi';
 import { renderShell } from './render';
 
 vi.mock('../../src/shell/api', async (original) => ({ ...(await original<typeof import('../../src/shell/api')>()), apiFetch: vi.fn() }));
@@ -19,7 +19,7 @@ class FakeEventSource {
 }
 const edit: TimelineEvent = { id: 'e1', ts: '2026-10-13T10:00:00Z', sidechain: false, kind: 'edit', file: '/r/src/a.ts', path: 'src/a.ts', change: 'modified', oldText: 'a', newText: 'b', status: 'ok' };
 const detail: SessionDetail = {
-  session: { id: 's1', title: 'Fix login', slug: 'fix-login', startedAt: null, updatedAt: '2026-10-13T10:00:00Z', version: null },
+  session: { id: 's1', title: 'Fix login', slug: 'fix-login', startedAt: null, updatedAt: '2026-10-13T10:00:00Z', version: null, origin: 'terminal', kind: null },
   events: [{ id: 'p1', ts: '', sidechain: false, kind: 'prompt', text: 'Fix login' }, { id: 't1', ts: '', sidechain: false, kind: 'text', text: 'hidden' }, edit],
   touched: [{ path: 'src/a.ts', change: 'modified' }],
 };
@@ -28,7 +28,7 @@ const impact = { ...scene, id: 'impact-s1', nodes: scene.nodes.map((n, i) => (i 
 const mockApi = (options: { map?: boolean; explainFails?: boolean } = {}) =>
   api.mockImplementation(async (path, init) => {
     const p = String(path);
-    if (p.endsWith('/sessions')) return [{ id: 's1', title: 'Fix login', slug: 'fix-login', startedAt: null, updatedAt: '2026-10-13T10:00:00Z', version: null }] as never;
+    if (p.endsWith('/sessions')) return [{ id: 's1', title: 'Fix login', slug: 'fix-login', startedAt: null, updatedAt: '2026-10-13T10:00:00Z', version: null, origin: 'terminal', kind: null }, { id: 's2', title: null, slug: null, startedAt: null, updatedAt: '2026-10-13T09:00:00Z', version: null, origin: 'app', kind: 'explain' }] as never;
     if (p.endsWith('/changes')) return { touched: [{ path: 'README.md', change: 'modified' }] } as never;
     if (p.endsWith('/impact')) {
       if (options.map === false) throw new ApiError(404, 'no_system_map');
@@ -43,13 +43,14 @@ const mockApi = (options: { map?: boolean; explainFails?: boolean } = {}) =>
 
 const render = () => {
   const openScene = vi.fn();
-  renderShell(<SessionsPanel repoId="r1" ctx={{ openScene, selectNode: vi.fn(), selected: null, scene }} />);
-  return { openScene };
+  const view = renderShell(<SessionsPanel repoId="r1" ctx={{ openScene, selectNode: vi.fn(), selected: null, scene }} />);
+  return { openScene, unmount: view.unmount };
 };
 
 beforeEach(() => {
   api.mockReset();
   sources.length = 0;
+  forgetSessions();
   vi.stubGlobal('EventSource', FakeEventSource);
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -59,7 +60,8 @@ describe('SessionsPanel', () => {
     mockApi();
     render();
     expect(await screen.findByTestId('session-s1')).toHaveTextContent('Fix login');
-    expect(screen.getByTestId('session-s1')).toHaveTextContent('fix-login');
+    expect(screen.getByTestId('session-s1')).not.toHaveTextContent('fix-login');
+    expect(screen.getByTestId('session-s2')).toHaveTextContent('Explained a change');
     await waitFor(() => expect(screen.getByTestId('session-worktree')).toHaveTextContent('1 files touched'));
   });
 
@@ -104,6 +106,20 @@ describe('SessionsPanel', () => {
     render();
     fireEvent.click(await screen.findByTestId('session-worktree'));
     expect(await screen.findByTestId('session-no-map')).toHaveTextContent('Draw the system map first');
+  });
+
+  it('remembers the session, the explanation and the scene when the panel is opened again', async () => {
+    mockApi();
+    const first = render();
+    fireEvent.click(await screen.findByTestId('session-s1'));
+    await waitFor(() => expect(first.openScene).toHaveBeenCalledWith(expect.objectContaining({ id: 'impact-s1' }), 'changes'));
+    fireEvent.click(screen.getByTestId('session-explain'));
+    await screen.findByTestId('session-explanation');
+    first.unmount();
+    const again = render();
+    await waitFor(() => expect(screen.getByTestId('session-detail')).toHaveTextContent('Fix login'));
+    expect(screen.getByTestId('session-explanation')).toHaveTextContent('store changed');
+    expect(again.openScene).toHaveBeenCalledWith(expect.objectContaining({ id: 'impact-s1-explained' }), 'changes');
   });
 
   it('upserts events by id', () => {

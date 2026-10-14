@@ -215,3 +215,22 @@ button, select, input { font: inherit; color: inherit; }
 @keyframes busy-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 @keyframes busy-word-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .busy-mark, .busy-word { animation: none; } }
+
+.tl-session { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 8px; align-items: center; width: 100%; padding: 7px 8px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+.tl-session:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.tl-session.is-worktree { border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 4px; }
+.tl-session-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.tl-session-meta { white-space: nowrap; font-size: 11px; }
+.tl-glyph { color: var(--muted); text-align: center; flex: none; }
+.tl { list-style: none; margin: 0; padding: 0 0 0 6px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; }
+.tl-event { position: relative; }
+.tl-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 8px; align-items: center; width: 100%; padding: 4px 6px; border: 0; background: transparent; color: var(--text); text-align: left; cursor: default; font: inherit; border-radius: var(--radius); }
+.tl-row:not(:disabled) { cursor: pointer; }
+.tl-row:not(:disabled):hover, .tl-event.is-open > .tl-row { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.tl-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.tl-event.is-prompt .tl-label { font-weight: 600; white-space: normal; }
+.tl-event.is-prompt { margin-top: 6px; }
+.tl-event.is-edit .tl-glyph, .tl-event.is-write .tl-glyph { color: var(--ok); }
+.tl-event.is-error .tl-glyph { color: var(--saturated); }
+.tl-event.is-pending .tl-glyph { color: var(--strained); }
+.tl-event .payload { position: static; margin: 4px 0 6px 26px; }

@@ -13,7 +13,7 @@ export type TimelineEvent =
   | (Base & { kind: 'tool'; tool: string; summary: string; status: EventStatus });
 
 export type TouchedFile = { path: string; change: FileChange };
-export type SessionMeta = { id: string; title: string | null; slug: string | null; cwd: string | null; startedAt: string | null; updatedAt: string | null; version: string | null };
+export type SessionMeta = { id: string; title: string | null; slug: string | null; cwd: string | null; startedAt: string | null; updatedAt: string | null; version: string | null; origin: 'terminal' | 'app'; kind: string | null };
 
 const MAX_TEXT = 600;
 const MAX_PROMPT = 400;
@@ -21,6 +21,7 @@ const READ_TOOLS = new Set(['Read', 'Grep', 'Glob', 'LS', 'ReadMcpResourceTool']
 const GIT_VERB = /^\s*git\s+(?:-C\s+\S+\s+)?([a-z-]+)/;
 const GIT_SUBCOMMAND_PATTERN = /(?:^|&&|;|\|\|)\s*git\s+(?:-C\s+\S+\s+)?(commit|checkout|switch|merge|rebase|reset|stash|push|pull|rm|mv|revert|cherry-pick)\b/;
 const SYSTEM_PROMPT_PREFIX = /^<(command-name|local-command|system-reminder|command-message)/;
+const APP_MARKER = /^\[rdi:([a-z-]+)\]/;
 
 type Record_ = {
   type?: string;
@@ -62,7 +63,16 @@ export const parseLine = (line: string): Record_ | null => {
 export const createSessionParser = (repoPath: string) => {
   const events: TimelineEvent[] = [];
   const byToolUse = new Map<string, number>();
-  const meta: SessionMeta = { id: '', title: null, slug: null, cwd: null, startedAt: null, updatedAt: null, version: null };
+  const meta: SessionMeta = { id: '', title: null, slug: null, cwd: null, startedAt: null, updatedAt: null, version: null, origin: 'terminal', kind: null };
+  const titleFrom = (text: string) => {
+    const marker = APP_MARKER.exec(text);
+    if (marker) {
+      meta.origin = 'app';
+      meta.kind = marker[1] ?? null;
+      return null;
+    }
+    return clip(text.split('\n')[0] ?? '', 80);
+  };
 
   const upsert = (event: TimelineEvent): TimelineEvent => {
     events.push(event);
@@ -85,7 +95,8 @@ export const createSessionParser = (repoPath: string) => {
       return { ...base, kind: 'bash', command, description: typeof input.description === 'string' ? input.description : null, git: gitVerbOf(command), status: 'pending' };
     }
     if (READ_TOOLS.has(name)) {
-      const target = str(input.file_path ?? input.pattern ?? input.path ?? input.uri);
+      const raw = str(input.file_path ?? input.pattern ?? input.path ?? input.uri);
+      const target = isAbsolute(raw) ? (relativeTo(repoPath, raw) ?? raw) : raw;
       return { ...base, kind: 'read', tool: name, target, status: 'pending' };
     }
     if (name === 'Agent' || name === 'Task') return { ...base, kind: 'subagent', description: str(input.description) || str(input.prompt).slice(0, 80), status: 'pending' };
@@ -128,7 +139,7 @@ export const createSessionParser = (repoPath: string) => {
       if (typeof content === 'string') {
         if (SYSTEM_PROMPT_PREFIX.test(content.trim())) return [];
         const text = clip(content.trim(), MAX_PROMPT);
-        if (!base.sidechain && meta.title === null) meta.title = clip(content.trim().split('\n')[0] ?? '', 80);
+        if (!base.sidechain && meta.title === null && meta.origin === 'terminal') meta.title = titleFrom(content.trim());
         changed.push(upsert({ ...base, kind: 'prompt', text }));
         return changed;
       }
@@ -138,7 +149,7 @@ export const createSessionParser = (repoPath: string) => {
           const updated = applyResult(block, record.toolUseResult);
           if (updated) changed.push(updated);
         } else if (block.type === 'text' && typeof block.text === 'string' && !SYSTEM_PROMPT_PREFIX.test(block.text.trim())) {
-          if (!base.sidechain && meta.title === null) meta.title = clip(block.text.trim().split('\n')[0] ?? '', 80);
+          if (!base.sidechain && meta.title === null && meta.origin === 'terminal') meta.title = titleFrom(block.text.trim());
           changed.push(upsert({ ...base, kind: 'prompt', text: clip(block.text.trim(), MAX_PROMPT) }));
         }
       }
