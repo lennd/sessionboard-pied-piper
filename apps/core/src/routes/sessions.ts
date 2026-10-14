@@ -2,7 +2,7 @@ import type { Scene } from '@rdi/scene';
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { explainPrompt } from '../agent/prompt';
-import { runAgent } from '../agent/sdkRunner';
+import { runAgent, type AgentEvent } from '../agent/sdkRunner';
 import { gitBranchCompare, gitBranchDiff, gitChanges, gitDiff, gitInfo } from '../git/git';
 import { createGh, GhFailure } from '../git/gh';
 import { fail } from '../http/fail';
@@ -127,14 +127,38 @@ export const sessionRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const prefs = await readPrefs(deps.config.home);
     const language = body.language ?? prefs.explanationLanguage ?? prefs.uiLanguage ?? DEFAULT_LANGUAGE;
     const prompt = explainPrompt({ language, repoName: repo.name, source, touched, diff, systemMap: await currentMap(repo), rules: ruleLines(await readRules(repoDir(repo))) });
+    const send = sse(reply);
     const controller = new AbortController();
     reply.raw.on('close', () => {
       if (!reply.raw.writableFinished) controller.abort();
     });
-    const result = await runAgent(deps.queryFn, { cwd: repo.path, prompt, mode: 'analyze', signal: controller.signal, agent: deps.config.agent, ctx: { upsertSolution: async () => { throw new Error('not available'); } }, emit: () => undefined });
-    const scene = result.scenes.at(-1);
-    if (!scene) return fail(reply, 502, result.errorCode === 'aborted' ? 'aborted' : 'explain_failed', { usage: result.usage });
-    const row = await insertScene(repoDir(repo), nowOf(deps), { conversationId: null, sourceSceneId: null, turn: 0, scene: { ...scene, id: `${IMPACT_ID}-${scope}-explained` } });
-    return reply.code(201).send({ id: row.id, scene: row.scene, text: result.text, usage: result.usage });
+    const heartbeat = setInterval(() => {
+      if (!reply.raw.writableEnded) reply.raw.write(': ping\n\n');
+    }, HEARTBEAT_MS);
+    const emit = (event: AgentEvent) => {
+      if (event.type === 'scene') return;
+      const { type, ...data } = event;
+      send(type, data);
+    };
+    try {
+      const result = await runAgent(deps.queryFn, { cwd: repo.path, prompt, mode: 'explain', signal: controller.signal, agent: deps.config.agent, ctx: { upsertSolution: async () => { throw new Error('not available'); } }, emit });
+      const scene = result.scenes.at(-1);
+      if (!scene) {
+        if (result.stop !== 'error') send('error', { code: 'explain_failed', message: 'Claude finished without drawing the impact scene.' });
+        send('done', { usage: result.usage });
+      } else {
+        const row = await insertScene(repoDir(repo), nowOf(deps), { conversationId: null, sourceSceneId: null, turn: 0, scene: { ...scene, id: `${IMPACT_ID}-${scope}-explained` } });
+        send('scene', { id: row.id, scene: row.scene });
+        send('done', { id: row.id, text: result.text, usage: result.usage });
+      }
+    } catch (error) {
+      req.log.error(error);
+      send('error', { code: 'internal', message: 'The explanation could not be completed.' });
+      send('done', {});
+    } finally {
+      clearInterval(heartbeat);
+      reply.raw.end();
+    }
+    return reply;
   });
 };

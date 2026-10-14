@@ -12,6 +12,7 @@ import { loadConfig } from '../src/config';
 import { diffStatuses } from '../src/git/gh';
 import { gitBranchCompare } from '../src/git/git';
 import { createRunRegistry } from '../src/runs/registry';
+import { parseSse } from './sse';
 import { writeSystemMap } from '../src/store/scenes';
 
 const DIFF = [
@@ -117,10 +118,10 @@ describe('pull requests', () => {
     expect(branch.nodes.find((n: { id: string }) => n.id === 'store').change).toBe('modified');
     expect(branch.nodes.find((n: { id: string }) => n.id === 'api').change).toBeUndefined();
     expect((await app.inject({ method: 'GET', url: `/api/repos/${repoId}/pulls` })).json().branch).toMatchObject({ branch: 'feature/x', base: 'main', ahead: 1 });
-    const explained = await app.inject({ method: 'POST', url: `/api/repos/${repoId}/impact/explain`, payload: { pull: 7 } });
-    expect(explained.statusCode).toBe(201);
-    expect(explained.json().scene.id).toBe('impact-pr-7-explained');
-    expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/impact/explain`, payload: { pull: 'branch' } })).json().scene.id).toBe('impact-branch-explained');
+    const explained = parseSse((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/impact/explain`, payload: { pull: 7 } })).body);
+    expect((explained.find((e) => e.event === 'scene')!.data as { scene: { id: string } }).scene.id).toBe('impact-pr-7-explained');
+    const branchExplained = parseSse((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/impact/explain`, payload: { pull: 'branch' } })).body);
+    expect((branchExplained.find((e) => e.event === 'scene')!.data as { scene: { id: string } }).scene.id).toBe('impact-branch-explained');
   });
 
   it('anchors the risks of an impact scene to the pull request diff and posts them as a review', async () => {
@@ -163,8 +164,8 @@ describe('pull requests', () => {
     expect(sentAgain.comments[0].body).toContain('pied-piper-mark.svg');
     expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/review`, payload: { scene, riskIds: ['zz'] } })).statusCode).toBe(404);
     expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/risks`, payload: { scene: { id: 'bad' } } })).statusCode).toBe(404);
-    const explained = (await app.inject({ method: 'POST', url: `/api/repos/${repoId}/impact/explain`, payload: { pull: 7 } })).json();
-    expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/risks`, payload: { sceneId: explained.id } })).json().risks).toHaveLength(1);
+    const explainedId = (parseSse((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/impact/explain`, payload: { pull: 7 } })).body).at(-1)!.data as { id: string }).id;
+    expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/risks`, payload: { sceneId: explainedId } })).json().risks).toHaveLength(1);
   });
 
   it('reports why pull requests are unavailable instead of failing', async () => {

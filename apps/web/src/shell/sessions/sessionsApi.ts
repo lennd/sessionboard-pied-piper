@@ -1,5 +1,7 @@
 import { validateScene, type Scene } from '@rdi/scene';
+import { setActivityDetail } from '../../components/activity';
 import { apiFetch } from '../api';
+import { explainToScene } from '../chat/chatApi';
 
 export type EventStatus = 'pending' | 'ok' | 'error';
 export type FileChange = 'added' | 'modified' | 'removed';
@@ -43,7 +45,7 @@ const scene = async (path: string): Promise<Scene> => {
 export const fetchImpact = (repoId: string, id: string): Promise<Scene> => scene(id === WORKTREE ? `/repos/${repoId}/changes/impact` : `/repos/${repoId}/sessions/${id}/impact`);
 
 export const explainChange = async (repoId: string, id: string): Promise<{ scene: Scene; text: string }> => {
-  const result = await apiFetch<{ scene: unknown; text: string }>(`/repos/${repoId}/impact/explain`, { method: 'POST', body: id === WORKTREE ? {} : { sessionId: id } });
+  const result = await explainToScene(`/repos/${repoId}`, id === WORKTREE ? {} : { sessionId: id }, setActivityDetail);
   const valid = validateScene(result.scene);
   if (!valid.ok) throw new Error('invalid_scene');
   return { scene: valid.scene, text: result.text };

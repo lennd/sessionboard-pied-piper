@@ -5,14 +5,19 @@ import { PullsPanel } from '../../src/shell/pulls/PullsPanel';
 import { renderShell } from './render';
 
 vi.mock('../../src/shell/api', async (original) => ({ ...(await original<typeof import('../../src/shell/api')>()), apiFetch: vi.fn() }));
+vi.mock('../../src/shell/chat/chatApi', async (original) => ({ ...(await original<typeof import('../../src/shell/chat/chatApi')>()), explainToScene: vi.fn() }));
+import { explainToScene } from '../../src/shell/chat/chatApi';
+const explainMock = vi.mocked(explainToScene);
 const api = vi.mocked(apiFetch);
 const scene = sampleRegistry['iot-telemetry']!;
 const pull = { number: 7, title: 'Store rewrite', author: 'ana', draft: false, headRef: 'feature/store', baseRef: 'main', updatedAt: '2026-10-13T10:00:00Z', url: 'https://github.com/acme/x/pull/7', additions: 3, deletions: 2, changedFiles: 2 };
 const branch = { branch: 'feature/x', base: 'main', ahead: 2, touched: [{ path: 'src/a.ts', change: 'modified' as const }] };
 const impact = (id: string) => ({ ...scene, id });
 
-const mockApi = (options: { available?: boolean; reason?: string; branch?: typeof branch | null; map?: boolean } = {}) =>
-  api.mockImplementation(async (path, init) => {
+const mockApi = (options: { available?: boolean; reason?: string; branch?: typeof branch | null; map?: boolean } = {}) => {
+  explainMock.mockReset();
+  explainMock.mockResolvedValue({ id: 'sc-explained', scene: impact('impact-pr-7-explained'), text: 'The **store** is rewritten.' });
+  return api.mockImplementation(async (path, init) => {
     const p = String(path);
     if (p.includes('/pulls?refresh=1') || p.endsWith('/pulls')) return { available: options.available ?? true, reason: options.reason, pulls: options.available === false ? [] : [pull], branch: options.branch === undefined ? branch : options.branch } as never;
     if (p.endsWith('/pulls/7')) return { pull: { ...pull, body: 'Rewrites the **store**.' }, files: [{ path: 'src/a.ts', additions: 2, deletions: 1, change: 'modified' }, { path: 'src/new.ts', additions: 1, deletions: 0, change: 'added' }] } as never;
@@ -20,11 +25,12 @@ const mockApi = (options: { available?: boolean; reason?: string; branch?: typeo
       if (options.map === false) throw new ApiError(404, 'no_system_map');
       return impact(p.includes('/branch/') ? 'impact-branch' : 'impact-pr-7') as never;
     }
-    if (p.endsWith('/impact/explain') && init?.method === 'POST') return { scene: impact('impact-pr-7-explained'), text: 'The **store** is rewritten.' } as never;
+    void init;
     if (p.endsWith('/pulls/7/risks') && init?.method === 'POST') return { risks: [{ id: 'r1', title: 'Breaks callers', severity: 'high', category: 'reliability', pieces: ['API'], anchor: { path: 'src/a.ts', line: 12 } }, { id: 'r2', title: 'Unclear', severity: 'low', category: 'complexity', pieces: [], anchor: null }] } as never;
     if (p.endsWith('/pulls/7/review') && init?.method === 'POST') return { id: 55, url: 'https://github.com/acme/x/pull/7#pullrequestreview-55', inline: 1, summary: 0 } as never;
     throw new Error(`unexpected ${p}`);
   });
+};
 
 const render = () => {
   const openScene = vi.fn();
@@ -58,7 +64,7 @@ describe('PullsPanel', () => {
     await waitFor(() => expect(openScene).toHaveBeenCalledWith(expect.objectContaining({ id: 'impact-pr-7' }), 'changes'));
     fireEvent.click(screen.getByTestId('pull-explain'));
     expect(await screen.findByTestId('pull-explanation')).toHaveTextContent('store is rewritten');
-    expect(api).toHaveBeenCalledWith('/repos/r1/impact/explain', { method: 'POST', body: { pull: 7 } });
+    expect(explainMock).toHaveBeenCalledWith('/repos/r1', { pull: 7 }, expect.any(Function));
     expect(openScene).toHaveBeenCalledWith(expect.objectContaining({ id: 'impact-pr-7-explained' }), 'changes');
     const open = vi.spyOn(window, 'open').mockImplementation(() => null);
     fireEvent.click(screen.getByTestId('pull-github'));

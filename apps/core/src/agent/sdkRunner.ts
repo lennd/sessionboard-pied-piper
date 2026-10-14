@@ -16,7 +16,7 @@ export type AgentEvent =
 export type ErrorCode = Extract<AgentEvent, { type: 'error' }>['code'];
 export type RunUsage = { input: number; output: number; costUsd: number };
 export type RunResult = { sessionId: string | null; scenes: Scene[]; text: string; usage: RunUsage; stop: 'end_turn' | 'error'; errorCode?: ErrorCode };
-export type RunMode = 'analyze' | 'plan' | 'map' | 'translate' | 'run';
+export type RunMode = 'analyze' | 'plan' | 'map' | 'translate' | 'run' | 'explain';
 
 export type QueryLike = AsyncIterable<SDKMessage> & { interrupt?: () => Promise<unknown>; close?: () => void };
 /** What the runner needs from the SDK; the fake implementation uses `local` to call the in-process tools. */
@@ -25,12 +25,13 @@ export type QueryFn = (params: { prompt: string; options: Options }, local: Loca
 
 export const createSdkQuery = (): QueryFn => (params) => query(params);
 
-const READ_ONLY_TOOLS = ['Read', 'Grep', 'Glob', 'Bash(git log:*)', 'Bash(git diff:*)', 'Bash(git show:*)', 'Bash(git status:*)', 'Bash(git blame:*)', 'Bash(ls:*)', 'Bash(wc:*)'];
+const READ_ONLY_TOOLS = ['Read', 'Grep', 'Glob', 'Bash(git log:*)', 'Bash(git diff:*)', 'Bash(git show:*)', 'Bash(git status:*)', 'Bash(git blame:*)', 'Bash(git ls-files:*)', 'Bash(ls:*)', 'Bash(wc:*)', 'Bash(cat:*)', 'Bash(head:*)', 'Bash(tail:*)', 'Bash(grep:*)', 'Bash(rg:*)', 'Bash(find:*)', 'Bash(sed -n:*)', 'Bash(tree:*)'];
 const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
 const WRITE_TOOLS = [...EDIT_TOOLS, 'WebFetch', 'WebSearch', 'Agent', 'Task', 'KillShell'];
 const RUN_DISALLOWED = ['WebFetch', 'WebSearch'];
 const RUN_MAX_TURNS = 200;
-const TURNS_BY_MODE: Record<RunMode, number | null> = { analyze: null, plan: null, map: null, translate: 4, run: RUN_MAX_TURNS };
+const EXPLAIN_MAX_TURNS = 10;
+const TURNS_BY_MODE: Record<RunMode, number | null> = { analyze: null, plan: null, map: null, translate: 4, run: RUN_MAX_TURNS, explain: EXPLAIN_MAX_TURNS };
 const MAX_SUMMARY = 80;
 const WRAP_UP_NOTE = 'The agent needed too many steps to answer.';
 

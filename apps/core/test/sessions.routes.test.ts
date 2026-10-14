@@ -10,6 +10,7 @@ import { fakeScene } from '../src/agent/fakeQuery';
 import { buildApp } from '../src/app';
 import { loadConfig } from '../src/config';
 import { createRunRegistry } from '../src/runs/registry';
+import { parseSse } from './sse';
 import { gitChanges, gitDiff } from '../src/git/git';
 import { projectDirFor } from '../src/observer/transcripts';
 import { writeSystemMap } from '../src/store/scenes';
@@ -75,11 +76,15 @@ describe('sessions', () => {
 
   it('asks the agent to explain a session or the working tree and stores the scene', async () => {
     const explained = await app.inject({ method: 'POST', url: `/api/repos/${repoId}/impact/explain`, payload: { sessionId: 'sess1', language: 'es' } });
-    expect(explained.statusCode).toBe(201);
-    expect(explained.json()).toMatchObject({ scene: { id: 'impact-sess1-explained', language: 'es' }, text: expect.stringContaining('store changed') });
-    expect(explained.json().scene.nodes.find((n: { id: string }) => n.id === 'store').change).toBe('modified');
-    const worktree = await app.inject({ method: 'POST', url: `/api/repos/${repoId}/impact/explain`, payload: {} });
-    expect(worktree.json().scene.id).toBe('impact-worktree-explained');
+    expect(explained.statusCode).toBe(200);
+    const events = parseSse(explained.body);
+    expect(events.map((e) => e.event)).toEqual(['tool', 'tool', 'text', 'scene', 'done']);
+    const scene = (events.find((e) => e.event === 'scene')!.data as { scene: { id: string; language: string; nodes: { id: string; change?: string }[] } }).scene;
+    expect(scene).toMatchObject({ id: 'impact-sess1-explained', language: 'es' });
+    expect(scene.nodes.find((n) => n.id === 'store')!.change).toBe('modified');
+    expect(events.at(-1)!.data).toMatchObject({ text: expect.stringContaining('store changed') });
+    const worktree = parseSse((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/impact/explain`, payload: {} })).body);
+    expect((worktree.find((e) => e.event === 'scene')!.data as { scene: { id: string } }).scene.id).toBe('impact-worktree-explained');
     expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/impact/explain`, payload: { sessionId: 'nope' } })).statusCode).toBe(404);
   });
 });

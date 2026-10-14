@@ -6,6 +6,9 @@ import { forgetSessions, upsertEvent, type SessionDetail, type TimelineEvent } f
 import { renderShell } from './render';
 
 vi.mock('../../src/shell/api', async (original) => ({ ...(await original<typeof import('../../src/shell/api')>()), apiFetch: vi.fn() }));
+vi.mock('../../src/shell/chat/chatApi', async (original) => ({ ...(await original<typeof import('../../src/shell/chat/chatApi')>()), explainToScene: vi.fn() }));
+import { explainToScene } from '../../src/shell/chat/chatApi';
+const explainMock = vi.mocked(explainToScene);
 const api = vi.mocked(apiFetch);
 const scene = sampleRegistry['iot-telemetry']!;
 const sources: FakeEventSource[] = [];
@@ -25,8 +28,13 @@ const detail: SessionDetail = {
 };
 const impact = { ...scene, id: 'impact-s1', nodes: scene.nodes.map((n, i) => (i === 0 ? { ...n, change: 'modified' as const } : n)) };
 
-const mockApi = (options: { map?: boolean; explainFails?: boolean } = {}) =>
-  api.mockImplementation(async (path, init) => {
+const mockApi = (options: { map?: boolean; explainFails?: boolean } = {}) => {
+  explainMock.mockReset();
+  explainMock.mockImplementation(async () => {
+    if (options.explainFails) throw new ApiError(502, 'explain_failed');
+    return { id: 'sc-explained', scene: { ...impact, id: 'impact-s1-explained' }, text: 'The **store** changed.' };
+  });
+  return api.mockImplementation(async (path, init) => {
     const p = String(path);
     if (p.endsWith('/sessions')) return [{ id: 's1', title: 'Fix login', slug: 'fix-login', startedAt: null, updatedAt: '2026-10-13T10:00:00Z', version: null, origin: 'terminal', kind: null }, { id: 's2', title: null, slug: null, startedAt: null, updatedAt: '2026-10-13T09:00:00Z', version: null, origin: 'app', kind: 'explain' }] as never;
     if (p.endsWith('/changes')) return { touched: [{ path: 'README.md', change: 'modified' }] } as never;
@@ -34,12 +42,10 @@ const mockApi = (options: { map?: boolean; explainFails?: boolean } = {}) =>
       if (options.map === false) throw new ApiError(404, 'no_system_map');
       return impact as never;
     }
-    if (p.endsWith('/impact/explain') && init?.method === 'POST') {
-      if (options.explainFails) throw new ApiError(502, 'explain_failed');
-      return { scene: { ...impact, id: 'impact-s1-explained' }, text: 'The **store** changed.' } as never;
-    }
+    void init;
     throw new Error(`unexpected ${p}`);
   });
+};
 
 const render = () => {
   const openScene = vi.fn();
@@ -94,7 +100,7 @@ describe('SessionsPanel', () => {
     expect(await screen.findByTestId('touched-README.md')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('session-explain'));
     expect(await screen.findByTestId('session-explanation')).toHaveTextContent('store changed');
-    expect(api).toHaveBeenCalledWith('/repos/r1/impact/explain', { method: 'POST', body: {} });
+    expect(explainMock).toHaveBeenCalledWith('/repos/r1', {}, expect.any(Function));
     expect(openScene).toHaveBeenCalledWith(expect.objectContaining({ id: 'impact-s1-explained' }), 'changes');
     mockApi({ explainFails: true });
     fireEvent.click(screen.getByTestId('session-explain'));

@@ -1,5 +1,7 @@
 import { validateScene, type Scene } from '@rdi/scene';
+import { setActivityDetail } from '../../components/activity';
 import { apiFetch } from '../api';
+import { explainToScene } from '../chat/chatApi';
 import type { FileChange } from '../sessions/sessionsApi';
 
 export type PullSummary = { number: number; title: string; author: string; draft: boolean; headRef: string; baseRef: string; updatedAt: string; url: string; additions: number; deletions: number; changedFiles: number };
@@ -20,7 +22,7 @@ const scene = async (path: string): Promise<Scene> => {
 export const fetchPullImpact = (repoId: string, target: number | typeof BRANCH) => scene(target === BRANCH ? `/repos/${repoId}/branch/impact` : `/repos/${repoId}/pulls/${target}/impact`);
 
 export const explainPull = async (repoId: string, target: number | typeof BRANCH): Promise<{ scene: Scene; text: string }> => {
-  const result = await apiFetch<{ scene: unknown; text: string }>(`/repos/${repoId}/impact/explain`, { method: 'POST', body: { pull: target } });
+  const result = await explainToScene(`/repos/${repoId}`, { pull: target }, setActivityDetail);
   const valid = validateScene(result.scene);
   if (!valid.ok) throw new Error('invalid_scene');
   return { scene: valid.scene, text: result.text };
