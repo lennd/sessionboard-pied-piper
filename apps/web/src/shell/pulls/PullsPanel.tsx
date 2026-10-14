@@ -8,7 +8,8 @@ import { Markdown } from '../chat/Markdown';
 import { desktop } from '../desktop';
 import { errorText } from '../errors';
 import { formatRelative } from '../format';
-import { BRANCH, explainPull, fetchPull, fetchPullImpact, fetchPulls, type PullDetail } from './pullsApi';
+import { BRANCH, explainPull, fetchPull, fetchPullImpact, fetchPulls, postReview, previewRisks, type PullDetail, type ReviewPosted, type RiskAnchor } from './pullsApi';
+import type { Scene } from '@rdi/scene';
 
 const STATUS_GLYPH: Record<string, string> = { added: '+', removed: '−', modified: '~' };
 const NOT_FOUND = 404;
@@ -26,11 +27,34 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
   const [explaining, setExplaining] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [scene, setScene] = useState<Scene | null>(null);
+  const [risks, setRisks] = useState<RiskAnchor[] | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [posting, setPosting] = useState(false);
+  const [posted, setPosted] = useState<ReviewPosted | null>(null);
+
+  const loadRisks = async (target: Target, next: Scene) => {
+    setScene(next);
+    setPosted(null);
+    if (target === BRANCH) {
+      setRisks(null);
+      return;
+    }
+    try {
+      const { risks: anchored } = await previewRisks(repoId, target, next);
+      setRisks(anchored);
+      setSelected(new Set(anchored.map((r) => r.id)));
+    } catch (err) {
+      setError(errorText(t, err));
+    }
+  };
 
   const showImpact = async (target: Target) => {
     setNoMap(false);
     try {
-      ctx.openScene(await fetchPullImpact(repoId, target), 'changes');
+      const next = await fetchPullImpact(repoId, target);
+      ctx.openScene(next, 'changes');
+      await loadRisks(target, next);
     } catch (err) {
       if (err instanceof ApiError && err.status === NOT_FOUND && err.code === 'no_system_map') setNoMap(true);
       else setError(errorText(t, err));
@@ -47,6 +71,9 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
   const open = async (target: Target) => {
     setError(null);
     setExplanation(null);
+    setScene(null);
+    setRisks(null);
+    setPosted(null);
     setLoading(target);
     try {
       setOpened({ target, detail: target === BRANCH ? null : await fetchPull(repoId, target) });
@@ -65,10 +92,30 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
       const result = await explainPull(repoId, opened.target);
       ctx.openScene(result.scene, 'changes');
       setExplanation(result.text);
+      await loadRisks(opened.target, result.scene);
     } catch (err) {
       setError(errorText(t, err));
     } finally {
       setExplaining(false);
+    }
+  };
+  const toggle = (id: string) =>
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const comment = async () => {
+    if (!opened || opened.target === BRANCH || !scene || selected.size === 0) return;
+    setPosting(true);
+    setError(null);
+    try {
+      setPosted(await postReview(repoId, opened.target, scene, [...selected]));
+    } catch (err) {
+      setError(errorText(t, err));
+    } finally {
+      setPosting(false);
     }
   };
   const openExternal = (url: string) => {
@@ -96,6 +143,39 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
         {noMap && <p className="chat-notice" data-testid="pull-no-map">{t('pulls.noMap')}</p>}
         {error && <p className="alert error" role="alert">{error}</p>}
         {explanation && <div className="pull-body" data-testid="pull-explanation"><Markdown text={explanation} /></div>}
+        {pull && scene && (
+          <div data-testid="pull-risks">
+            <div className="sec-title">{t('pulls.risks')}</div>
+            {risks && risks.length === 0 && <p className="muted" data-testid="pull-risks-empty">{t('pulls.risksEmpty')}</p>}
+            {risks && risks.length > 0 && (
+              <>
+                <p className="muted">{t('pulls.risksHint')}</p>
+                <ul className="pull-files">
+                  {risks.map((r) => (
+                    <li key={r.id} className={`pull-file is-${r.severity}`} data-testid={`pull-risk-${r.id}`}>
+                      <label className="row" style={{ gap: 8, alignItems: 'flex-start' }}>
+                        <input type="checkbox" data-testid={`pull-risk-check-${r.id}`} checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
+                        <span>
+                          <span className="pull-file-status">{r.severity} · {r.category}</span> <b>{r.title}</b>
+                          <div className="muted" data-testid={`pull-risk-anchor-${r.id}`}>{r.anchor ? `${r.anchor.path}:${r.anchor.line}` : t('pulls.inSummary')}{r.pieces.length ? ` · ${r.pieces.join(', ')}` : ''}</div>
+                        </span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+                <div className="row">
+                  <button type="button" className="btn-primary btn-small" data-testid="pull-comment" disabled={posting || selected.size === 0} onClick={() => void comment()}>{posting ? t('pulls.commenting') : t('pulls.comment')}</button>
+                </div>
+              </>
+            )}
+            {posted && (
+              <p className="alert ok" data-testid="pull-review-posted">
+                {t('pulls.commented', { inline: posted.inline, summary: posted.summary })}{' '}
+                <button type="button" className="btn btn-small" data-testid="pull-review-open" onClick={() => openExternal(posted.url)}>{t('pulls.openReview')} ↗</button>
+              </p>
+            )}
+          </div>
+        )}
         {pull?.body && <div className="pull-body"><Markdown text={pull.body} /></div>}
         <div className="sec-title">{t('pulls.changedFiles')}</div>
         <ul className="pull-files">

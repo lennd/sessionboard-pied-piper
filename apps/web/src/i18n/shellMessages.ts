@@ -331,6 +331,15 @@ export const shellEn = {
   'errors.no_remote': 'This folder has no git remote.',
   'errors.gh_failed': 'GitHub could not be reached.',
   'errors.no_branch_changes': 'The current branch has no commits beyond its base.',
+  'pulls.risks': 'Risks to comment',
+  'pulls.risksHint': 'Each selected risk becomes a comment on the exact line of the pull request; risks outside the diff go into the review summary.',
+  'pulls.risksEmpty': 'The scene has no risks yet. Explain the pull request to find them.',
+  'pulls.inSummary': 'summary',
+  'pulls.comment': 'Comment on the pull request',
+  'pulls.commenting': 'Posting the review…',
+  'pulls.commented': 'Review posted: {inline} inline, {summary} in the summary.',
+  'pulls.openReview': 'Open the review',
+  'errors.unknown_risk': 'None of the selected risks exist in the scene.',
 } as const;
 
 export type ShellKey = keyof typeof shellEn;
@@ -669,6 +678,15 @@ export const shellEs: ShellCatalog = {
   'errors.no_remote': 'Esta carpeta no tiene remote de git.',
   'errors.gh_failed': 'No se pudo llegar a GitHub.',
   'errors.no_branch_changes': 'La rama actual no tiene commits más allá de su base.',
+  'pulls.risks': 'Risks para comentar',
+  'pulls.risksHint': 'Cada risk seleccionado se publica como comentario en la línea exacta del pull request; los que caen fuera del diff van al resumen del review.',
+  'pulls.risksEmpty': 'La escena todavía no tiene risks. Explicá el pull request para encontrarlos.',
+  'pulls.inSummary': 'resumen',
+  'pulls.comment': 'Comentar en el pull request',
+  'pulls.commenting': 'Publicando el review…',
+  'pulls.commented': 'Review publicado: {inline} en línea, {summary} en el resumen.',
+  'pulls.openReview': 'Abrir el review',
+  'errors.unknown_risk': 'Ninguno de los risks seleccionados existe en la escena.',
 };
 
 export const shellPt: ShellCatalog = {
@@ -1004,4 +1022,13 @@ export const shellPt: ShellCatalog = {
   'errors.no_remote': 'Esta pasta não tem remote do git.',
   'errors.gh_failed': 'Não foi possível acessar o GitHub.',
   'errors.no_branch_changes': 'O branch atual não tem commits além da base.',
+  'pulls.risks': 'Riscos para comentar',
+  'pulls.risksHint': 'Cada risco selecionado vira um comentário na linha exata do pull request; os que ficam fora do diff vão para o resumo do review.',
+  'pulls.risksEmpty': 'A cena ainda não tem riscos. Explique o pull request para encontrá-los.',
+  'pulls.inSummary': 'resumo',
+  'pulls.comment': 'Comentar no pull request',
+  'pulls.commenting': 'Publicando o review…',
+  'pulls.commented': 'Review publicado: {inline} em linha, {summary} no resumo.',
+  'pulls.openReview': 'Abrir o review',
+  'errors.unknown_risk': 'Nenhum dos riscos selecionados existe na cena.',
 };

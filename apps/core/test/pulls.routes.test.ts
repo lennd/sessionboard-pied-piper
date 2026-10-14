@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { execFileSync } from 'node:child_process';
-import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
@@ -45,6 +46,7 @@ JSON
 ${DIFF}
 DIFF
   ;;
+  "api --method POST repos/{owner}/{repo}/pulls/7/reviews --input -") cat > "$(dirname "$0")/review.json"; echo '{"id": 55, "html_url": "https://github.com/acme/x/pull/7#pullrequestreview-55"}';;
   *) echo "no pull requests found" >&2; exit 1;;
 esac`;
   await writeFile(script, `#!/bin/sh\n${body}\n`);
@@ -118,6 +120,39 @@ describe('pull requests', () => {
     expect(explained.statusCode).toBe(201);
     expect(explained.json().scene.id).toBe('impact-pr-7-explained');
     expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/impact/explain`, payload: { pull: 'branch' } })).json().scene.id).toBe('impact-branch-explained');
+  });
+
+  it('anchors the risks of an impact scene to the pull request diff and posts them as a review', async () => {
+    const scene = {
+      ...fakeScene('en', 'Impact', 'impact'),
+      nodes: [
+        { id: 'api', label: 'API', role: 'compute', kind: 'k', summary: 's', code: { repo: 'r', path: 'apps/core/src/app.ts', startLine: 1, endLine: 1, language: 'ts' }, change: 'modified' },
+        { id: 'web', label: 'Web', role: 'actor', kind: 'k', summary: 's' },
+      ],
+      edges: [], steps: [],
+      risks: [
+        { id: 'r1', title: 'Breaks callers', category: 'reliability', severity: 'high', explanation: 'The handler changed.', mitigation: 'Run the suite.', nodeIds: ['api'] },
+        { id: 'r2', title: 'Unclear', category: 'complexity', severity: 'low', explanation: 'No code.', nodeIds: ['web'] },
+      ],
+    };
+    const preview = await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/risks`, payload: { scene } });
+    expect(preview.json().risks).toEqual([
+      expect.objectContaining({ id: 'r1', anchor: { path: 'apps/core/src/app.ts', line: 1 }, pieces: ['API'] }),
+      expect.objectContaining({ id: 'r2', anchor: null }),
+    ]);
+    const posted = await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/review`, payload: { scene, riskIds: ['r1', 'r2'], intro: 'Please check these.' } });
+    expect(posted.statusCode).toBe(201);
+    expect(posted.json()).toEqual({ id: 55, url: 'https://github.com/acme/x/pull/7#pullrequestreview-55', inline: 1, summary: 1 });
+    const sent = JSON.parse(await readFile(join(dirname(bin), 'review.json'), 'utf8'));
+    expect(sent.event).toBe('COMMENT');
+    expect(sent.body.startsWith('Please check these.')).toBe(true);
+    expect(sent.body).toContain('Unclear');
+    expect(sent.comments).toEqual([expect.objectContaining({ path: 'apps/core/src/app.ts', line: 1, side: 'RIGHT' })]);
+    expect(sent.comments[0].body).toContain('Breaks callers');
+    expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/review`, payload: { scene, riskIds: ['zz'] } })).statusCode).toBe(404);
+    expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/risks`, payload: { scene: { id: 'bad' } } })).statusCode).toBe(404);
+    const explained = (await app.inject({ method: 'POST', url: `/api/repos/${repoId}/impact/explain`, payload: { pull: 7 } })).json();
+    expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/risks`, payload: { sceneId: explained.id } })).json().risks).toHaveLength(1);
   });
 
   it('reports why pull requests are unavailable instead of failing', async () => {

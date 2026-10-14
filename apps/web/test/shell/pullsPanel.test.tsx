@@ -21,6 +21,8 @@ const mockApi = (options: { available?: boolean; reason?: string; branch?: typeo
       return impact(p.includes('/branch/') ? 'impact-branch' : 'impact-pr-7') as never;
     }
     if (p.endsWith('/impact/explain') && init?.method === 'POST') return { scene: impact('impact-pr-7-explained'), text: 'The **store** is rewritten.' } as never;
+    if (p.endsWith('/pulls/7/risks') && init?.method === 'POST') return { risks: [{ id: 'r1', title: 'Breaks callers', severity: 'high', category: 'reliability', pieces: ['API'], anchor: { path: 'src/a.ts', line: 12 } }, { id: 'r2', title: 'Unclear', severity: 'low', category: 'complexity', pieces: [], anchor: null }] } as never;
+    if (p.endsWith('/pulls/7/review') && init?.method === 'POST') return { id: 55, url: 'https://github.com/acme/x/pull/7#pullrequestreview-55', inline: 1, summary: 0 } as never;
     throw new Error(`unexpected ${p}`);
   });
 
@@ -66,6 +68,23 @@ describe('PullsPanel', () => {
     expect(window.rdi.openExternal).toHaveBeenCalledWith(pull.url);
     fireEvent.click(screen.getByTestId('pull-back'));
     expect(screen.getByTestId('pulls-panel')).toBeInTheDocument();
+  });
+
+  it('previews the risks anchored to the diff and posts the selected ones as a review', async () => {
+    mockApi();
+    render();
+    fireEvent.click(await screen.findByTestId('pull-7'));
+    expect(await screen.findByTestId('pull-risk-r1')).toHaveTextContent('high · reliability');
+    expect(screen.getByTestId('pull-risk-anchor-r1')).toHaveTextContent('src/a.ts:12 · API');
+    expect(screen.getByTestId('pull-risk-anchor-r2')).toHaveTextContent('summary');
+    expect(api).toHaveBeenCalledWith('/repos/r1/pulls/7/risks', { method: 'POST', body: { scene: expect.objectContaining({ id: 'impact-pr-7' }) } });
+    fireEvent.click(screen.getByTestId('pull-risk-check-r2'));
+    fireEvent.click(screen.getByTestId('pull-comment'));
+    expect(await screen.findByTestId('pull-review-posted')).toHaveTextContent('1 inline, 0 in the summary');
+    expect(api).toHaveBeenCalledWith('/repos/r1/pulls/7/review', { method: 'POST', body: { scene: expect.objectContaining({ id: 'impact-pr-7' }), riskIds: ['r1'] } });
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    fireEvent.click(screen.getByTestId('pull-review-open'));
+    expect(open).toHaveBeenCalledWith('https://github.com/acme/x/pull/7#pullrequestreview-55', '_blank', 'noopener,noreferrer');
   });
 
   it('opens the current branch comparison and asks to draw the map when there is none', async () => {

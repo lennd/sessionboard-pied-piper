@@ -31,13 +31,20 @@ const classify = (error: unknown): GhFailure => {
   return new GhFailure('gh_failed', stderr.trim().split('\n')[0]);
 };
 
-const gh = async (bin: string, cwd: string, args: string[]): Promise<string> => {
+const gh = async (bin: string, cwd: string, args: string[], stdin?: string): Promise<string> => {
   try {
-    return (await run(bin, args, { cwd, maxBuffer: MAX_BUFFER, env: { ...process.env, GH_PROMPT_DISABLED: '1', NO_COLOR: '1' } })).stdout;
+    const child = run(bin, args, { cwd, maxBuffer: MAX_BUFFER, env: { ...process.env, GH_PROMPT_DISABLED: '1', NO_COLOR: '1' } });
+    if (stdin !== undefined) {
+      child.child.stdin?.end(stdin);
+    }
+    return (await child).stdout;
   } catch (error) {
     throw classify(error);
   }
 };
+
+export type ReviewComment = { path: string; line: number; side: 'RIGHT' | 'LEFT'; body: string };
+export type ReviewResult = { id: number; url: string };
 
 const summary = (p: RawPull): PullSummary => ({
   number: p.number, title: p.title, author: p.author?.login ?? '', draft: p.isDraft, headRef: p.headRefName, baseRef: p.baseRefName, updatedAt: p.updatedAt, url: p.url,
@@ -73,6 +80,12 @@ export const createGh = (bin: string) => ({
     return pulls;
   },
   pullDiff: async (cwd: string, number: number, maxBytes = MAX_DIFF_BYTES): Promise<string> => clipDiff(await gh(bin, cwd, ['pr', 'diff', String(number)]), maxBytes),
+  /** Posts one COMMENT review with inline comments through the GitHub REST API (gh resolves {owner}/{repo}). */
+  createReview: async (cwd: string, number: number, review: { body: string; comments: ReviewComment[] }): Promise<ReviewResult> => {
+    const out = await gh(bin, cwd, ['api', '--method', 'POST', `repos/{owner}/{repo}/pulls/${number}/reviews`, '--input', '-'], JSON.stringify({ event: 'COMMENT', ...review }));
+    const parsed = JSON.parse(out) as { id: number; html_url: string };
+    return { id: parsed.id, url: parsed.html_url };
+  },
   pullDetail: async (cwd: string, number: number): Promise<PullDetail> => {
     const raw = JSON.parse(await gh(bin, cwd, ['pr', 'view', String(number), '--json', VIEW_FIELDS])) as RawPull & { body: string; files: { path: string; additions: number; deletions: number }[] };
     const statuses = diffStatuses(await gh(bin, cwd, ['pr', 'diff', String(number)]));
