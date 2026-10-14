@@ -1,4 +1,4 @@
-# Pied Pieper
+# Pied Piper
 
 A local desktop companion for Claude Code. It draws the map of a repository and
 shows, without reading code, which pieces a change touches, what depends on them

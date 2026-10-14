@@ -46,7 +46,7 @@ describe('PreferencesPage', () => {
     api.mockResolvedValue(prefsFixture({ theme: 'paper' }) as never);
     inSettings(<PreferencesPage />, prefsFixture({ uiLanguage: 'es' }));
     expect(screen.getByTestId('pref-ui-es')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('pref-theme-default')).toHaveTextContent('Default (Mission');
+    expect(screen.getByTestId('pref-theme-default')).toHaveTextContent('Default (Piper');
     fireEvent.click(screen.getByTestId('pref-theme-paper'));
     await waitFor(() => expect(api).toHaveBeenCalledWith('/prefs', { method: 'PATCH', body: { theme: 'paper' } }));
   });

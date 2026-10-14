@@ -26,7 +26,7 @@ export const PreferencesPage = () => {
         <Segmented<UiLanguage | null> testid="pref-explanation" value={prefs.explanationLanguage} options={withDefault(UI_LANGUAGES, (l) => t(`language.${l}`), t(`language.${prefs.uiLanguage ?? language}`))} onChange={(explanationLanguage) => updatePrefs.mutate({ explanationLanguage })} />
       </div>
       <div className="field"><span className="field-label">{t('prefs.theme')}</span>
-        <Segmented<ThemeId | null> testid="pref-theme" value={prefs.theme} options={withDefault(THEMES, (th) => t(`theme.${th}`), t('theme.mission'))} onChange={(theme) => updatePrefs.mutate({ theme })} />
+        <Segmented<ThemeId | null> testid="pref-theme" value={prefs.theme} options={withDefault(THEMES, (th) => t(`theme.${th}`), t('theme.piper'))} onChange={(theme) => updatePrefs.mutate({ theme })} />
       </div>
       <div className="field"><span className="field-label">{t('prefs.level')}</span>
         <Segmented<Level | null> testid="pref-level" value={prefs.initialLevel} options={withDefault(LEVELS, (l) => t(`level.${l}`), t('level.architecture'))} onChange={(initialLevel) => updatePrefs.mutate({ initialLevel })} />

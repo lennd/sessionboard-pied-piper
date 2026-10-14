@@ -10,7 +10,7 @@ describe('preference precedence', () => {
     expect(effectiveExplanationLanguage(prefsFixture({ uiLanguage: 'es' }), 'en')).toBe('es');
     expect(effectiveExplanationLanguage(undefined, 'es')).toBe('es');
     expect(effectiveTheme(prefsFixture({ theme: 'paper' }))).toBe('paper');
-    expect(effectiveTheme(undefined)).toBe('mission');
+    expect(effectiveTheme(undefined)).toBe('piper');
     expect(effectiveLevel(prefsFixture({ initialLevel: 'detail' }))).toBe('detail');
     expect(effectiveLevel(prefsFixture())).toBe('architecture');
   });

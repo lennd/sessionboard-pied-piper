@@ -25,7 +25,7 @@ export const buildMcpServer = (ctx: McpContext): McpServer => {
   const deps = () => ({ dir: ctx.dir, events: ctx.events, now: ctx.now() });
 
   server.registerTool('list_solutions', {
-    description: 'List the Solutions of this repository (planned changes designed in Pied Pieper).',
+    description: 'List the Solutions of this repository (planned changes designed in Pied Piper).',
     inputSchema: { status: z.enum(SOLUTION_STATUSES).optional() },
   }, async ({ status }) => text((await listSummaries(ctx.dir)).filter((s) => !status || s.status === status)));
 
@@ -50,7 +50,7 @@ export const buildMcpServer = (ctx: McpContext): McpServer => {
   });
 
   server.registerTool('get_system_map', {
-    description: 'Get the architecture map of the repository as last drawn by Pied Pieper: pieces with their code locations and the edges between them.',
+    description: 'Get the architecture map of the repository as last drawn by Pied Piper: pieces with their code locations and the edges between them.',
     inputSchema: {},
   }, async () => {
     const map = await ctx.systemMap();

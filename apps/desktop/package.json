@@ -2,7 +2,7 @@
   "name": "@rdi/desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Pied Pieper \u2014 local companion for Claude Code",
+  "description": "Pied Piper \u2014 local companion for Claude Code",
   "main": "dist/main.cjs",
   "scripts": {
     "build:main": "esbuild src/main.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/main.cjs && esbuild src/preload.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/preload.cjs",
@@ -20,8 +20,8 @@
     "esbuild": "^0.27.0"
   },
   "build": {
-    "appId": "dev.piedpieper.app",
-    "productName": "Pied Pieper",
+    "appId": "dev.piedpiper.app",
+    "productName": "Pied Piper",
     "directories": {
       "output": "release"
     },
@@ -50,5 +50,5 @@
     },
     "electronVersion": "41.10.7"
   },
-  "author": "Pied Pieper"
+  "author": "Pied Piper"
 }

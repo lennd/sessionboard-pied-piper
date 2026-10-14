@@ -40,11 +40,10 @@ export const ReposPage = () => {
     <AuroraBackground soft>
       <div className="shell">
         <header className="shell-top">
-          <AnimatedLogo size={28} />
-          <b>{t('app.name')}</b>
+          <AnimatedLogo size={30} />
           <span className="shell-spacer" />
         </header>
-        <main className="shell-content glass rise" style={{ gridColumn: '1 / -1' }}>
+        <main className="shell-content glass rise repos-main">
           <section>
             <h1>{t('repos.title')}</h1>
             <p className="shell-sub">{t('repos.subtitle')}</p>
@@ -58,7 +57,7 @@ export const ReposPage = () => {
             >
               <input className="input" data-testid="repos-path" aria-label={t('repos.path')} placeholder={t('repos.pathPlaceholder')} value={path} onChange={(e) => setPath(e.target.value)} style={{ flex: 1 }} />
               {bridge && <GhostButton data-testid="repos-browse" onClick={() => void browse()}>{t('repos.browse')}</GhostButton>}
-              <PrimaryButton type="submit" data-testid="repos-add" loading={add.isPending} disabled={!path.trim()}>{t('repos.add')}</PrimaryButton>
+              <PrimaryButton type="submit" className="btn-small" data-testid="repos-add" loading={add.isPending} disabled={!path.trim()}>{t('repos.add')}</PrimaryButton>
             </form>
             {error && <p className="alert error" role="alert" data-testid="repos-error">{error}</p>}
             {repos.data && repos.data.length === 0 && <p className="alert ok" data-testid="repos-empty">{t('repos.empty')}</p>}

@@ -12,8 +12,8 @@ const wrap = (ui: React.ReactElement) => render(<I18nProvider initialLanguage="e
 describe('Aurora components', () => {
   it('renders the animated logo with the product name', () => {
     wrap(<AnimatedLogo />);
-    expect(screen.getByTestId('animated-logo')).toHaveTextContent('Pied Pieper');
-    expect(screen.getByTestId('animated-logo').querySelectorAll('circle.nd')).toHaveLength(3);
+    expect(screen.getByTestId('animated-logo')).toHaveTextContent('pied piper');
+    expect(screen.getByTestId('animated-logo').querySelectorAll('circle.note')).toHaveLength(3);
   });
 
   it('renders the background layers and children', () => {

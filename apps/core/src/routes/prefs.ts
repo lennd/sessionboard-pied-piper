@@ -5,7 +5,7 @@ import type { AppDeps } from '../http/deps';
 import { readPrefs, updatePrefs } from '../store/prefs';
 
 const LANGUAGES = ['en', 'es', 'pt'] as const;
-const THEMES = ['mission', 'studio', 'paper', 'contrast'] as const;
+const THEMES = ['piper', 'mission', 'studio', 'paper', 'contrast'] as const;
 const patchBody = z.object({
   uiLanguage: z.enum(LANGUAGES).nullable().optional(),
   explanationLanguage: z.enum(LANGUAGES).nullable().optional(),

@@ -1,15 +1,15 @@
 import { applyTheme, resolveTheme, THEMES, themeTokens } from '../src/theme/themes';
 
 describe('themes', () => {
-  it('resolves user preference, then org default, then mission', () => {
+  it('resolves user preference, then org default, then piper', () => {
     expect(resolveTheme('paper', 'studio')).toBe('paper');
     expect(resolveTheme(null, 'studio')).toBe('studio');
-    expect(resolveTheme('neon', undefined)).toBe('mission');
-    expect(resolveTheme()).toBe('mission');
+    expect(resolveTheme('neon', undefined)).toBe('piper');
+    expect(resolveTheme()).toBe('piper');
   });
 
   it('defines every token for every theme', () => {
-    const keys = Object.keys(themeTokens.mission).sort();
+    const keys = Object.keys(themeTokens.piper).sort();
     THEMES.forEach((id) => expect(Object.keys(themeTokens[id]).sort()).toEqual(keys));
     expect(keys).toHaveLength(14);
   });

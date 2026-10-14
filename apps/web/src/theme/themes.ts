@@ -1,4 +1,4 @@
-export const THEMES = ['mission', 'studio', 'paper', 'contrast'] as const;
+export const THEMES = ['piper', 'mission', 'studio', 'paper', 'contrast'] as const;
 export type ThemeId = (typeof THEMES)[number];
 export const THEME_STORAGE_KEY = 'rdi.theme';
 
@@ -11,6 +11,11 @@ const SANS = 'Inter, system-ui, -apple-system, sans-serif';
 const LIGHT_THEMES = new Set<ThemeId>(['paper']);
 
 export const themeTokens: Record<ThemeId, Record<ThemeToken, string>> = {
+  piper: {
+    '--bg': '#07482b', '--panel': '#0b5a35', '--grid': '#0a5030', '--line': '#2f8f5c', '--text': '#f3fbf6', '--muted': '#a9ddbe',
+    '--accent': '#ffffff', '--token': '#cdefd9', '--ok': '#7be7a5', '--strained': '#f5d90a', '--limit': '#ffb13b', '--saturated': '#ff5c6c',
+    '--font': SANS, '--radius': '10px',
+  },
   mission: {
     '--bg': '#05070b', '--panel': '#07120e', '--grid': '#0a1410', '--line': '#1d5a4a', '--text': '#d7fbe8', '--muted': '#5f9a85',
     '--accent': '#2dffa6', '--token': '#ffffff', '--ok': '#2dffa6', '--strained': '#f5d90a', '--limit': '#ff8a1f', '--saturated': '#ff3b5c',
@@ -39,7 +44,7 @@ const isTheme = (value: string | null | undefined): value is ThemeId =>
 export const resolveTheme = (user?: string | null, org?: string | null): ThemeId => {
   if (isTheme(user)) return user;
   if (isTheme(org)) return org;
-  return 'mission';
+  return 'piper';
 };
 
 export const applyTheme = (element: HTMLElement, theme: ThemeId): void => {

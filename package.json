@@ -1,5 +1,5 @@
 {
-  "name": "pied-pieper",
+  "name": "pied-piper",
   "private": true,
   "packageManager": "npm@11.13.0",
   "workspaces": [
