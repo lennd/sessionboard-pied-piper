@@ -4,7 +4,10 @@ import { fail, isUuid } from '../http/fail';
 import { nowOf, type AppDeps } from '../http/deps';
 import { requireRepo } from '../http/repo';
 import { mcpUrl } from '../mcp/route';
-import { solutionDetail } from '../solutions/service';
+import { runFeaturePrompt } from '../agent/prompt';
+import { requireScope } from '../http/scope';
+import { findRepo, repoDir as repoRdiDir } from '../store/repos';
+import { listSummaries, solutionDetail } from '../solutions/service';
 import { repoDir } from '../store/repos';
 import { readToolkit } from '../store/toolkit';
 
@@ -25,6 +28,23 @@ export const runRoutes = (api: FastifyInstance, deps: AppDeps) => {
   });
 
   api.get('/repos/:repoId/runs', { preHandler: withRepo }, async (req) => deps.runs.list(req.repo!.id));
+
+  /** Implements the tasks of one repository of a feature plan; progress flows back through the feature's MCP endpoint. */
+  api.post('/features/:featureId/repos/:repoId/run', { preHandler: [requireScope(deps)] }, async (req, reply) => {
+    const scope = req.scope!;
+    const { repoId } = req.params as { repoId: string };
+    const repo = scope.feature?.repoIds.includes(repoId) ? await findRepo(deps.config.home, repoId) : null;
+    if (!repo) return fail(reply, 404, 'repo_not_found');
+    const [plan] = await listSummaries(scope.dir);
+    if (!plan) return fail(reply, 404, 'no_plan');
+    if (!deps.queryFn) return fail(reply, 409, 'agent_not_configured');
+    const toolkit = await readToolkit(repoRdiDir(repo));
+    const started = deps.runs.start({ repoId: repo.id, repoPath: repo.path, solutionId: plan.id, featureId: scope.id, queryFn: deps.queryFn, agent: deps.config.agent, mcpHttpUrl: scope.mcpUrl, now: () => nowOf(deps), toolkit, prompt: runFeaturePrompt(scope.id, plan.id, repo.name, toolkit) });
+    if ('error' in started) return fail(reply, 409, started.error);
+    return reply.code(201).send(started);
+  });
+
+  api.get('/features/:featureId/runs', { preHandler: [requireScope(deps)] }, async (req) => deps.runs.listByFeature(req.scope!.id));
 
   api.get('/repos/:repoId/runs/:runId', { preHandler: withRepo }, async (req, reply) => {
     const { runId } = req.params as { runId: string };

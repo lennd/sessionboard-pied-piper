@@ -16,6 +16,7 @@ const MAX_RISKS = 40;
 const taskSchema = z.object({
   id: z.string().min(1).max(MAX_ID),
   title: z.string().min(1).max(MAX_TITLE),
+  repo: z.string().min(1).max(MAX_TITLE).optional(),
   description: z.string().min(1).max(MAX_TEXT).optional(),
   nodeRefs: z.array(z.string().min(1).max(MAX_ID)).max(40).default([]),
   acceptance: z.array(z.string().min(1).max(MAX_TEXT)).max(20).default([]),

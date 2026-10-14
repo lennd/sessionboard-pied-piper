@@ -9,7 +9,7 @@ const MAX_MAP_PIECES = 25;
 
 export const SYSTEM_PROMPT = [
   'You are the guide inside Pied Piper, a desktop companion where people understand a software repository and the changes made to it without reading code.',
-  'Only help with the repository open in the current working directory: understanding or reviewing what exists, explaining changes, and planning changes to it. If a message asks for anything else, reply in one sentence that you can only help with this repository, and stop.',
+  'Only help with the repositories you were given (the current working directory and any additional directories listed in the prompt): understanding or reviewing what exists, explaining changes, and planning changes to them. If a message asks for anything else, reply in one sentence that you can only help with these repositories, and stop.',
   '',
   'How to work:',
   '- Ground every claim in the files of the repository. Explore with Glob, Grep and Read; use git (log, diff, show) when the question is about changes. Never modify files.',
@@ -57,9 +57,10 @@ export const toolkitBlock = (toolkit: string): string =>
       ].join('\n')
     : '';
 
-export const chatPrompt = (question: string, options: { language: string; focus?: { label: string; graphRef: string } | null; mode?: ChatMode; rules?: string[]; toolkit?: string }): string =>
+export const chatPrompt = (question: string, options: { language: string; focus?: { label: string; graphRef: string } | null; mode?: ChatMode; rules?: string[]; toolkit?: string; context?: string }): string =>
   [
     languageLine(options.language),
+    ...(options.context?.trim() ? [options.context.trim()] : []),
     MODE_DIRECTIVES[options.mode ?? 'analyze'],
     ...(options.rules && options.rules.length > 0 ? [rulesBlock(options.rules)] : []),
     ...(options.toolkit?.trim() ? [toolkitBlock(options.toolkit)] : []),
@@ -105,4 +106,14 @@ export const runSolutionPrompt = (solutionId: string, toolkit = ''): string =>
     `Use the rdi MCP server: call get_solution with id ${solutionId}, then implement the plan task by task in this repository.`,
     'Call report_task_progress with in_progress when you start a task and done (with a short note such as the files changed or the commit) when it is finished; call it with blocked and the reason if you cannot complete a task.',
     'Call update_solution if the plan must change. Run the tests that cover what you changed before marking a task done. Do not commit unless a task explicitly asks for it.',
+  ].join('\n\n');
+
+/** Asks Claude Code to implement the tasks of ONE repository inside a cross-repository feature plan. */
+export const runFeaturePrompt = (featureId: string, solutionId: string, repoName: string, toolkit = ''): string =>
+  [
+    RUN_MARKER,
+    ...(toolkit.trim() ? [toolkitBlock(toolkit)] : []),
+    `You are working inside the repository "${repoName}", which is part of a feature that spans several repositories. Use the rdi MCP server: call get_solution with id ${solutionId} to read the plan.`,
+    `Implement only the tasks whose repo is "${repoName}", in an order that respects dependsOn. A task that depends on a task of another repository can start only when that task is done; if it is not, call report_task_progress with blocked and the reason, and continue with the tasks that do not depend on it.`,
+    'Call report_task_progress with in_progress when you start a task and done (with a short note such as the files changed) when it is finished. Call update_solution if the plan must change. Run the tests that cover what you changed before marking a task done. Do not commit unless a task explicitly asks for it.',
   ].join('\n\n');

@@ -8,7 +8,8 @@ import type { ToolContext } from '../agent/tools';
 import { gitInfo } from '../git/git';
 import { fail, isUuid } from '../http/fail';
 import { nowOf, type AppDeps } from '../http/deps';
-import { requireRepo } from '../http/repo';
+import { requireScope, type Scope } from '../http/scope';
+import { featureContext } from '../agent/featureContext';
 import { createFromDraft, proposeVersion, updateMeta } from '../solutions/service';
 import {
   appendMessages, createConversation, DEFAULT_CONVERSATION_TITLE, findConversation, listConversations, recordRun, renameConversation, totalUsage, type ConversationSummary, type StoredMessage,
@@ -16,7 +17,7 @@ import {
 import { readPrefs } from '../store/prefs';
 import { readRules, ruleLines } from '../store/rules';
 import { readToolkit } from '../store/toolkit';
-import { repoDir, type RepoEntry } from '../store/repos';
+import { repoDir } from '../store/repos';
 import { findScene, insertScene, listConversationScenes, readSystemMap, SYSTEM_MAP_ID, writeSystemMap } from '../store/scenes';
 
 const TITLE_LENGTH = 60;
@@ -72,13 +73,15 @@ const openSse = (reply: FastifyReply, heartbeatMs: number) => {
   return { send, end, signal: controller.signal };
 };
 
-export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
-  const withRepo = [requireRepo(deps)];
+/** Chat, scenes and system map for one scope; mounted once per prefix (`/repos/:repoId`, `/features/:featureId`). */
+export const agentRoutes = (api: FastifyInstance, deps: AppDeps, prefix = '/repos/:repoId') => {
+  const withRepo = [requireScope(deps)];
+  const url = (path: string) => `${prefix}${path}`;
   const languageFor = async (requested?: string) => requested ?? (await readPrefs(deps.config.home)).explanationLanguage ?? (await readPrefs(deps.config.home)).uiLanguage ?? DEFAULT_LANGUAGE;
 
   const ownConversation = async (req: FastifyRequest, reply: FastifyReply) => {
     const { id } = req.params as { id: string };
-    const conversation = isUuid(id) ? await findConversation(repoDir(req.repo!), id) : null;
+    const conversation = isUuid(id) ? await findConversation(req.scope!.dir, id) : null;
     if (!conversation) {
       fail(reply, 404, 'not_found');
       return null;
@@ -86,9 +89,9 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
     return conversation;
   };
 
-  const toolContext = (repo: RepoEntry, conversationId: string | null): ToolContext => ({
+  const toolContext = (scope: Scope, conversationId: string | null): ToolContext => ({
     upsertSolution: async ({ solutionId, title, draft }) => {
-      const dir = repoDir(repo);
+      const dir = scope.dir;
       const now = nowOf(deps);
       if (solutionId) {
         const { n } = await proposeVersion({ dir, events: deps.events, now }, { solutionId, author: 'web', input: draft });
@@ -100,35 +103,42 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
     },
   });
 
-  api.get('/repos/:repoId/agent', { preHandler: withRepo }, async (req) => ({
+  api.get(url('/agent'), { preHandler: withRepo }, async (req) => ({
     enabled: deps.queryFn !== null,
     model: deps.config.agent.fake ? 'fake-scripted' : deps.config.agent.model ?? 'default',
-    usage: await totalUsage(repoDir(req.repo!)),
+    usage: await totalUsage(req.scope!.dir),
   }));
 
-  api.get('/repos/:repoId/conversations', { preHandler: withRepo }, async (req) => (await listConversations(repoDir(req.repo!))).map(publicConversation));
+  api.get(url('/conversations'), { preHandler: withRepo }, async (req) => (await listConversations(req.scope!.dir)).map(publicConversation));
 
-  api.post('/repos/:repoId/conversations', { preHandler: withRepo }, async (req, reply) =>
-    reply.code(201).send(publicConversation(await createConversation(repoDir(req.repo!), nowOf(deps)))));
+  api.post(url('/conversations'), { preHandler: withRepo }, async (req, reply) =>
+    reply.code(201).send(publicConversation(await createConversation(req.scope!.dir, nowOf(deps)))));
 
-  api.get('/repos/:repoId/conversations/:id', { preHandler: withRepo }, async (req, reply) => {
+  api.get(url('/conversations/:id'), { preHandler: withRepo }, async (req, reply) => {
     const conversation = await ownConversation(req, reply);
     if (!conversation) return reply;
     const { items } = itemsOf(conversation.messages);
-    const scenes = (await listConversationScenes(repoDir(req.repo!), conversation.id)).map((s) => ({ id: s.id, turn: s.turn, scene: s.scene }));
+    const scenes = (await listConversationScenes(req.scope!.dir, conversation.id)).map((s) => ({ id: s.id, turn: s.turn, scene: s.scene }));
     return { ...publicConversation(conversation), items, scenes, usage: conversation.usage };
   });
 
-  api.post('/repos/:repoId/conversations/:id/messages', { preHandler: withRepo }, async (req, reply) => {
+  api.post(url('/conversations/:id/messages'), { preHandler: withRepo }, async (req, reply) => {
     const body = askBody.parse(req.body);
     const conversation = await ownConversation(req, reply);
     if (!conversation) return reply;
     if (!deps.queryFn) return fail(reply, 409, 'agent_not_configured');
-    const repo = req.repo!;
-    const dir = repoDir(repo);
+    const scope = req.scope!;
+    if (scope.roots.length === 0) return fail(reply, 409, 'no_repositories');
+    const dir = scope.dir;
     const turn = itemsOf(conversation.messages).turns + 1;
     const language = await languageFor(body.language);
-    const prompt = chatPrompt(body.text, { language, focus: body.focus ?? null, mode: body.mode, rules: ruleLines(await readRules(dir)), toolkit: await readToolkit(dir) });
+    const repoRdi = scope.kind === 'repo' ? scope.dir : null;
+    const prompt = chatPrompt(body.text, {
+      language, focus: body.focus ?? null, mode: body.mode,
+      rules: repoRdi ? ruleLines(await readRules(repoRdi)) : [],
+      toolkit: repoRdi ? await readToolkit(repoRdi) : '',
+      context: scope.kind === 'feature' && scope.feature ? await featureContext(scope.feature, scope.roots) : undefined,
+    });
     const { send, end, signal } = openSse(reply, deps.config.agent.heartbeatMs);
     const sceneIds: string[] = [];
     const emit = async (event: AgentEvent) => {
@@ -143,7 +153,7 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
     };
     let usage = { input: 0, output: 0, costUsd: 0 };
     try {
-      const result = await runAgent(deps.queryFn, { cwd: repo.path, prompt, mode: body.mode, resume: conversation.sdkSessionId, signal, agent: deps.config.agent, ctx: toolContext(repo, conversation.id), emit });
+      const result = await runAgent(deps.queryFn, { cwd: scope.roots[0]!.path, roots: scope.roots, prompt, mode: body.mode, resume: conversation.sdkSessionId, signal, agent: deps.config.agent, ctx: toolContext(scope, conversation.id), emit });
       usage = result.usage;
       const answer: StoredMessage[] = result.text ? [{ role: 'assistant', content: [{ type: 'text', text: result.text }] }] : [];
       await appendMessages(dir, conversation.id, nowOf(deps), [{ role: 'user', content: body.text }, ...answer]);
@@ -158,6 +168,8 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
     }
     return reply;
   });
+
+  if (prefix !== '/repos/:repoId') return;
 
   api.get('/repos/:repoId/system-map', { preHandler: withRepo }, async (req, reply) => {
     const repo = req.repo!;
@@ -179,7 +191,7 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
     });
     const result = await runAgent(deps.queryFn, {
       cwd: repo.path, prompt: systemMapPrompt(await languageFor(body.language), repo.name), mode: 'map', signal: controller.signal, agent: deps.config.agent,
-      ctx: toolContext(repo, null), emit: () => undefined,
+      ctx: toolContext(req.scope!, null), emit: () => undefined,
     });
     const scene = result.scenes.at(-1);
     if (!scene) return fail(reply, 502, result.errorCode === 'aborted' ? 'aborted' : 'map_failed', { usage: result.usage });

@@ -9,8 +9,8 @@ export type RunEvent =
   | { type: 'permission'; id: string; tool: string; input: Record<string, unknown>; description: string | null }
   | { type: 'permission_resolved'; id: string; allow: boolean }
   | { type: 'status'; status: RunStatus; message?: string };
-export type Run = { id: string; repoId: string; solutionId: string; status: RunStatus; startedAt: string; endedAt: string | null; sdkSessionId: string | null; usage: RunUsage; events: RunEvent[]; pending: string[] };
-export type StartInput = { repoId: string; repoPath: string; solutionId: string; queryFn: QueryFn; agent: Config['agent']; mcpHttpUrl: string; now: () => Date; toolkit?: string };
+export type Run = { id: string; repoId: string; featureId: string | null; solutionId: string; status: RunStatus; startedAt: string; endedAt: string | null; sdkSessionId: string | null; usage: RunUsage; events: RunEvent[]; pending: string[] };
+export type StartInput = { repoId: string; repoPath: string; solutionId: string; queryFn: QueryFn; agent: Config['agent']; mcpHttpUrl: string; now: () => Date; toolkit?: string; prompt?: string; featureId?: string };
 
 const DENIED_MESSAGE = 'The user denied this action in Pied Piper.';
 const CANCELLED_MESSAGE = 'The run was stopped by the user.';
@@ -49,7 +49,7 @@ export const createRunRegistry = () => {
     if ([...live.values()].some((e) => e.run.repoId === input.repoId && e.run.status === 'running')) return { error: 'already_running' };
     prune(input.repoId);
     const controller = new AbortController();
-    const run: Run = { id: randomUUID(), repoId: input.repoId, solutionId: input.solutionId, status: 'running', startedAt: input.now().toISOString(), endedAt: null, sdkSessionId: null, usage: { input: 0, output: 0, costUsd: 0 }, events: [], pending: [] };
+    const run: Run = { id: randomUUID(), repoId: input.repoId, featureId: input.featureId ?? null, solutionId: input.solutionId, status: 'running', startedAt: input.now().toISOString(), endedAt: null, sdkSessionId: null, usage: { input: 0, output: 0, costUsd: 0 }, events: [], pending: [] };
     const entry: Live = { run, controller, resolvers: new Map(), listeners: new Set() };
     live.set(run.id, entry);
     emit(entry, { type: 'status', status: 'running' });
@@ -72,7 +72,7 @@ export const createRunRegistry = () => {
         emit(entry, { type: 'permission', id, tool, input: toolInput, description: options.description ?? null });
       });
     void runAgent(input.queryFn, {
-      cwd: input.repoPath, prompt: runSolutionPrompt(input.solutionId, input.toolkit ?? ''), mode: 'run', signal: controller.signal, agent: input.agent, mcpHttpUrl: input.mcpHttpUrl, canUseTool,
+      cwd: input.repoPath, prompt: input.prompt ?? runSolutionPrompt(input.solutionId, input.toolkit ?? ''), mode: 'run', signal: controller.signal, agent: input.agent, mcpHttpUrl: input.mcpHttpUrl, canUseTool,
       ctx: { upsertSolution: async () => { throw new Error('not available while running'); } },
       emit: (event) => emit(entry, event),
     })
@@ -90,6 +90,7 @@ export const createRunRegistry = () => {
     start,
     get: (id: string): Run | null => live.get(id)?.run ?? null,
     list: (repoId: string): Omit<Run, 'events'>[] => [...live.values()].filter((e) => e.run.repoId === repoId).map(publicRun).sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
+    listByFeature: (featureId: string): Omit<Run, 'events'>[] => [...live.values()].filter((e) => e.run.featureId === featureId).map(publicRun).sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
     subscribe: (id: string, listener: (event: RunEvent) => void): (() => void) | null => {
       const entry = live.get(id);
       if (!entry) return null;

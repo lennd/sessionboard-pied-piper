@@ -36,10 +36,17 @@ export const fakeScene = (language: string, title: string, id = nextId('scene'))
   risks: [{ id: 'r1', title: 'Unbounded files', category: 'performance', severity: 'low', explanation: 'Scenes accumulate on disk.', nodeIds: ['store'], mitigation: 'Prune old scenes.' }],
 });
 
-const fakeDraft = (language: string) => {
+const basename = (path: string) => path.split('/').filter(Boolean).pop() ?? path;
+
+/** One task per readable root, so cross-repository plans look like the real thing. */
+const fakeDraft = (language: string, roots: string[]) => {
+  const names = roots.map(basename);
   const current = fakeScene(language, 'Current', 'current');
-  const proposed = { ...fakeScene(language, 'Proposed', 'proposed'), nodes: fakeScene(language, 'Proposed', 'proposed').nodes.map((n) => (n.id === 'store' ? { ...n, change: 'modified' } : n)) };
-  return { summary: 'Scripted solution.', sceneCurrent: current, sceneProposed: proposed, plan: [{ id: 't1', title: 'Change the store', nodeRefs: ['store'], acceptance: ['Scenes are pruned'] }], risks: [] };
+  const proposed = { ...fakeScene(language, 'Proposed', 'proposed'), nodes: fakeScene(language, 'Proposed', 'proposed').nodes.map((n, i) => ({ ...n, ...(n.id === 'store' ? { change: 'modified' } : {}), ...(names.length > 1 ? { repo: names[i % names.length] } : {}) })) };
+  const plan = names.length > 1
+    ? names.map((name, i) => ({ id: `t${i + 1}`, title: `Change ${name}`, repo: name, nodeRefs: ['store'], acceptance: [`${name} updated`], ...(i > 0 ? { dependsOn: [`t${i}`] } : {}) }))
+    : [{ id: 't1', title: 'Change the store', nodeRefs: ['store'], acceptance: ['Scenes are pruned'] }];
+  return { summary: 'Scripted solution.', sceneCurrent: current, sceneProposed: proposed, plan, risks: [] };
 };
 
 const session = () => `${FAKE_SESSION_PREFIX}${nextId('s')}`;
@@ -97,7 +104,8 @@ export const createFakeQuery = (): QueryFn => (params, local) => {
     const question = questionOf(params.prompt);
     yield assistant(sessionId, [{ type: 'text', text: `Looking at "${question}". ` }]);
     yield* useTool('emit_scene', fakeScene(language, `About ${question}`));
-    if (MODE_PLAN.test(params.prompt)) yield* useTool('upsert_solution', { title: `Solution for ${question}`, ...fakeDraft(language) });
+    const roots = [params.options.cwd ?? '', ...(params.options.additionalDirectories ?? [])].filter(Boolean);
+    if (MODE_PLAN.test(params.prompt)) yield* useTool('upsert_solution', { title: `Solution for ${question}`, ...fakeDraft(language, roots) });
     yield assistant(sessionId, [{ type: 'text', text: 'Scripted answer.' }]);
     yield result(sessionId, 'Scripted answer.');
   };

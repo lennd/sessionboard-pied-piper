@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chatPrompt, explainPrompt, MAP_MARKER, questionOf, rulesBlock, runSolutionPrompt, SYSTEM_PROMPT, systemMapPrompt, toolkitBlock } from '../../src/agent/prompt';
+import { chatPrompt, explainPrompt, MAP_MARKER, questionOf, rulesBlock, runFeaturePrompt, runSolutionPrompt, SYSTEM_PROMPT, systemMapPrompt, toolkitBlock } from '../../src/agent/prompt';
 
 describe('SYSTEM_PROMPT', () => {
   it('explains the product, the tools and the scene vocabulary for a local repository', () => {
@@ -63,5 +63,16 @@ describe('toolkit', () => {
     expect(runSolutionPrompt('sol', toolkit)).toContain('npm run test:unit');
     expect(runSolutionPrompt('sol')).not.toContain('Tooling for this repository');
     expect(chatPrompt('q', { language: 'en', toolkit })).toContain('claude plugin install devflow');
+  });
+});
+
+describe('features', () => {
+  it('prepends the feature context to chat prompts and scopes runs to one repository', () => {
+    expect(chatPrompt('q', { language: 'en', context: 'Repositories:\n- api → /w/api' })).toContain('Repositories:');
+    const run = runFeaturePrompt('f1', 'sol', 'shop-web', 'npm test');
+    expect(run).toContain('Implement only the tasks whose repo is "shop-web"');
+    expect(run).toContain('get_solution with id sol');
+    expect(run).toContain('blocked');
+    expect(run).toContain('npm test');
   });
 });

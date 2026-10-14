@@ -1,6 +1,7 @@
 import { createSdkMcpServer, query, tool, type CanUseTool, type Options, type SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { Scene } from '@rdi/scene';
 import { isAbsolute, relative, sep } from 'node:path';
+import type { Root } from '../http/scope';
 import type { Config } from '../config';
 import { SYSTEM_PROMPT } from './prompt';
 import { executeTool, MCP_SERVER_NAME, mcpToolName, TOOL_DESCRIPTIONS, TOOL_NAMES, TOOL_SHAPES, type ToolContext, type ToolOutcome } from './tools';
@@ -42,19 +43,30 @@ export const toolSummary = (name: string, input: unknown): string => {
   return clip(first ? `${name} ${first}` : name);
 };
 
-/** Rewrites absolute code paths under the repository as repository-relative ones, which is what the change overlay matches on. */
-export const relativizeScene = (scene: Scene, cwd: string): Scene => ({
-  ...scene,
-  nodes: scene.nodes.map((n) => {
-    if (!n.code || !isAbsolute(n.code.path)) return n;
-    const rel = relative(cwd, n.code.path);
-    return rel && !rel.startsWith('..') && !isAbsolute(rel) ? { ...n, code: { ...n.code, path: rel.split(sep).join('/') } } : n;
-  }),
-});
+const under = (root: string, file: string): string | null => {
+  const rel = relative(root, file);
+  return rel && !rel.startsWith('..') && !isAbsolute(rel) ? rel.split(sep).join('/') : null;
+};
+
+/** Rewrites absolute code paths under any of the roots as root-relative ones and names the root in code.repo, which is what the change overlay and the code drawer match on. */
+export const relativizeScene = (scene: Scene, roots: Root[] | string): Scene => {
+  const list: Root[] = typeof roots === 'string' ? [{ id: '', name: '', path: roots }] : roots;
+  return {
+    ...scene,
+    nodes: scene.nodes.map((n) => {
+      if (!n.code || !isAbsolute(n.code.path)) return n;
+      for (const root of list) {
+        const rel = under(root.path, n.code.path);
+        if (rel) return { ...n, code: { ...n.code, path: rel, ...(root.name ? { repo: root.name } : {}) }, ...(root.name && list.length > 1 ? { repo: root.name } : {}) };
+      }
+      return n;
+    }),
+  };
+};
 
 const toCallResult = (outcome: ToolOutcome) => ({ content: [{ type: 'text' as const, text: outcome.content }], ...(outcome.isError ? { isError: true } : {}) });
 
-export type BuildInput = { cwd: string; mode: RunMode; resume?: string | null; agent: Config['agent']; abortController: AbortController; local: LocalTools; canUseTool?: CanUseTool; mcpHttpUrl?: string };
+export type BuildInput = { cwd: string; additionalDirectories?: string[]; mode: RunMode; resume?: string | null; agent: Config['agent']; abortController: AbortController; local: LocalTools; canUseTool?: CanUseTool; mcpHttpUrl?: string };
 
 /** Run mode implements a Solution: edits are pre-approved, every other tool goes through `canUseTool`, and the Solutions MCP is reached over HTTP. */
 export const buildOptions = (input: BuildInput): Options => {
@@ -64,6 +76,7 @@ export const buildOptions = (input: BuildInput): Options => {
   const mcpServers: Options['mcpServers'] = run && input.mcpHttpUrl ? { [MCP_SERVER_NAME]: { type: 'http', url: input.mcpHttpUrl } } : { [MCP_SERVER_NAME]: createSdkMcpServer({ name: MCP_SERVER_NAME, tools }) };
   return {
     cwd: input.cwd,
+    ...(input.additionalDirectories && input.additionalDirectories.length > 0 ? { additionalDirectories: input.additionalDirectories } : {}),
     abortController: input.abortController,
     permissionMode: run ? 'default' : 'dontAsk',
     allowedTools: allowed,
@@ -86,8 +99,11 @@ const ERROR_BY_SUBTYPE: Record<string, ErrorCode> = { error_max_turns: 'max_iter
 
 export const runAgent = async (
   queryFn: QueryFn,
-  input: { cwd: string; prompt: string; mode: RunMode; resume?: string | null; signal?: AbortSignal; agent: Config['agent']; ctx: ToolContext; emit: (event: AgentEvent) => void | Promise<void>; canUseTool?: CanUseTool; mcpHttpUrl?: string },
+  input: { cwd: string; roots?: Root[]; prompt: string; mode: RunMode; resume?: string | null; signal?: AbortSignal; agent: Config['agent']; ctx: ToolContext; emit: (event: AgentEvent) => void | Promise<void>; canUseTool?: CanUseTool; mcpHttpUrl?: string },
 ): Promise<RunResult> => {
+  const roots: Root[] = input.roots && input.roots.length > 0 ? input.roots : [{ id: '', name: '', path: input.cwd }];
+  const cwd = roots[0]!.path;
+  const additionalDirectories = roots.slice(1).map((r) => r.path);
   const scenes: Scene[] = [];
   const usage: RunUsage = { input: 0, output: 0, costUsd: 0 };
   const toolNames = new Map<string, string>();
@@ -96,7 +112,7 @@ export const runAgent = async (
   const local: LocalTools = {
     call: async (name, args) => {
       const raw = await executeTool(name, args, input.ctx);
-      const outcome = raw.scene ? { ...raw, scene: relativizeScene(raw.scene, input.cwd) } : raw;
+      const outcome = raw.scene ? { ...raw, scene: relativizeScene(raw.scene, roots) } : raw;
       if (outcome.scene) {
         scenes.push(outcome.scene);
         await input.emit({ type: 'scene', scene: outcome.scene });
@@ -113,7 +129,7 @@ export const runAgent = async (
     return { sessionId, scenes, text: texts.join(''), usage, stop: 'error', errorCode: code };
   };
 
-  const options = buildOptions({ cwd: input.cwd, mode: input.mode, resume: input.resume, agent: input.agent, abortController, local, canUseTool: input.canUseTool, mcpHttpUrl: input.mcpHttpUrl });
+  const options = buildOptions({ cwd, additionalDirectories, mode: input.mode, resume: input.resume, agent: input.agent, abortController, local, canUseTool: input.canUseTool, mcpHttpUrl: input.mcpHttpUrl });
   let stream: QueryLike;
   try {
     stream = queryFn({ prompt: input.prompt, options }, local);

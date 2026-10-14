@@ -59,6 +59,17 @@ describe('runAgent', () => {
     expect(events.filter((e) => e.type === 'error').map((e) => (e as { code: string }).code)).toEqual(['max_iterations', 'llm_error', 'aborted']);
   });
 
+  it('relativizes against several roots and names the root in code.repo', () => {
+    const scene = sampleRegistry['iot-telemetry']!;
+    const a = { ...scene.nodes[0]!, code: { repo: 'x', path: '/w/api/src/a.ts', startLine: 1, endLine: 2, language: 'ts' } };
+    const b = { ...scene.nodes[1]!, code: { repo: 'x', path: '/w/web/src/b.tsx', startLine: 1, endLine: 2, language: 'ts' } };
+    const result = relativizeScene({ ...scene, nodes: [a, b, ...scene.nodes.slice(2)] }, [{ id: '1', name: 'api', path: '/w/api' }, { id: '2', name: 'web', path: '/w/web' }]);
+    expect(result.nodes[0]).toMatchObject({ repo: 'api', code: { path: 'src/a.ts', repo: 'api' } });
+    expect(result.nodes[1]).toMatchObject({ repo: 'web', code: { path: 'src/b.tsx', repo: 'web' } });
+    const options = buildOptions({ cwd: '/w/api', additionalDirectories: ['/w/web'], mode: 'plan', agent: agentConfig, abortController: new AbortController(), local: { call: async () => ({ content: '', summary: '' }) } });
+    expect(options.additionalDirectories).toEqual(['/w/web']);
+  });
+
   it('makes absolute code paths inside the repository relative', () => {
     const scene = sampleRegistry['iot-telemetry']!;
     const node = { ...scene.nodes[0]!, code: { repo: 'r', path: '/repo/src/a.ts', startLine: 1, endLine: 2, language: 'ts' } };
