@@ -340,6 +340,14 @@ export const shellEn = {
   'pulls.commented': 'Review posted: {inline} inline, {summary} in the summary.',
   'pulls.openReview': 'Open the review',
   'errors.unknown_risk': 'None of the selected risks exist in the scene.',
+  'nav.rules': 'Rules',
+  'rules.title': 'Validation rules',
+  'rules.subtitle': 'One rule per line, in plain language. Claude checks them on every explained change and reports each break as a risk titled "Rule: …", which you can comment on the pull request at the exact line. They are saved in .rdi/rules.md inside the repository, so you can share them with the team.',
+  'rules.placeholder': 'Every endpoint validates its body with a schema\nNo raw SQL in request handlers\nNew tables need an org_id column\nPublic API response shapes never change without a version',
+  'rules.count': '{count} rules',
+  'rules.save': 'Save',
+  'rules.saved': 'Rules saved.',
+  'rules.hint': 'Lines starting with # are comments.',
 } as const;
 
 export type ShellKey = keyof typeof shellEn;
@@ -687,6 +695,14 @@ export const shellEs: ShellCatalog = {
   'pulls.commented': 'Review publicado: {inline} en línea, {summary} en el resumen.',
   'pulls.openReview': 'Abrir el review',
   'errors.unknown_risk': 'Ninguno de los risks seleccionados existe en la escena.',
+  'nav.rules': 'Reglas',
+  'rules.title': 'Reglas de validación',
+  'rules.subtitle': 'Una regla por línea, en lenguaje natural. Claude las revisa en cada cambio que explica y reporta cada incumplimiento como un risk titulado "Rule: …", que podés comentar en el pull request en la línea exacta. Se guardan en .rdi/rules.md dentro del repositorio, así las compartís con el equipo.',
+  'rules.placeholder': 'Todo endpoint valida su body con un schema\nNada de SQL crudo en handlers\nLas tablas nuevas llevan columna org_id\nLos shapes de la API pública no cambian sin versión',
+  'rules.count': '{count} reglas',
+  'rules.save': 'Guardar',
+  'rules.saved': 'Reglas guardadas.',
+  'rules.hint': 'Las líneas que empiezan con # son comentarios.',
 };
 
 export const shellPt: ShellCatalog = {
@@ -1031,4 +1047,12 @@ export const shellPt: ShellCatalog = {
   'pulls.commented': 'Review publicado: {inline} em linha, {summary} no resumo.',
   'pulls.openReview': 'Abrir o review',
   'errors.unknown_risk': 'Nenhum dos riscos selecionados existe na cena.',
+  'nav.rules': 'Regras',
+  'rules.title': 'Regras de validação',
+  'rules.subtitle': 'Uma regra por linha, em linguagem natural. O Claude as verifica em cada alteração explicada e reporta cada violação como um risco intitulado "Rule: …", que você pode comentar no pull request na linha exata. Ficam salvas em .rdi/rules.md dentro do repositório, para compartilhar com o time.',
+  'rules.placeholder': 'Todo endpoint valida o body com um schema\nNada de SQL cru em handlers\nTabelas novas precisam de coluna org_id\nOs shapes da API pública não mudam sem versão',
+  'rules.count': '{count} regras',
+  'rules.save': 'Salvar',
+  'rules.saved': 'Regras salvas.',
+  'rules.hint': 'Linhas que começam com # são comentários.',
 };

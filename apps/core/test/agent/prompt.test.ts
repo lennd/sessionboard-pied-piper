@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chatPrompt, MAP_MARKER, questionOf, SYSTEM_PROMPT, systemMapPrompt } from '../../src/agent/prompt';
+import { chatPrompt, explainPrompt, MAP_MARKER, questionOf, rulesBlock, SYSTEM_PROMPT, systemMapPrompt } from '../../src/agent/prompt';
 
 describe('SYSTEM_PROMPT', () => {
   it('explains the product, the tools and the scene vocabulary for a local repository', () => {
@@ -40,5 +40,17 @@ describe('systemMapPrompt', () => {
     expect(prompt).toContain('Portuguese');
     expect(prompt).toContain('code reference');
     expect(prompt).toContain('"system-map"');
+  });
+});
+
+describe('team rules', () => {
+  it('adds the rules to chat and explain prompts and asks for "Rule:" risks', () => {
+    expect(rulesBlock([])).toBe('');
+    const chat = chatPrompt('q', { language: 'en', rules: ['No raw SQL in handlers'] });
+    expect(chat).toContain('title starts with "Rule:"');
+    expect(chat).toContain('- No raw SQL in handlers');
+    expect(chatPrompt('q', { language: 'en', rules: [] })).not.toContain('Rule:');
+    const explain = explainPrompt({ language: 'en', repoName: 'r', source: 's', touched: [], diff: '', systemMap: null, rules: ['Every endpoint validates its body'] });
+    expect(explain).toContain('- Every endpoint validates its body');
   });
 });

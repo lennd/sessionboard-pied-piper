@@ -139,3 +139,13 @@ describe('runs', () => {
     expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/runs/zzz/cancel` })).statusCode).toBe(404);
   });
 });
+
+describe('rules', () => {
+  it('stores the team rules next to the scenes and counts the real lines', async () => {
+    expect((await app.inject({ method: 'GET', url: `/api/repos/${repoId}/rules` })).json()).toEqual({ text: '', count: 0 });
+    const saved = await app.inject({ method: 'PUT', url: `/api/repos/${repoId}/rules`, payload: { text: '# Security\r\n- No raw SQL in handlers\r\n\r\n2. Every endpoint validates its body\n   ' } });
+    expect(saved.json()).toEqual({ text: '# Security\n- No raw SQL in handlers\n\n2. Every endpoint validates its body', count: 2 });
+    expect((await app.inject({ method: 'GET', url: `/api/repos/${repoId}/rules` })).json().count).toBe(2);
+    expect((await app.inject({ method: 'PUT', url: `/api/repos/${repoId}/rules`, payload: { text: 'x'.repeat(30000) } })).statusCode).toBe(400);
+  });
+});

@@ -42,10 +42,17 @@ export const MODE_DIRECTIVES: Record<ChatMode, string> = {
 const languageLine = (language: string) => `Respond in ${languageName(language)} (${language}). Scene titles, labels, summaries and narration must be in that language.`;
 
 /** The text sent to the agent for one chat question. */
-export const chatPrompt = (question: string, options: { language: string; focus?: { label: string; graphRef: string } | null; mode?: ChatMode }): string =>
+/** The team's own validation rules, phrased so every risk that matches one names it. */
+export const rulesBlock = (rules: string[]): string =>
+  rules.length === 0
+    ? ''
+    : ['The team wants these rules checked on every change; when a change breaks or risks one of them, add a risk whose title starts with "Rule:" followed by the rule, pointing at the piece where it happens:', ...rules.map((r) => `- ${r}`)].join('\n');
+
+export const chatPrompt = (question: string, options: { language: string; focus?: { label: string; graphRef: string } | null; mode?: ChatMode; rules?: string[] }): string =>
   [
     languageLine(options.language),
     MODE_DIRECTIVES[options.mode ?? 'analyze'],
+    ...(options.rules && options.rules.length > 0 ? [rulesBlock(options.rules)] : []),
     ...(options.focus ? [`The user is looking at "${options.focus.label}" (piece id ${options.focus.graphRef}).`] : []),
     question,
   ].join('\n\n');
@@ -68,10 +75,11 @@ export const questionOf = (message: { role: string; content: unknown }): string 
 };
 
 /** Asks for an impact scene of a set of changes: changed pieces marked, dependants shown, risks listed. */
-export const explainPrompt = (input: { language: string; repoName: string; source: string; touched: { path: string; change: string }[]; diff: string; systemMap: unknown | null }): string =>
+export const explainPrompt = (input: { language: string; repoName: string; source: string; touched: { path: string; change: string }[]; diff: string; systemMap: unknown | null; rules?: string[] }): string =>
   [
     EXPLAIN_MARKER,
     languageLine(input.language),
+    rulesBlock(input.rules ?? []),
     `Explain the impact of the changes made to the repository "${input.repoName}" (${input.source}).`,
     `Changed files:\n${input.touched.map((t) => `- ${t.path} (${t.change})`).join('\n') || '- (none detected)'}`,
     input.systemMap ? `The architecture map of the repository, drawn earlier (reuse its piece ids and code paths where they apply):\n${JSON.stringify(input.systemMap)}` : '',

@@ -4,7 +4,7 @@ export class ApiError extends Error {
   }
 }
 
-type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 const NO_CONTENT = 204;
 
 export const apiFetch = async <T>(path: string, init: { method?: Method; body?: unknown } = {}): Promise<T> => {

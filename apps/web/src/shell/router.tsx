@@ -4,6 +4,7 @@ import { ExplorePage } from './pages/ExplorePage';
 import { ReposPage } from './pages/ReposPage';
 import { SolutionPage } from './pages/SolutionPage';
 import { PreferencesPage } from './settings/PreferencesPage';
+import { RulesPage } from './settings/RulesPage';
 import { SettingsLayout } from './settings/SettingsLayout';
 import { SolutionsPage } from './settings/SolutionsPage';
 
@@ -20,6 +21,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="preferences" replace /> },
           { path: 'preferences', element: <PreferencesPage /> },
+          { path: 'rules', element: <RulesPage /> },
           { path: 'solutions', element: <SolutionsPage /> },
         ],
       },

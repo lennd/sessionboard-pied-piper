@@ -9,6 +9,7 @@ import { codeRoutes } from './routes/code';
 import { prefsRoutes } from './routes/prefs';
 import { pullRoutes } from './routes/pulls';
 import { repoRoutes } from './routes/repos';
+import { rulesRoutes } from './routes/rules';
 import { runRoutes } from './routes/runs';
 import { sessionRoutes } from './routes/sessions';
 import { solutionRoutes } from './routes/solutions';
@@ -40,6 +41,7 @@ export const buildApp = (deps: AppDeps): FastifyInstance => {
       sessionRoutes(api, deps);
       runRoutes(api, deps);
       pullRoutes(api, deps);
+      rulesRoutes(api, deps);
     },
     { prefix: API_PREFIX },
   );

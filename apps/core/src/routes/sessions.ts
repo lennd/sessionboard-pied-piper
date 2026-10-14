@@ -12,6 +12,7 @@ import { overlayChanges } from '../impact/overlay';
 import { createSessionParser, touchedFiles, type TouchedFile } from '../observer/parse';
 import { listSessions, readSession, tailSession } from '../observer/transcripts';
 import { readPrefs } from '../store/prefs';
+import { readRules, ruleLines } from '../store/rules';
 import { repoDir, type RepoEntry } from '../store/repos';
 import { insertScene, readSystemMap } from '../store/scenes';
 
@@ -125,7 +126,7 @@ export const sessionRoutes = (api: FastifyInstance, deps: AppDeps) => {
     }
     const prefs = await readPrefs(deps.config.home);
     const language = body.language ?? prefs.explanationLanguage ?? prefs.uiLanguage ?? DEFAULT_LANGUAGE;
-    const prompt = explainPrompt({ language, repoName: repo.name, source, touched, diff, systemMap: await currentMap(repo) });
+    const prompt = explainPrompt({ language, repoName: repo.name, source, touched, diff, systemMap: await currentMap(repo), rules: ruleLines(await readRules(repoDir(repo))) });
     const controller = new AbortController();
     reply.raw.on('close', () => {
       if (!reply.raw.writableFinished) controller.abort();
