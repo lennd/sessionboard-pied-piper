@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useI18n } from '../../i18n/I18nProvider';
 import type { MessageKey } from '../../i18n/messages';
 import type { ChatContext } from '../../workspace/Workspace';
+import { beginActivity } from '../../components/activity';
 import { ApiError } from '../api';
 import { Markdown } from '../chat/Markdown';
 import { desktop } from '../desktop';
@@ -88,6 +89,7 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
     if (!opened) return;
     setExplaining(true);
     setError(null);
+    const end = beginActivity(t('busy.explain'));
     try {
       const result = await explainPull(repoId, opened.target);
       ctx.openScene(result.scene, 'changes');
@@ -96,6 +98,7 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
     } catch (err) {
       setError(errorText(t, err));
     } finally {
+      end();
       setExplaining(false);
     }
   };

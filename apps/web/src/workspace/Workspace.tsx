@@ -13,6 +13,7 @@ import { frameAt } from './engine/frame';
 import { stepPhase } from './engine/phase';
 import { resequenceCursor } from './engine/resequence';
 import { risksByNode } from './engine/risks';
+import { BusyOverlay } from './panels/BusyOverlay';
 import { CodeDrawer, type CodeRef } from './panels/CodeDrawer';
 import { ExplorerPanel } from './panels/ExplorerPanel';
 import { Footer } from './panels/Footer';
@@ -151,6 +152,7 @@ export const Workspace = ({ chat, panels, initialPanel, loadCode, extraScenes = 
             onSelectRisk={(id) => dispatchRaw({ type: 'selectRisk', riskId: id })}
           />
           {codeNode && <CodeDrawer node={codeNode} loadCode={loadCode} onClose={() => dispatchRaw({ type: 'closeCode' })} />}
+          <BusyOverlay />
         </main>
         <Inspector
           frame={frame} selectedNode={selectedNode} risksForNode={selectedNode ? byNode.get(selectedNode.id) ?? [] : []}

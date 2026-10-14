@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '../../i18n/I18nProvider';
+import { beginActivity, setActivityDetail } from '../../components/activity';
 import { Markdown } from '../chat/Markdown';
 import { errorText } from '../errors';
 import { cancelRun, decidePermission, permissionLabel, subscribeRun, type RunEvent, type RunStatus } from './runsApi';
@@ -17,6 +18,11 @@ export const RunView = ({ repoId, runId, onClose }: { repoId: string; runId: str
   const [pending, setPending] = useState<Pending[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (status !== 'running') return;
+    const end = beginActivity(t('busy.run'));
+    return end;
+  }, [status, t]);
   useEffect(
     () =>
       subscribeRun(repoId, runId, (event) => {
@@ -29,6 +35,7 @@ export const RunView = ({ repoId, runId, onClose }: { repoId: string; runId: str
             return last?.kind === 'text' ? [...current.slice(0, -1), { ...last, text: last.text + event.delta }] : [...current, { id: `text-${current.length}`, kind: 'text', text: event.delta }];
           });
         } else if (event.type === 'tool') {
+          if (event.status === 'running') setActivityDetail(event.summary);
           if (event.status === 'running') setLines((current) => [...current, toolLine(event)]);
           else setLines((current) => current.map((l) => (l.kind === 'tool' && l.status === 'running' && (l.text === event.summary || l.text.startsWith(event.name)) ? { ...l, status: event.status } : l)));
         } else if (event.type === 'error') {

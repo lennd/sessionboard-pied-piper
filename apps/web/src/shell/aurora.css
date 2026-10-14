@@ -1,5 +1,5 @@
-.aurora { --green: #0b6b3f; --green-deep: #074a2b; --green-leaf: #1b8a4f; --mint: #cdefd9; --mint-soft: #9fd9b7; --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  position: relative; min-height: 100vh; overflow: hidden; background: var(--green); color: #fff; font-family: Inter, system-ui, -apple-system, sans-serif; font-size: 14px; color-scheme: dark; }
+:root { --green: #0b6b3f; --green-deep: #074a2b; --green-leaf: #1b8a4f; --mint: #cdefd9; --mint-soft: #9fd9b7; --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; }
+.aurora { position: relative; min-height: 100vh; overflow: hidden; background: var(--green); color: #fff; font-family: Inter, system-ui, -apple-system, sans-serif; font-size: 14px; color-scheme: dark; }
 .aurora * { box-sizing: border-box; }
 .aurora-blob { position: absolute; border-radius: 50%; filter: blur(90px); pointer-events: none; }
 .aurora-blob.b1 { width: 560px; height: 560px; background: var(--green-leaf); opacity: .55; left: -160px; top: -200px; }

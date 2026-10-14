@@ -203,3 +203,15 @@ button, select, input { font: inherit; color: inherit; }
 
 .plan-repo-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; text-transform: none; font-size: 12px; letter-spacing: 0; color: var(--text); }
 .plan-repo-meta { display: inline-flex; align-items: center; gap: 6px; }
+
+.busy-overlay { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; background: color-mix(in srgb, var(--bg) 55%, transparent); backdrop-filter: blur(2px); z-index: 5; }
+.busy-card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 24px 32px; border-radius: 18px; background: color-mix(in srgb, var(--panel) 85%, transparent); border: 1px solid var(--line); text-align: center; }
+.busy-mark { display: inline-block; animation: busy-bob 2.4s ease-in-out infinite; }
+.busy-mark .piper-mark .ft { animation-duration: 1.4s; }
+.busy-mark .piper-mark .note { animation-duration: 1.6s; }
+.busy-word { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; font-size: 28px; font-weight: 600; letter-spacing: -.01em; color: var(--text); animation: busy-word-in .5s ease-out both; min-height: 34px; }
+.busy-label { color: var(--muted); font-size: 12px; }
+.busy-detail { color: var(--muted); font-size: 11px; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes busy-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes busy-word-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .busy-mark, .busy-word { animation: none; } }

@@ -5,6 +5,7 @@ import { Navigate, useParams } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nProvider';
 import type { CodeRef } from '../../workspace/panels/CodeDrawer';
 import { Workspace } from '../../workspace/Workspace';
+import { beginActivity } from '../../components/activity';
 import { ApiError, apiFetch } from '../api';
 import { ChatPanel } from '../chat/ChatPanel';
 import { Splash } from '../components/Splash';
@@ -50,7 +51,14 @@ export const ExplorePage = () => {
   const systemMap = useQuery({ queryKey: mapKey(repoId), queryFn: () => fetchSystemMap(repoId), staleTime: MAP_STALE_MS, retry: false, enabled: Boolean(repoId) });
   const explanationLanguage = effectiveExplanationLanguage(prefs, language);
   const generate = useMutation({
-    mutationFn: () => apiFetch<{ scene: unknown }>(`/repos/${repoId}/system-map`, { method: 'POST', body: { language: explanationLanguage } }),
+    mutationFn: async () => {
+      const end = beginActivity(t('busy.map'));
+      try {
+        return await apiFetch<{ scene: unknown }>(`/repos/${repoId}/system-map`, { method: 'POST', body: { language: explanationLanguage } });
+      } finally {
+        end();
+      }
+    },
     onSuccess: ({ scene }) => {
       client.setQueryData(mapKey(repoId), asScene(scene));
       void client.invalidateQueries({ queryKey: repoKey(repoId) });

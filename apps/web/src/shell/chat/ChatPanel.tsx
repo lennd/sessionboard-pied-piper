@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nProvider';
 import type { MessageKey } from '../../i18n/messages';
 import type { ChatContext, ChatMode } from '../../workspace/Workspace';
+import { beginActivity, setActivityDetail } from '../../components/activity';
 import { ApiError, apiFetch } from '../api';
 import { streamChat, type ChatEvent } from './chatApi';
 import { Markdown } from './Markdown';
@@ -95,6 +96,7 @@ export const ChatPanel = ({ base, ctx, language }: { base: string; ctx: ChatCont
     setBusy(true);
     setError(null);
     setDraft('');
+    const endActivity = beginActivity(t('busy.chat'));
     try {
       const existing = options.fresh ? null : conversationId;
       const id = existing ?? (await apiFetch<Summary>(`${base}/conversations`, { method: 'POST', body: {} })).id;
@@ -115,6 +117,7 @@ export const ChatPanel = ({ base, ctx, language }: { base: string; ctx: ChatCont
           setItems((current) => current.map((item, i) => (i === current.length - 1 ? { ...item, text: item.text + event.delta } : item)));
         } else if (event.type === 'tool') {
           setTool(event.status === 'running' ? event.summary : null);
+          setActivityDetail(event.status === 'running' ? event.summary : null);
         } else if (event.type === 'scene') {
           const result = validateScene(event.scene);
           if (!result.ok) return;
@@ -133,6 +136,7 @@ export const ChatPanel = ({ base, ctx, language }: { base: string; ctx: ChatCont
     } catch (err) {
       setError(err instanceof ApiError ? errorText(err.code) : t('errors.unknown'));
     } finally {
+      endActivity();
       setTool(null);
       setBusy(false);
     }

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useI18n } from '../../i18n/I18nProvider';
 import type { ChatContext } from '../../workspace/Workspace';
 import { PayloadDiff } from '../../workspace/panels/PayloadDiff';
+import { beginActivity } from '../../components/activity';
 import { ApiError } from '../api';
 import { Markdown } from '../chat/Markdown';
 import { errorText } from '../errors';
@@ -91,6 +92,7 @@ export const SessionsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContex
     if (!selected) return;
     setExplaining(true);
     setError(null);
+    const end = beginActivity(t('busy.explain'));
     try {
       const result = await explainChange(repoId, selected);
       ctx.openScene(result.scene, 'changes');
@@ -98,6 +100,7 @@ export const SessionsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContex
     } catch (err) {
       setError(errorText(t, err));
     } finally {
+      end();
       setExplaining(false);
     }
   };
