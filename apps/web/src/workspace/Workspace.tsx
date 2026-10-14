@@ -36,7 +36,7 @@ export type ChatContext = {
   pendingQuestion?: PendingQuestion | null;
   consumeQuestion?(id: number): void;
 };
-export type WorkspacePanel = { id: string; glyph: string; title: string; render: (ctx: ChatContext) => ReactNode };
+export type WorkspacePanel = { id: string; glyph: string; title: string; label?: string; render: (ctx: ChatContext) => ReactNode };
 
 type WorkspaceProps = { chat?: (ctx: ChatContext) => ReactNode; panels?: WorkspacePanel[]; initialPanel?: string; loadCode?: (code: CodeRef) => Promise<string>; extraScenes?: Scene[]; theme?: ThemeId; onTheme?: (theme: ThemeId) => void; onLanguage?: (language: UiLanguage) => void; initialLevel?: Level; homeHref?: string };
 
@@ -125,7 +125,7 @@ export const Workspace = ({ chat, panels, initialPanel, loadCode, extraScenes = 
     scene,
     selected: selectedNode?.graphRef ? { label: selectedNode.label, graphRef: selectedNode.graphRef } : null,
   };
-  const allPanels: WorkspacePanel[] = [...(chat ? [{ id: 'chat', glyph: '✦', title: t('chat.title'), render: chat }] : []), ...(panels ?? [])];
+  const allPanels: WorkspacePanel[] = [...(chat ? [{ id: 'chat', glyph: '✦', title: t('chat.title'), label: t('chat.short'), render: chat }] : []), ...(panels ?? [])];
 
   return (
     <div className="ws">
@@ -141,7 +141,7 @@ export const Workspace = ({ chat, panels, initialPanel, loadCode, extraScenes = 
           onSelectNode={(id) => dispatchRaw({ type: 'selectNode', nodeId: id })} onToggleExpand={(id) => dispatchRaw({ type: 'toggleExpand', nodeId: id })}
           onSeek={(i) => dispatchPlayer({ type: 'seek', stepIndex: i })} onToggleStep={(id) => dispatchRaw({ type: 'toggleStep', stepId: id })}
           onSelectRisk={(id) => dispatchRaw({ type: 'selectRisk', riskId: id })} onSetMode={(mode) => { setSidebar('explorer'); dispatchRaw({ type: 'setMode', mode }); }}
-          panels={allPanels.map((p) => ({ id: p.id, glyph: p.glyph, title: p.title, node: p.render(chatContext) }))} sidebar={sidebar} onSidebar={setSidebar}
+          panels={allPanels.map((p) => ({ id: p.id, glyph: p.glyph, title: p.title, label: p.label, node: p.render(chatContext) }))} sidebar={sidebar} onSidebar={setSidebar}
         />
         <main className="ws-canvas">
           <Canvas

@@ -233,7 +233,7 @@ export const shellEn = {
   'usage.agent': 'Agent budget',
   'usage.agentSoon': 'Available when the agent is connected',
   'prefs.title': 'Preferences',
-  'prefs.subtitle': 'Only for you. When unset, the organization default applies.',
+  'prefs.subtitle': 'Saved on this computer and applied to every repository.',
   'prefs.uiLanguage': 'UI language',
   'prefs.explanationLanguage': 'Explanation language',
   'prefs.theme': 'Workspace theme',
@@ -354,6 +354,7 @@ export const shellEn = {
   'toolkit.placeholder': 'If the /devflow skill is missing, install it: claude plugin install devflow@sessionboard\\nUnit tests: npm run test:unit -- --selectProjects unit\\nIntegration tests need Postgres: npm run infra:up first\\nLint only the touched files: npx eslint <files>\\nNever run db:migrate against production URLs',
   'toolkit.save': 'Save',
   'toolkit.saved': 'Harness saved.',
+  'chat.short': 'Chat',
 } as const;
 
 export type ShellKey = keyof typeof shellEn;
@@ -594,7 +595,7 @@ export const shellEs: ShellCatalog = {
   'usage.agent': 'Presupuesto del agente',
   'usage.agentSoon': 'Disponible cuando el agente esté conectado',
   'prefs.title': 'Preferencias',
-  'prefs.subtitle': 'Solo para vos. Si no elegís nada, se usa el default de la organización.',
+  'prefs.subtitle': 'Se guardan en esta computadora y aplican a todos los repositorios.',
   'prefs.uiLanguage': 'Idioma de la UI',
   'prefs.explanationLanguage': 'Idioma de las explicaciones',
   'prefs.theme': 'Tema del espacio de trabajo',
@@ -715,6 +716,7 @@ export const shellEs: ShellCatalog = {
   'toolkit.placeholder': 'Si falta el skill /devflow, instalalo: claude plugin install devflow@sessionboard\\nTests unitarios: npm run test:unit -- --selectProjects unit\\nLos tests de integración necesitan Postgres: antes npm run infra:up\\nLint solo de los archivos tocados: npx eslint <archivos>\\nNunca correr db:migrate contra URLs de producción',
   'toolkit.save': 'Guardar',
   'toolkit.saved': 'Harness guardado.',
+  'chat.short': 'Chat',
 };
 
 export const shellPt: ShellCatalog = {
@@ -952,7 +954,7 @@ export const shellPt: ShellCatalog = {
   'usage.agent': 'Orçamento do agente',
   'usage.agentSoon': 'Disponível quando o agente estiver conectado',
   'prefs.title': 'Preferências',
-  'prefs.subtitle': 'Somente para você. Sem escolha, vale o padrão da organização.',
+  'prefs.subtitle': 'Salvas neste computador e aplicadas a todos os repositórios.',
   'prefs.uiLanguage': 'Idioma da interface',
   'prefs.explanationLanguage': 'Idioma das explicações',
   'prefs.theme': 'Tema do espaço de trabalho',
@@ -1073,4 +1075,5 @@ export const shellPt: ShellCatalog = {
   'toolkit.placeholder': 'Se o skill /devflow faltar, instale: claude plugin install devflow@sessionboard\\nTestes unitários: npm run test:unit -- --selectProjects unit\\nTestes de integração precisam de Postgres: antes npm run infra:up\\nLint só dos arquivos alterados: npx eslint <arquivos>\\nNunca rode db:migrate contra URLs de produção',
   'toolkit.save': 'Salvar',
   'toolkit.saved': 'Harness salvo.',
+  'chat.short': 'Chat',
 };

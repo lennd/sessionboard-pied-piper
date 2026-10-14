@@ -8,10 +8,13 @@ button, select, input { font: inherit; color: inherit; }
 .ws-top { display: flex; align-items: center; gap: 12px; padding: 0 12px; border-bottom: 1px solid var(--line); min-width: 0; }
 .ws-title { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ws-spacer { flex: 1; }
-.ws-body { display: grid; grid-template-columns: 36px 260px minmax(0, 1fr) 320px; min-height: 0; }
-.ws-activity { border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 8px; }
-.ws-activity button { width: 28px; height: 28px; border: 0; background: transparent; color: var(--muted); cursor: pointer; border-radius: var(--radius); }
-.ws-activity button[aria-pressed='true'] { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.ws-body { display: grid; grid-template-columns: 92px 300px minmax(0, 1fr) 320px; min-height: 0; }
+.ws-activity { border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 6px; }
+.ws-activity button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 4px; border: 0; background: transparent; color: var(--muted); cursor: pointer; border-radius: var(--radius); font-size: 11px; line-height: 1.15; text-align: center; }
+.ws-activity button:hover { color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
+.ws-activity button[aria-pressed='true'] { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.activity-glyph { font-size: 18px; line-height: 1; }
+.activity-label { white-space: normal; }
 .ws-explorer { border-right: 1px solid var(--line); overflow: auto; }
 .ws-canvas { position: relative; min-width: 0; background: linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 22px, linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 22px 100%; }
 .ws-inspector { border-left: 1px solid var(--line); overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
@@ -121,7 +124,7 @@ button, select, input { font: inherit; color: inherit; }
   .piece { transition: none; }
 }
 
-.ws-body.chat-open { grid-template-columns: 36px 380px minmax(0, 1fr) 320px; }
+.ws-body.chat-open { grid-template-columns: 92px 420px minmax(0, 1fr) 320px; }
 .ws-chat { display: flex; flex-direction: column; overflow: hidden; }
 .chat { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .chat-head { display: flex; gap: 6px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--line); }

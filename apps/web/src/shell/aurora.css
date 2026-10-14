@@ -82,7 +82,7 @@
 .splash { display: grid; place-items: center; min-height: 100vh; }
 
 .shell { display: grid; grid-template-columns: 230px 1fr; grid-template-rows: 64px 1fr; min-height: 100vh; }
-.repos-main { grid-column: 1 / -1; max-width: 1080px; width: calc(100% - 48px); margin: 24px auto; }
+.repos-main { grid-column: 1 / -1; margin: 24px; }
 .row .btn-primary { width: auto; margin-top: 0; }
 .shell-top { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; padding: 0 24px; border-bottom: 1px solid rgba(255, 255, 255, .16); }
 .shell-top select { width: auto; padding: 7px 10px; }

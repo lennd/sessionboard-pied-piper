@@ -13,7 +13,7 @@ type ExplorerPanelProps = {
   numbering: Map<string, string>; byNode: Map<string, SceneRisk[]>;
   onSelectNode: (id: string) => void; onToggleExpand: (id: string) => void; onSeek: (index: number) => void;
   onToggleStep: (id: string) => void; onSelectRisk: (id: string) => void; onSetMode: (mode: Mode) => void;
-  panels?: { id: string; glyph: string; title: string; node: ReactNode }[]; sidebar?: string; onSidebar?: (sidebar: string) => void;
+  panels?: { id: string; glyph: string; title: string; label?: string; node: ReactNode }[]; sidebar?: string; onSidebar?: (sidebar: string) => void;
 };
 
 const ACTIVITY: { mode: Mode; glyph: string }[] = [
@@ -32,11 +32,15 @@ export const ExplorerPanel = (p: ExplorerPanelProps) => {
     <>
       <nav className="ws-activity" aria-label={t('explorer.title')}>
         {(p.panels ?? []).map((panel) => (
-          <button key={panel.id} type="button" data-testid={`activity-${panel.id}`} aria-pressed={sidebar === panel.id} title={panel.title} onClick={() => p.onSidebar?.(panel.id)}>{panel.glyph}</button>
+          <button key={panel.id} type="button" data-testid={`activity-${panel.id}`} aria-pressed={sidebar === panel.id} title={panel.title} onClick={() => p.onSidebar?.(panel.id)}>
+            <span className="activity-glyph">{panel.glyph}</span>
+            <span className="activity-label">{panel.label ?? panel.title}</span>
+          </button>
         ))}
         {ACTIVITY.filter(({ mode }) => availableModes(p.scene).includes(mode)).map(({ mode, glyph }) => (
           <button key={mode} type="button" data-testid={`activity-${mode}`} aria-pressed={sidebar === 'explorer' && p.explorer.mode === mode} title={t(`mode.${mode}`)} onClick={() => p.onSetMode(mode)}>
-            {glyph}
+            <span className="activity-glyph">{glyph}</span>
+            <span className="activity-label">{t(`mode.${mode}`)}</span>
           </button>
         ))}
       </nav>
