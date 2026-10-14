@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nProvider';
 import { PiperMark } from '../../components/PiperMark';
 import { AuroraBackground } from '../components/AuroraBackground';
+import { SetupCard } from '../components/SetupCard';
 import { useFeatures } from '../features/featuresApi';
 import { useRepos } from '../local';
 
@@ -25,6 +26,7 @@ export const HomePage = () => {
           <h1 className="home-wordmark">{t('app.name').toLowerCase()}</h1>
           <p className="home-tagline">{t('home.tagline')}</p>
         </div>
+        <SetupCard always />
         <nav className="home-cards" aria-label={t('home.go')}>
           {cards.map((c) => (
             <Link key={c.to} to={c.to} className="home-card glass rise" data-testid={c.testid}>

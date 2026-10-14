@@ -37,7 +37,7 @@ const fakeGh = async (mode: 'ok' | 'missing' | 'logged_out') => {
   const script = join(dir, 'gh');
   const body = mode === 'logged_out' ? 'echo "To get started with GitHub CLI, please run: gh auth login" >&2; exit 4' : `
 case "$*" in
-  "pr list"*) cat <<'JSON'
+  "pr list"*) echo "$@" > "$(dirname "$0")/list-args.txt"; cat <<'JSON'
 [${JSON.stringify(PULL)},${JSON.stringify(PULL8)},${JSON.stringify(PULL9)}]
 JSON
   ;;
@@ -53,6 +53,7 @@ DIFF
   "pr review 7 --approve --body"*) echo "$@" > "$(dirname "$0")/approve.txt"; echo "Approved pull request #7";;
   "pr review 7 --request-changes --body"*) echo "You can not request changes on your own pull request" >&2; exit 1;;
   "api user --jq .login") echo me;;
+  "repo clone acme/x "*) mkdir -p "$4" && git -C "$4" init -q && touch "$4/README.md" && git -C "$4" -c user.email=a@b.c -c user.name=t add . && git -C "$4" -c user.email=a@b.c -c user.name=t commit -qm init;;
   "api repos/{owner}/{repo}/pulls/7/reviews") echo '[{"id": 9, "html_url": "https://github.com/acme/x/pull/7#pullrequestreview-9", "state": "APPROVED"}]';;
   "gist create --public --desc"*) ls "$6" "$7" "$8" 2>/dev/null | sed 's#.*/##' > "$(dirname "$0")/gist-files.txt"; echo "https://gist.github.com/ana/abc123def456";;
   *) echo "no pull requests found" >&2; exit 1;;
@@ -186,6 +187,24 @@ describe('pull requests', () => {
     expect(sent).toContain('Ship it');
     expect(sent).toContain('Pied Piper');
     expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/decision`, payload: { decision: 'request_changes' } })).statusCode).toBe(502);
+  });
+
+  it('reviews a GitHub repository without cloning it, through -R, and can clone one into our folder', async () => {
+    const remote = await app.inject({ method: 'POST', url: '/api/repos', payload: { remote: 'acme/x' } });
+    expect(remote.statusCode).toBe(201);
+    expect(remote.json()).toMatchObject({ kind: 'remote', remote: 'acme/x', name: 'x', head: null, hasSystemMap: false });
+    const rid = remote.json().id;
+    expect((await app.inject({ method: 'POST', url: '/api/repos', payload: { remote: 'not a repo' } })).statusCode).toBe(400);
+    const list = (await app.inject({ method: 'GET', url: `/api/repos/${rid}/pulls` })).json();
+    expect(list).toMatchObject({ available: true, branch: null });
+    expect(list.pulls).toHaveLength(3);
+    expect(await readFile(join(dirname(bin), 'list-args.txt'), 'utf8')).toContain('-R acme/x');
+    const detail = (await app.inject({ method: 'GET', url: `/api/repos/${rid}/pulls/7` })).json();
+    expect(detail.files).toHaveLength(4);
+    const cloned = await app.inject({ method: 'POST', url: '/api/repos', payload: { remote: 'acme/x', clone: true } });
+    expect(cloned.statusCode).toBe(201);
+    expect(cloned.json()).toMatchObject({ kind: 'local', remote: null, name: 'acme__x', branch: expect.any(String) });
+    expect(cloned.json().path).toBe(join(home, 'clones', 'acme__x'));
   });
 
   it('reports why pull requests are unavailable instead of failing', async () => {

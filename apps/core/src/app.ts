@@ -11,6 +11,7 @@ import { prefsRoutes } from './routes/prefs';
 import { pullRoutes } from './routes/pulls';
 import { repoRoutes } from './routes/repos';
 import { rulesRoutes } from './routes/rules';
+import { setupRoutes } from './routes/setup';
 import { runRoutes } from './routes/runs';
 import { sessionRoutes } from './routes/sessions';
 import { solutionRoutes } from './routes/solutions';
@@ -36,6 +37,7 @@ export const buildApp = (deps: AppDeps): FastifyInstance => {
     async (api) => {
       api.get('/health', async () => ({ status: 'ok', home: deps.config.home, agent: deps.queryFn !== null, fake: deps.config.agent.fake }));
       repoRoutes(api, deps);
+      setupRoutes(api, deps);
       prefsRoutes(api, deps);
       codeRoutes(api, deps);
       agentRoutes(api, deps);

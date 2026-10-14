@@ -18,6 +18,8 @@ export const ReposPage = () => {
   const add = useAddRepo();
   const remove = useRemoveRepo();
   const [path, setPath] = useState('');
+  const [remote, setRemote] = useState('');
+  const [clone, setClone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bridge = desktop();
 
@@ -28,6 +30,17 @@ export const ReposPage = () => {
     try {
       await add.mutateAsync(value);
       setPath('');
+    } catch (err) {
+      setError(errorText(t, err));
+    }
+  };
+  const submitRemote = async () => {
+    const value = remote.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/$/, '');
+    if (!value) return;
+    setError(null);
+    try {
+      await add.mutateAsync({ remote: value, clone });
+      setRemote('');
     } catch (err) {
       setError(errorText(t, err));
     }
@@ -61,6 +74,19 @@ export const ReposPage = () => {
               {bridge && <GhostButton data-testid="repos-browse" onClick={() => void browse()}>{t('repos.browse')}</GhostButton>}
               <PrimaryButton type="submit" className="btn-small" data-testid="repos-add" loading={add.isPending} disabled={!path.trim()}>{t('repos.add')}</PrimaryButton>
             </form>
+            <form
+              className="row repos-remote"
+              data-testid="repos-remote-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void submitRemote();
+              }}
+            >
+              <input className="input" data-testid="repos-remote" aria-label={t('repos.remote')} placeholder={t('repos.remotePlaceholder')} value={remote} onChange={(e) => setRemote(e.target.value)} style={{ flex: 1 }} />
+              <label className="row" style={{ gap: 6, whiteSpace: 'nowrap' }}><input type="checkbox" data-testid="repos-remote-clone" checked={clone} onChange={(e) => setClone(e.target.checked)} /> {t('repos.remoteClone')}</label>
+              <PrimaryButton type="submit" className="btn-small" data-testid="repos-remote-add" loading={add.isPending} disabled={!remote.trim()}>{t('repos.add')}</PrimaryButton>
+            </form>
+            <p className="muted-a">{clone ? t('repos.remoteCloneHint') : t('repos.remoteReviewHint')}</p>
             {error && <p className="alert error" role="alert" data-testid="repos-error">{error}</p>}
             {repos.data && repos.data.length === 0 && <p className="alert ok" data-testid="repos-empty">{t('repos.empty')}</p>}
             {repos.data && repos.data.length > 0 && (
@@ -68,8 +94,8 @@ export const ReposPage = () => {
                 <tbody>
                   {repos.data.map((r) => (
                     <tr key={r.id} data-testid={`repo-${r.id}`}>
-                      <td><b>▣ {r.name}</b><div className="muted-a">{r.path}</div></td>
-                      <td className="muted-a">{r.branch ? `${r.branch} · ${(r.head ?? '').slice(0, SHORT_SHA)}` : t('repos.noGit')}</td>
+                      <td><b>{r.remote ? '☁' : '▣'} {r.name}</b>{r.remote && <span className="tag" style={{ marginLeft: 6 }}>{t('repos.remoteTag')}</span>}<div className="muted-a">{r.remote ?? r.path}</div></td>
+                      <td className="muted-a">{r.remote ? t('repos.remoteOnly') : r.branch ? `${r.branch} · ${(r.head ?? '').slice(0, SHORT_SHA)}` : t('repos.noGit')}</td>
                       <td><span className={`tag ${r.hasSystemMap ? 'status-done' : 'status-draft'}`}>{t(r.hasSystemMap ? 'repos.mapReady' : 'repos.mapMissing')}</span></td>
                       <td className="muted-a">{formatRelative(r.addedAt, language)}</td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>

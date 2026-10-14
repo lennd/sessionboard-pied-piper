@@ -72,7 +72,10 @@ export const ExplorePage = () => {
     <>
       {systemMap.isError && <p className="alert error" role="alert" data-testid="system-map-error" style={BANNER_STYLE}>{t('explore.mapError')}</p>}
       {generate.isError && <p className="alert error" role="alert" data-testid="system-map-error" style={BANNER_STYLE}>{errorText(t, generate.error)}</p>}
-      {noMap && !generate.isError && (
+      {noMap && !generate.isError && repo.data?.remote && (
+        <div className="alert ok" data-testid="explore-remote" style={BANNER_STYLE}><span>{t('explore.remote')}</span></div>
+      )}
+      {noMap && !generate.isError && !repo.data?.remote && (
         <div className="alert ok" data-testid="explore-no-map" style={BANNER_STYLE}>
           <span>{generate.isPending ? t('explore.generating') : t('explore.noMap')}</span>
           <button type="button" className="btn-primary btn-small" data-testid="explore-generate" disabled={generate.isPending} onClick={() => generate.mutate()}>{t('explore.generate')}</button>

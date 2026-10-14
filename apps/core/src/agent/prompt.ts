@@ -86,7 +86,7 @@ export const questionOf = (message: { role: string; content: unknown }): string 
 };
 
 /** Asks for an impact scene of a set of changes: changed pieces marked, dependants shown, risks listed. */
-export const explainPrompt = (input: { language: string; repoName: string; source: string; touched: { path: string; change: string }[]; diff: string; systemMap: unknown | null; rules?: string[] }): string =>
+export const explainPrompt = (input: { language: string; repoName: string; source: string; touched: { path: string; change: string }[]; diff: string; systemMap: unknown | null; rules?: string[]; filesAvailable?: boolean }): string =>
   [
     EXPLAIN_MARKER,
     languageLine(input.language),
@@ -94,6 +94,7 @@ export const explainPrompt = (input: { language: string; repoName: string; sourc
     `Explain the impact of the changes made to the repository "${input.repoName}" (${input.source}).`,
     `Changed files:\n${input.touched.map((t) => `- ${t.path} (${t.change})`).join('\n') || '- (none detected)'}`,
     input.systemMap ? `The architecture map of the repository, drawn earlier (reuse its piece ids and code paths where they apply):\n${JSON.stringify(input.systemMap)}` : '',
+    ...(input.filesAvailable === false ? ['The repository files are NOT on this machine: do not try to read, search or list files; work only from the diff and the map above.'] : []),
     `Diff:\n\`\`\`diff\n${input.diff}\n\`\`\``,
     'You have about 10 steps; the diff above is usually enough, so read at most a handful of files with Read or Grep (do not use the shell for that) and call emit_scene before the budget runs out — a partial scene beats none. Call emit_scene once with an impact scene (id "impact"): the pieces that changed with change added, modified or removed, the pieces that depend on them, a walkthrough of the main flow that goes through the change, and the risks the change introduces with concrete mitigations. Every changed piece must carry code {path, startLine, endLine} pointing at the exact changed lines (paths relative to the repository root, line numbers of the new version), and each risk must list in nodeIds the changed piece where it is introduced, so the risk can be commented on that line of the pull request. Read only the changed files if the diff is not enough. Then answer with a short summary of what changed and what could break.',
   ].filter(Boolean).join('\n\n');

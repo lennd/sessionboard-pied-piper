@@ -111,10 +111,10 @@ export const sessionRoutes = (api: FastifyInstance, deps: AppDeps) => {
         diff = await gitBranchDiff(repo.path, compare.base);
         scope = 'branch';
       } else if (typeof body.pull === 'number') {
-        const detail = await gh.pullDetail(repo.path, body.pull);
+        const detail = await gh.pullDetail(repo.path, body.pull, repo.remote);
         source = `pull request #${body.pull} "${detail.pull.title}" (${detail.pull.headRef} → ${detail.pull.baseRef})`;
         touched = detail.files.map((f) => ({ path: f.path, change: f.change }));
-        diff = await gh.pullDiff(repo.path, body.pull);
+        diff = await gh.pullDiff(repo.path, body.pull, undefined, repo.remote);
         scope = `pr-${body.pull}`;
       } else {
         touched = await gitChanges(repo.path);
@@ -126,7 +126,7 @@ export const sessionRoutes = (api: FastifyInstance, deps: AppDeps) => {
     }
     const prefs = await readPrefs(deps.config.home);
     const language = body.language ?? prefs.explanationLanguage ?? prefs.uiLanguage ?? DEFAULT_LANGUAGE;
-    const prompt = explainPrompt({ language, repoName: repo.name, source, touched, diff, systemMap: await currentMap(repo), rules: ruleLines(await readRules(repoDir(repo))) });
+    const prompt = explainPrompt({ language, repoName: repo.name, source, touched, diff, systemMap: await currentMap(repo), rules: ruleLines(await readRules(repoDir(repo))), filesAvailable: !repo.remote });
     const send = sse(reply);
     const controller = new AbortController();
     reply.raw.on('close', () => {

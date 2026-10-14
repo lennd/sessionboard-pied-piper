@@ -128,3 +128,12 @@
 .home-card-hint { color: var(--mint); font-size: 13px; line-height: 1.4; }
 .home-link { display: inline-flex; color: inherit; text-decoration: none; }
 @media (max-width: 760px) { .home-cards { grid-template-columns: 1fr; } .home-wordmark { font-size: 44px; } }
+
+.setup { width: 100%; max-width: 860px; padding: 14px 18px; display: flex; flex-direction: column; gap: 8px; }
+.setup-row { display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: start; }
+.setup-mark { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-weight: 700; color: var(--green-deep); background: #fff; }
+.setup-row.is-missing .setup-mark { background: #f5d90a; }
+.setup-body { display: flex; flex-direction: column; gap: 2px; }
+.setup-detail { color: var(--mint); font-size: 13px; }
+.setup-fix { align-self: flex-start; margin-top: 4px; padding: 3px 8px; border-radius: 8px; background: rgba(0, 0, 0, .25); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.repos-remote { margin-top: 10px; }

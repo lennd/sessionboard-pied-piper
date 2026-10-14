@@ -89,6 +89,9 @@ export const diffStatuses = (diff: string): Map<string, TouchedFile['change']> =
 const cache = new Map<string, { at: number; pulls: PullSummary[] }>();
 let login: { at: number; value: string | null } | null = null;
 
+const target = (remote?: string | null) => (remote ? ['-R', remote] : []);
+const apiBase = (remote?: string | null) => (remote ? `repos/${remote}` : 'repos/{owner}/{repo}');
+
 export const createGh = (bin: string) => {
   const me = async (cwd: string): Promise<string | null> => {
     if (login && Date.now() - login.at < LOGIN_CACHE_MS) return login.value;
@@ -98,18 +101,18 @@ export const createGh = (bin: string) => {
   };
   return {
   invalidate: (cwd: string) => cache.delete(cwd),
-  listPulls: async (cwd: string, refresh = false): Promise<PullSummary[]> => {
+  listPulls: async (cwd: string, refresh = false, remote?: string | null): Promise<PullSummary[]> => {
     const hit = cache.get(cwd);
     if (!refresh && hit && Date.now() - hit.at < CACHE_MS) return hit.pulls;
     const user = await me(cwd);
-    const pulls = (JSON.parse(await gh(bin, cwd, ['pr', 'list', '--state', 'open', '--limit', String(LIST_LIMIT), '--json', LIST_FIELDS])) as RawPull[]).map((p) => summary(p, user));
+    const pulls = (JSON.parse(await gh(bin, cwd, ['pr', 'list', ...target(remote), '--state', 'open', '--limit', String(LIST_LIMIT), '--json', LIST_FIELDS])) as RawPull[]).map((p) => summary(p, user));
     cache.set(cwd, { at: Date.now(), pulls });
     return pulls;
   },
-  pullDiff: async (cwd: string, number: number, maxBytes = MAX_DIFF_BYTES): Promise<string> => clipDiff(await gh(bin, cwd, ['pr', 'diff', String(number)]), maxBytes),
+  pullDiff: async (cwd: string, number: number, maxBytes = MAX_DIFF_BYTES, remote?: string | null): Promise<string> => clipDiff(await gh(bin, cwd, ['pr', 'diff', String(number), ...target(remote)]), maxBytes),
   /** Posts one COMMENT review with inline comments through the GitHub REST API (gh resolves {owner}/{repo}). */
-  createReview: async (cwd: string, number: number, review: { body: string; comments: ReviewComment[] }): Promise<ReviewResult> => {
-    const out = await gh(bin, cwd, ['api', '--method', 'POST', `repos/{owner}/{repo}/pulls/${number}/reviews`, '--input', '-'], JSON.stringify({ event: 'COMMENT', ...review }));
+  createReview: async (cwd: string, number: number, review: { body: string; comments: ReviewComment[] }, remote?: string | null): Promise<ReviewResult> => {
+    const out = await gh(bin, cwd, ['api', '--method', 'POST', `${apiBase(remote)}/pulls/${number}/reviews`, '--input', '-'], JSON.stringify({ event: 'COMMENT', ...review }));
     const parsed = JSON.parse(out) as { id: number; html_url: string };
     return { id: parsed.id, url: parsed.html_url };
   },
@@ -133,15 +136,19 @@ export const createGh = (bin: string) => {
     }
   },
   /** Submits an approving (or changes-requested) review with `gh pr review`; returns the review URL from the API. */
-  reviewPull: async (cwd: string, number: number, decision: 'approve' | 'request_changes', body: string): Promise<ReviewResult> => {
-    await gh(bin, cwd, ['pr', 'review', String(number), decision === 'approve' ? '--approve' : '--request-changes', '--body', body]);
-    const reviews = JSON.parse(await gh(bin, cwd, ['api', `repos/{owner}/{repo}/pulls/${number}/reviews`])) as { id: number; html_url: string; state: string }[];
+  reviewPull: async (cwd: string, number: number, decision: 'approve' | 'request_changes', body: string, remote?: string | null): Promise<ReviewResult> => {
+    await gh(bin, cwd, ['pr', 'review', String(number), ...target(remote), decision === 'approve' ? '--approve' : '--request-changes', '--body', body]);
+    const reviews = JSON.parse(await gh(bin, cwd, ['api', `${apiBase(remote)}/pulls/${number}/reviews`])) as { id: number; html_url: string; state: string }[];
     const latest = reviews.at(-1);
     return latest ? { id: latest.id, url: latest.html_url } : { id: 0, url: '' };
   },
-  pullDetail: async (cwd: string, number: number): Promise<PullDetail> => {
-    const raw = JSON.parse(await gh(bin, cwd, ['pr', 'view', String(number), '--json', VIEW_FIELDS])) as RawPull & { body: string; files: { path: string; additions: number; deletions: number }[] };
-    const statuses = diffStatuses(await gh(bin, cwd, ['pr', 'diff', String(number)]));
+  /** Clones a GitHub repository into one of our folders so the whole app works on it without the person managing code. */
+  cloneRepo: async (cwd: string, fullName: string, into: string): Promise<void> => {
+    await gh(bin, cwd, ['repo', 'clone', fullName, into]);
+  },
+  pullDetail: async (cwd: string, number: number, remote?: string | null): Promise<PullDetail> => {
+    const raw = JSON.parse(await gh(bin, cwd, ['pr', 'view', String(number), ...target(remote), '--json', VIEW_FIELDS])) as RawPull & { body: string; files: { path: string; additions: number; deletions: number }[] };
+    const statuses = diffStatuses(await gh(bin, cwd, ['pr', 'diff', String(number), ...target(remote)]));
     return { pull: { ...summary(raw, await me(cwd)), body: raw.body ?? '' }, files: raw.files.map((f) => ({ ...f, change: statuses.get(f.path) ?? 'modified' })) };
   },
   };

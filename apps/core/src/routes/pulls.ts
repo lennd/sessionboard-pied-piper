@@ -41,11 +41,11 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
   api.get('/repos/:repoId/pulls', { preHandler: withRepo }, async (req, reply) => {
     const repo = req.repo!;
     const { refresh } = listQuery.parse(req.query);
-    const branch = await gitBranchCompare(repo.path);
-    const remote = await gitRemoteUrl(repo.path);
+    const branch = repo.remote ? null : await gitBranchCompare(repo.path);
+    const remote = repo.remote ?? (await gitRemoteUrl(repo.path));
     if (!remote) return { available: false, reason: 'no_remote', pulls: [], branch };
     try {
-      return { available: true, pulls: await gh.listPulls(repo.path, refresh === '1'), branch };
+      return { available: true, pulls: await gh.listPulls(repo.path, refresh === '1', repo.remote), branch };
     } catch (error) {
       if (error instanceof GhFailure) return { available: false, reason: error.code, pulls: [], branch };
       return ghFail(reply, error);
@@ -56,7 +56,7 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const number = numberParam(req.params);
     if (!number) return fail(reply, 404, 'not_found');
     try {
-      const detail = await gh.pullDetail(req.repo!.path, number);
+      const detail = await gh.pullDetail(req.repo!.path, number, req.repo!.remote);
       return { ...detail, touched: detail.files.map((f) => ({ path: f.path, change: f.change })) };
     } catch (error) {
       return ghFail(reply, error);
@@ -67,7 +67,7 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const number = numberParam(req.params);
     if (!number) return fail(reply, 404, 'not_found');
     try {
-      const detail = await gh.pullDetail(req.repo!.path, number);
+      const detail = await gh.pullDetail(req.repo!.path, number, req.repo!.remote);
       return impact(req.repo!, detail.files.map((f) => ({ path: f.path, change: f.change })), `impact-pr-${number}`, `#${number} ${detail.pull.title}`, reply);
     } catch (error) {
       return ghFail(reply, error);
@@ -85,7 +85,7 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const scene = await sceneOf(req.repo!, sceneBody.parse(req.body ?? {}));
     if (!number || !scene) return fail(reply, 404, 'not_found');
     try {
-      const lines = diffLines(await gh.pullDiff(req.repo!.path, number));
+      const lines = diffLines(await gh.pullDiff(req.repo!.path, number, undefined, req.repo!.remote));
       return { risks: anchorRisks(scene, lines).map((e) => ({ id: e.risk.id, title: e.risk.title, severity: e.risk.severity, category: e.risk.category, pieces: e.pieces, anchor: e.anchor })) };
     } catch (error) {
       return ghFail(reply, error);
@@ -120,11 +120,11 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
     if (!number || !scene) return fail(reply, 404, 'not_found');
     try {
       const wanted = new Set(body.riskIds);
-      const entries = anchorRisks(scene, diffLines(await gh.pullDiff(req.repo!.path, number))).filter((e) => wanted.has(e.risk.id));
+      const entries = anchorRisks(scene, diffLines(await gh.pullDiff(req.repo!.path, number, undefined, req.repo!.remote))).filter((e) => wanted.has(e.risk.id));
       if (entries.length === 0) return fail(reply, 404, 'unknown_risk');
       const evidence = body.evidence === false ? { logoUrl: deps.config.signatureLogoUrl ?? (await readSignature(deps.config.home)).logoUrl, images: new Map<string, string>() } : await publishEvidence(req.repo!, number, scene, entries);
       const review = buildReview(entries, body.intro ?? null, evidence);
-      const result = await gh.createReview(req.repo!.path, number, review);
+      const result = await gh.createReview(req.repo!.path, number, review, req.repo!.remote);
       return reply.code(201).send({ ...result, inline: review.comments.length, summary: entries.length - review.comments.length, images: evidence.images.size, logo: evidence.logoUrl !== null, ...('gistUrl' in evidence && evidence.gistUrl ? { gistUrl: evidence.gistUrl } : {}) });
     } catch (error) {
       return ghFail(reply, error);
@@ -139,7 +139,7 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const logoUrl = deps.config.signatureLogoUrl ?? (await readSignature(deps.config.home)).logoUrl;
     const text = [body.note || (body.decision === 'approve' ? 'Looks good from the impact review.' : 'Please look at the risks raised in the impact review.'), signature(logoUrl)].join('\n\n');
     try {
-      const result = await gh.reviewPull(req.repo!.path, number, body.decision, text);
+      const result = await gh.reviewPull(req.repo!.path, number, body.decision, text, req.repo!.remote);
       gh.invalidate(req.repo!.path);
       return reply.code(201).send({ ...result, decision: body.decision });
     } catch (error) {

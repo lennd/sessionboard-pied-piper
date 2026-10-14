@@ -43,6 +43,20 @@ describe('ReposPage', () => {
     await waitFor(() => expect(screen.getByTestId('repos-path')).toHaveValue(''));
   });
 
+  it('adds a GitHub repository to review without cloning, or clones it', async () => {
+    api.mockImplementation(async (path, init) => (init?.method === 'POST' ? repoFixture({ id: 'r7', name: 'x', remote: 'acme/x', kind: 'remote', head: null, branch: null }) : String(path) === '/repos' ? [repoFixture({ id: 'r7', name: 'x', remote: 'acme/x', kind: 'remote', head: null, branch: null })] : []) as never);
+    renderShell(<ReposPage />, { route: '/repos', path: '/repos' });
+    expect(await screen.findByTestId('repo-r7')).toHaveTextContent('GitHub only');
+    expect(screen.getByTestId('repo-r7')).toHaveTextContent('pull requests only');
+    fireEvent.change(screen.getByTestId('repos-remote'), { target: { value: 'https://github.com/acme/y.git' } });
+    fireEvent.click(screen.getByTestId('repos-remote-add'));
+    await waitFor(() => expect(api).toHaveBeenCalledWith('/repos', { method: 'POST', body: { remote: 'acme/y', clone: false } }));
+    fireEvent.change(screen.getByTestId('repos-remote'), { target: { value: 'acme/z' } });
+    fireEvent.click(screen.getByTestId('repos-remote-clone'));
+    fireEvent.click(screen.getByTestId('repos-remote-add'));
+    await waitFor(() => expect(api).toHaveBeenCalledWith('/repos', { method: 'POST', body: { remote: 'acme/z', clone: true } }));
+  });
+
   it('uses the desktop folder picker when available and removes repositories', async () => {
     window.rdi = { pickFolder: vi.fn().mockResolvedValue('/picked'), openExternal: vi.fn() };
     api.mockImplementation(async (_path, init) => (init?.method === 'POST' ? repoFixture({ id: 'r9', path: '/picked' }) : init?.method === 'DELETE' ? undefined : [repoFixture()]) as never);
