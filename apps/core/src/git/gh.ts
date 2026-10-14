@@ -110,6 +110,13 @@ export const createGh = (bin: string) => ({
       await rm(dir, { recursive: true, force: true });
     }
   },
+  /** Submits an approving (or changes-requested) review with `gh pr review`; returns the review URL from the API. */
+  reviewPull: async (cwd: string, number: number, decision: 'approve' | 'request_changes', body: string): Promise<ReviewResult> => {
+    await gh(bin, cwd, ['pr', 'review', String(number), decision === 'approve' ? '--approve' : '--request-changes', '--body', body]);
+    const reviews = JSON.parse(await gh(bin, cwd, ['api', `repos/{owner}/{repo}/pulls/${number}/reviews`])) as { id: number; html_url: string; state: string }[];
+    const latest = reviews.at(-1);
+    return latest ? { id: latest.id, url: latest.html_url } : { id: 0, url: '' };
+  },
   pullDetail: async (cwd: string, number: number): Promise<PullDetail> => {
     const raw = JSON.parse(await gh(bin, cwd, ['pr', 'view', String(number), '--json', VIEW_FIELDS])) as RawPull & { body: string; files: { path: string; additions: number; deletions: number }[] };
     const statuses = diffStatuses(await gh(bin, cwd, ['pr', 'diff', String(number)]));

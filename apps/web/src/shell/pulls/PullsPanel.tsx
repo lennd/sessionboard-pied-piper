@@ -9,7 +9,7 @@ import { Markdown } from '../chat/Markdown';
 import { desktop } from '../desktop';
 import { errorText } from '../errors';
 import { formatRelative } from '../format';
-import { BRANCH, explainPull, fetchPull, fetchPullImpact, fetchPulls, postReview, previewRisks, type PullDetail, type ReviewPosted, type RiskAnchor } from './pullsApi';
+import { BRANCH, decidePull, explainPull, fetchPull, fetchPullImpact, fetchPulls, postReview, previewRisks, type Decision, type PullDetail, type ReviewPosted, type RiskAnchor } from './pullsApi';
 import type { Scene } from '@rdi/scene';
 
 const STATUS_GLYPH: Record<string, string> = { added: '+', removed: '−', modified: '~' };
@@ -33,6 +33,10 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [posting, setPosting] = useState(false);
   const [posted, setPosted] = useState<ReviewPosted | null>(null);
+  const [approving, setApproving] = useState(false);
+  const [approveNote, setApproveNote] = useState('');
+  const [approved, setApproved] = useState<Decision | null>(null);
+  const [deciding, setDeciding] = useState(false);
 
   const loadRisks = async (target: Target, next: Scene) => {
     setScene(next);
@@ -75,6 +79,8 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
     setScene(null);
     setRisks(null);
     setPosted(null);
+    setApproved(null);
+    setApproving(false);
     setLoading(target);
     try {
       setOpened({ target, detail: target === BRANCH ? null : await fetchPull(repoId, target) });
@@ -109,6 +115,20 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
       else next.add(id);
       return next;
     });
+  const approve = async () => {
+    if (!opened || opened.target === BRANCH) return;
+    setDeciding(true);
+    setError(null);
+    try {
+      setApproved(await decidePull(repoId, opened.target, 'approve', approveNote));
+      setApproving(false);
+      setApproveNote('');
+    } catch (err) {
+      setError(errorText(t, err));
+    } finally {
+      setDeciding(false);
+    }
+  };
   const comment = async () => {
     if (!opened || opened.target === BRANCH || !scene || selected.size === 0) return;
     setPosting(true);
@@ -142,7 +162,24 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
           <button type="button" className="btn-primary btn-small" data-testid="pull-explain" disabled={explaining} onClick={() => void explain()}>✦ {explaining ? t('pulls.explaining') : t('pulls.explain')}</button>
           <button type="button" className="btn btn-small" data-testid="pull-impact" onClick={() => void showImpact(opened.target)}>{t('pulls.impact')}</button>
           {pull && <button type="button" className="btn btn-small" data-testid="pull-github" onClick={() => openExternal(pull.url)}>{t('pulls.openGithub')} ↗</button>}
+          {pull && !approved && <button type="button" className="btn btn-small btn-accent" data-testid="pull-approve" onClick={() => setApproving((v) => !v)}>✓ {t('pulls.approve')}</button>}
         </div>
+        {pull && approving && !approved && (
+          <div className="chat-notice" data-testid="pull-approve-form">
+            <p className="muted">{t('pulls.approveHint')}</p>
+            <textarea className="input" data-testid="pull-approve-note" rows={3} placeholder={t('pulls.approvePlaceholder')} value={approveNote} onChange={(e) => setApproveNote(e.target.value)} style={{ width: '100%' }} />
+            <div className="row">
+              <button type="button" className="btn-primary btn-small" data-testid="pull-approve-confirm" disabled={deciding} onClick={() => void approve()}>{deciding ? t('pulls.approving') : t('pulls.approveConfirm')}</button>
+              <button type="button" className="btn btn-small" data-testid="pull-approve-cancel" onClick={() => setApproving(false)}>{t('features.create.cancel')}</button>
+            </div>
+          </div>
+        )}
+        {approved && (
+          <p className="alert ok" data-testid="pull-approved">
+            {t('pulls.approved')}{' '}
+            {approved.url && <button type="button" className="btn btn-small" data-testid="pull-approved-open" onClick={() => openExternal(approved.url)}>{t('pulls.openReview')} ↗</button>}
+          </p>
+        )}
         {noMap && <p className="chat-notice" data-testid="pull-no-map">{t('pulls.noMap')}</p>}
         {error && <p className="alert error" role="alert">{error}</p>}
         {explanation && <div className="pull-body" data-testid="pull-explanation"><Markdown text={explanation} /></div>}

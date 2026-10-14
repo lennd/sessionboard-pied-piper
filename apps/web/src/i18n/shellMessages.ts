@@ -239,6 +239,12 @@ export const shellEn = {
   'sessions.kind.run-solution': 'Implemented a solution',
   'sessions.kind.translate': 'Translated a scene',
   'sessions.kind.other': 'Pied Piper session',
+  'pulls.approve': 'Approve',
+  'pulls.approveHint': 'Submits an approving review on GitHub with your gh account and the Pied Piper signature.',
+  'pulls.approvePlaceholder': 'Optional note for the author',
+  'pulls.approveConfirm': 'Approve the pull request',
+  'pulls.approving': 'Approving…',
+  'pulls.approved': 'Pull request approved.',
 } as const;
 
 export type ShellKey = keyof typeof shellEn;
@@ -485,6 +491,12 @@ export const shellEs: ShellCatalog = {
   'sessions.kind.run-solution': 'Implementó una solution',
   'sessions.kind.translate': 'Tradujo una escena',
   'sessions.kind.other': 'Sesión de Pied Piper',
+  'pulls.approve': 'Aprobar',
+  'pulls.approveHint': 'Publica un review de aprobación en GitHub con tu cuenta de gh y la firma de Pied Piper.',
+  'pulls.approvePlaceholder': 'Nota opcional para el autor',
+  'pulls.approveConfirm': 'Aprobar el pull request',
+  'pulls.approving': 'Aprobando…',
+  'pulls.approved': 'Pull request aprobado.',
 };
 
 export const shellPt: ShellCatalog = {
@@ -728,4 +740,10 @@ export const shellPt: ShellCatalog = {
   'sessions.kind.run-solution': 'Implementou uma solution',
   'sessions.kind.translate': 'Traduziu uma cena',
   'sessions.kind.other': 'Sessão do Pied Piper',
+  'pulls.approve': 'Aprovar',
+  'pulls.approveHint': 'Publica um review de aprovação no GitHub com sua conta do gh e a assinatura do Pied Piper.',
+  'pulls.approvePlaceholder': 'Nota opcional para o autor',
+  'pulls.approveConfirm': 'Aprovar o pull request',
+  'pulls.approving': 'Aprovando…',
+  'pulls.approved': 'Pull request aprovado.',
 };

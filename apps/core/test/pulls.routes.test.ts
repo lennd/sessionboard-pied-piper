@@ -48,6 +48,9 @@ ${DIFF}
 DIFF
   ;;
   "api --method POST repos/{owner}/{repo}/pulls/7/reviews --input -") cat > "$(dirname "$0")/review.json"; echo '{"id": 55, "html_url": "https://github.com/acme/x/pull/7#pullrequestreview-55"}';;
+  "pr review 7 --approve --body"*) echo "$@" > "$(dirname "$0")/approve.txt"; echo "Approved pull request #7";;
+  "pr review 7 --request-changes --body"*) echo "You can not request changes on your own pull request" >&2; exit 1;;
+  "api repos/{owner}/{repo}/pulls/7/reviews") echo '[{"id": 9, "html_url": "https://github.com/acme/x/pull/7#pullrequestreview-9", "state": "APPROVED"}]';;
   "gist create --public --desc"*) ls "$6" "$7" "$8" 2>/dev/null | sed 's#.*/##' > "$(dirname "$0")/gist-files.txt"; echo "https://gist.github.com/ana/abc123def456";;
   *) echo "no pull requests found" >&2; exit 1;;
 esac`;
@@ -166,6 +169,16 @@ describe('pull requests', () => {
     expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/risks`, payload: { scene: { id: 'bad' } } })).statusCode).toBe(404);
     const explainedId = (parseSse((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/impact/explain`, payload: { pull: 7 } })).body).at(-1)!.data as { id: string }).id;
     expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/risks`, payload: { sceneId: explainedId } })).json().risks).toHaveLength(1);
+  });
+
+  it('approves a pull request with a signed note and surfaces gh refusals', async () => {
+    const approved = await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/decision`, payload: { note: 'Ship it' } });
+    expect(approved.statusCode).toBe(201);
+    expect(approved.json()).toEqual({ id: 9, url: 'https://github.com/acme/x/pull/7#pullrequestreview-9', decision: 'approve' });
+    const sent = await readFile(join(dirname(bin), 'approve.txt'), 'utf8');
+    expect(sent).toContain('Ship it');
+    expect(sent).toContain('Pied Piper');
+    expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/decision`, payload: { decision: 'request_changes' } })).statusCode).toBe(502);
   });
 
   it('reports why pull requests are unavailable instead of failing', async () => {

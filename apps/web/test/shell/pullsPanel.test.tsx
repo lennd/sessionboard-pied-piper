@@ -28,6 +28,7 @@ const mockApi = (options: { available?: boolean; reason?: string; branch?: typeo
     void init;
     if (p.endsWith('/pulls/7/risks') && init?.method === 'POST') return { risks: [{ id: 'r1', title: 'Breaks callers', severity: 'high', category: 'reliability', pieces: ['API'], anchor: { path: 'src/a.ts', line: 12 } }, { id: 'r2', title: 'Unclear', severity: 'low', category: 'complexity', pieces: [], anchor: null }] } as never;
     if (p.endsWith('/pulls/7/review') && init?.method === 'POST') return { id: 55, url: 'https://github.com/acme/x/pull/7#pullrequestreview-55', inline: 1, summary: 0 } as never;
+    if (p.endsWith('/pulls/7/decision') && init?.method === 'POST') return { id: 9, url: 'https://github.com/acme/x/pull/7#pullrequestreview-9', decision: 'approve' } as never;
     throw new Error(`unexpected ${p}`);
   });
 };
@@ -91,6 +92,18 @@ describe('PullsPanel', () => {
     const open = vi.spyOn(window, 'open').mockImplementation(() => null);
     fireEvent.click(screen.getByTestId('pull-review-open'));
     expect(open).toHaveBeenCalledWith('https://github.com/acme/x/pull/7#pullrequestreview-55', '_blank', 'noopener,noreferrer');
+  });
+
+  it('approves the pull request from the app with an optional note', async () => {
+    mockApi();
+    render();
+    fireEvent.click(await screen.findByTestId('pull-7'));
+    fireEvent.click(await screen.findByTestId('pull-approve'));
+    fireEvent.change(screen.getByTestId('pull-approve-note'), { target: { value: 'Ship it' } });
+    fireEvent.click(screen.getByTestId('pull-approve-confirm'));
+    expect(await screen.findByTestId('pull-approved')).toHaveTextContent('approved');
+    expect(api).toHaveBeenCalledWith('/repos/r1/pulls/7/decision', { method: 'POST', body: { decision: 'approve', note: 'Ship it' } });
+    expect(screen.queryByTestId('pull-approve')).not.toBeInTheDocument();
   });
 
   it('opens the current branch comparison and asks to draw the map when there is none', async () => {

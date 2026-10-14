@@ -33,3 +33,7 @@ export type ReviewPosted = { id: number; url: string; inline: number; summary: n
 
 export const previewRisks = (repoId: string, number: number, scene: Scene) => apiFetch<{ risks: RiskAnchor[] }>(`/repos/${repoId}/pulls/${number}/risks`, { method: 'POST', body: { scene } });
 export const postReview = (repoId: string, number: number, scene: Scene, riskIds: string[]) => apiFetch<ReviewPosted>(`/repos/${repoId}/pulls/${number}/review`, { method: 'POST', body: { scene, riskIds } });
+
+export type Decision = { id: number; url: string; decision: 'approve' | 'request_changes' };
+export const decidePull = (repoId: string, number: number, decision: 'approve' | 'request_changes', note: string) =>
+  apiFetch<Decision>(`/repos/${repoId}/pulls/${number}/decision`, { method: 'POST', body: { decision, ...(note.trim() ? { note: note.trim() } : {}) } });

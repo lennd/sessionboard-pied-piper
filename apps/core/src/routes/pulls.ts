@@ -5,7 +5,7 @@ import { createGh, GhFailure } from '../git/gh';
 import { fail } from '../http/fail';
 import type { AppDeps } from '../http/deps';
 import { requireRepo } from '../http/repo';
-import { anchorRisks, buildReview, diffLines, type AnchoredRisk, type Evidence } from '../impact/anchors';
+import { anchorRisks, buildReview, diffLines, signature, type AnchoredRisk, type Evidence } from '../impact/anchors';
 import { PIPER_MARK_SVG } from '../impact/mark';
 import { renderSceneSvg } from '../impact/sceneSvg';
 import { readSignature, writeSignature } from '../store/signature';
@@ -20,6 +20,7 @@ const MAX_INTRO = 4000;
 const sceneBody = z.object({ sceneId: z.string().uuid().optional(), scene: z.unknown().optional() });
 const reviewBody = sceneBody.extend({ riskIds: z.array(z.string().min(1)).min(1).max(50), intro: z.string().trim().max(MAX_INTRO).optional(), evidence: z.boolean().optional() });
 const MARK_FILE = 'pied-piper-mark.svg';
+const decisionBody = z.object({ decision: z.enum(['approve', 'request_changes']).default('approve'), note: z.string().trim().max(MAX_INTRO).optional() });
 const numberParam = (params: unknown): number | null => {
   const n = Number((params as { number: string }).number);
   return Number.isInteger(n) && n > 0 ? n : null;
@@ -125,6 +126,21 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
       const review = buildReview(entries, body.intro ?? null, evidence);
       const result = await gh.createReview(req.repo!.path, number, review);
       return reply.code(201).send({ ...result, inline: review.comments.length, summary: entries.length - review.comments.length, images: evidence.images.size, logo: evidence.logoUrl !== null, ...('gistUrl' in evidence && evidence.gistUrl ? { gistUrl: evidence.gistUrl } : {}) });
+    } catch (error) {
+      return ghFail(reply, error);
+    }
+  });
+
+  /** Approves (or requests changes on) the pull request as the gh user, signed by the app. */
+  api.post('/repos/:repoId/pulls/:number/decision', { preHandler: withRepo }, async (req, reply) => {
+    const number = numberParam(req.params);
+    if (!number) return fail(reply, 404, 'not_found');
+    const body = decisionBody.parse(req.body ?? {});
+    const logoUrl = deps.config.signatureLogoUrl ?? (await readSignature(deps.config.home)).logoUrl;
+    const text = [body.note || (body.decision === 'approve' ? 'Looks good from the impact review.' : 'Please look at the risks raised in the impact review.'), signature(logoUrl)].join('\n\n');
+    try {
+      const result = await gh.reviewPull(req.repo!.path, number, body.decision, text);
+      return reply.code(201).send({ ...result, decision: body.decision });
     } catch (error) {
       return ghFail(reply, error);
     }
