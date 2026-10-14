@@ -8,7 +8,8 @@ import { useSettingsContext } from './SettingsLayout';
 
 export const SolutionsPage = () => {
   const { t, language } = useI18n();
-  const { repo } = useSettingsContext();
+  const { repo: maybeRepo } = useSettingsContext();
+  const repo = maybeRepo ?? { id: '' };
   const solutions = useQuery({ queryKey: ['solutions', repo.id], queryFn: () => apiFetch<SolutionSummary[]>(`/repos/${repo.id}/solutions`) });
   return (
     <section>

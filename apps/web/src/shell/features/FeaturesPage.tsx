@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nProvider';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { AuroraBackground } from '../components/AuroraBackground';
@@ -15,7 +15,8 @@ export const FeaturesPage = () => {
   const features = useFeatures();
   const repos = useRepos();
   const create = useCreateFeature();
-  const [creating, setCreating] = useState(false);
+  const [params] = useSearchParams();
+  const [creating, setCreating] = useState(params.get('new') === '1');
   const [title, setTitle] = useState('');
   const [brief, setBrief] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
@@ -39,7 +40,7 @@ export const FeaturesPage = () => {
     <AuroraBackground soft>
       <div className="shell">
         <header className="shell-top">
-          <AnimatedLogo size={30} />
+          <Link to="/" className="home-link" data-testid="nav-home"><AnimatedLogo size={30} /></Link>
           <HomeNav />
           <span className="shell-spacer" />
         </header>

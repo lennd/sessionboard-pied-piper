@@ -3,6 +3,7 @@ import { Shell } from './guards';
 import { FeaturePage } from './features/FeaturePage';
 import { FeaturesPage } from './features/FeaturesPage';
 import { ExplorePage } from './pages/ExplorePage';
+import { HomePage } from './pages/HomePage';
 import { ReposPage } from './pages/ReposPage';
 import { SolutionPage } from './pages/SolutionPage';
 import { PreferencesPage } from './settings/PreferencesPage';
@@ -15,7 +16,9 @@ export const router = createBrowserRouter([
   {
     element: <Shell />,
     children: [
-      { path: '/', element: <ReposPage /> },
+      { path: '/', element: <HomePage /> },
+      { path: '/repos', element: <ReposPage /> },
+      { path: '/settings', element: <SettingsLayout />, children: [{ index: true, element: <Navigate to="preferences" replace /> }, { path: 'preferences', element: <PreferencesPage /> }] },
       { path: '/features', element: <FeaturesPage /> },
       { path: '/features/:featureId', element: <FeaturePage /> },
       { path: '/repos/:repoId/explore', element: <ExplorePage /> },

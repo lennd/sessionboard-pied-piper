@@ -11,7 +11,8 @@ const ROWS = 12;
 
 export const ToolkitPage = () => {
   const { t } = useI18n();
-  const { repo } = useSettingsContext();
+  const { repo: maybeRepo } = useSettingsContext();
+  const repo = maybeRepo ?? { id: '' };
   const client = useQueryClient();
   const key = ['toolkit', repo.id];
   const toolkit = useQuery({ queryKey: key, queryFn: () => apiFetch<Toolkit>(`/repos/${repo.id}/toolkit`) });

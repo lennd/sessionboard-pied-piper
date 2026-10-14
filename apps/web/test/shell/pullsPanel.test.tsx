@@ -14,7 +14,7 @@ const pending = { decision: 'pending' as const, approvedByMe: false, approvals: 
 const pull = { number: 7, title: 'Store rewrite', author: 'ana', draft: false, headRef: 'feature/store', baseRef: 'main', updatedAt: '2026-10-13T10:00:00Z', url: 'https://github.com/acme/x/pull/7', additions: 3, deletions: 2, changedFiles: 2, review: pending };
 const approvedPull = { ...pull, number: 8, title: 'Already approved', review: { decision: 'approved' as const, approvedByMe: true, approvals: 1, changesRequested: 0 } };
 const branch = { branch: 'feature/x', base: 'main', ahead: 2, touched: [{ path: 'src/a.ts', change: 'modified' as const }] };
-const impact = (id: string) => ({ ...scene, id });
+const impact = (id: string) => ({ ...scene, id, risks: [{ id: 'r1', title: 'Breaks callers', category: 'reliability' as const, severity: 'high' as const, explanation: 'The handler changed.', mitigation: 'Run the suite.', nodeIds: [scene.nodes[0]!.id] }, { id: 'r2', title: 'Unclear', category: 'complexity' as const, severity: 'low' as const, explanation: 'No code.', nodeIds: [scene.nodes[1]!.id] }] });
 
 const mockApi = (options: { available?: boolean; reason?: string; branch?: typeof branch | null; map?: boolean } = {}) => {
   explainMock.mockReset();
@@ -70,6 +70,9 @@ describe('PullsPanel', () => {
     await waitFor(() => expect(openScene).toHaveBeenCalledWith(expect.objectContaining({ id: 'impact-pr-7' }), 'changes'));
     fireEvent.click(screen.getByTestId('pull-explain'));
     expect(await screen.findByTestId('pull-explanation')).toHaveTextContent('store is rewritten');
+    expect(await screen.findByTestId('pull-verdict')).toHaveTextContent('Does not pass yet');
+    expect(screen.getByTestId('verdict-action-r1')).toHaveTextContent('Run the suite.');
+    await waitFor(() => expect(screen.getByTestId('verdict-action-r1')).toHaveTextContent('src/a.ts:12'));
     expect(explainMock).toHaveBeenCalledWith('/repos/r1', { pull: 7 }, expect.any(Function));
     expect(openScene).toHaveBeenCalledWith(expect.objectContaining({ id: 'impact-pr-7-explained' }), 'changes');
     const open = vi.spyOn(window, 'open').mockImplementation(() => null);

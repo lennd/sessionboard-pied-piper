@@ -113,3 +113,18 @@
 .home-nav-item { padding: 6px 12px; border-radius: 999px; color: var(--mint); text-decoration: none; font-weight: 600; }
 .home-nav-item.is-active { background: #fff; color: var(--green-deep); }
 .home-nav-item:hover:not(.is-active) { background: rgba(255, 255, 255, .12); color: #fff; }
+
+.home { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 36px; padding: 48px 24px; }
+.home-hero { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.home-hero .piper-mark .ft { animation-duration: 2.4s; }
+.home-wordmark { font-family: var(--serif); font-size: 64px; font-weight: 600; letter-spacing: -.03em; line-height: 1; margin: 8px 0 0; color: #fff; }
+.home-tagline { color: var(--mint); max-width: 520px; font-size: 15px; line-height: 1.5; margin: 0; }
+.home-cards { display: grid; grid-template-columns: repeat(3, minmax(200px, 260px)); gap: 16px; width: 100%; max-width: 860px; }
+.home-card { display: flex; flex-direction: column; gap: 6px; padding: 22px 20px; color: #fff; text-decoration: none; transition: transform .15s, background .15s; }
+.home-card:hover { transform: translateY(-2px); background: rgba(255, 255, 255, .14); }
+.home-card:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.home-card-glyph { font-size: 26px; line-height: 1; }
+.home-card-title { font-family: var(--serif); font-size: 22px; font-weight: 600; }
+.home-card-hint { color: var(--mint); font-size: 13px; line-height: 1.4; }
+.home-link { display: inline-flex; color: inherit; text-decoration: none; }
+@media (max-width: 760px) { .home-cards { grid-template-columns: 1fr; } .home-wordmark { font-size: 44px; } }

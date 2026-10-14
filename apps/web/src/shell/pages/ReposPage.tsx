@@ -41,7 +41,7 @@ export const ReposPage = () => {
     <AuroraBackground soft>
       <div className="shell">
         <header className="shell-top">
-          <AnimatedLogo size={30} />
+          <Link to="/" className="home-link" data-testid="nav-home"><AnimatedLogo size={30} /></Link>
           <HomeNav />
           <span className="shell-spacer" />
         </header>

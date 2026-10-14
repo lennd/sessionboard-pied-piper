@@ -13,7 +13,7 @@ beforeEach(() => {
 describe('ReposPage', () => {
   it('lists repositories with git state and map status', async () => {
     api.mockResolvedValue([repoFixture(), repoFixture({ id: 'r2', name: 'notes', head: null, branch: null, hasSystemMap: true })] as never);
-    renderShell(<ReposPage />);
+    renderShell(<ReposPage />, { route: '/repos', path: '/repos' });
     const row = await screen.findByTestId('repo-r1');
     expect(row).toHaveTextContent('shop-api');
     expect(row).toHaveTextContent('main · abcdef1');
@@ -32,7 +32,7 @@ describe('ReposPage', () => {
       }
       return [] as never;
     });
-    renderShell(<ReposPage />);
+    renderShell(<ReposPage />, { route: '/repos', path: '/repos' });
     expect(await screen.findByTestId('repos-empty')).toBeInTheDocument();
     fireEvent.change(screen.getByTestId('repos-path'), { target: { value: '/nope' } });
     fireEvent.click(screen.getByTestId('repos-add'));
@@ -46,7 +46,7 @@ describe('ReposPage', () => {
   it('uses the desktop folder picker when available and removes repositories', async () => {
     window.rdi = { pickFolder: vi.fn().mockResolvedValue('/picked'), openExternal: vi.fn() };
     api.mockImplementation(async (_path, init) => (init?.method === 'POST' ? repoFixture({ id: 'r9', path: '/picked' }) : init?.method === 'DELETE' ? undefined : [repoFixture()]) as never);
-    renderShell(<ReposPage />);
+    renderShell(<ReposPage />, { route: '/repos', path: '/repos' });
     fireEvent.click(await screen.findByTestId('repos-browse'));
     await waitFor(() => expect(api).toHaveBeenCalledWith('/repos', { method: 'POST', body: { path: '/picked' } }));
     fireEvent.click(screen.getByTestId('repo-remove-r1'));

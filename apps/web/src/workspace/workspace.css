@@ -237,3 +237,12 @@ button, select, input { font: inherit; color: inherit; }
 
 .pull-item.is-approved { opacity: .75; border-style: dashed; }
 .pull-item.is-approved:hover { opacity: 1; }
+
+.verdict { border: 1px solid var(--line); border-left-width: 4px; border-radius: var(--radius); padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
+.verdict.is-pass { border-left-color: var(--ok); } .verdict.is-warn { border-left-color: var(--strained); } .verdict.is-fail { border-left-color: var(--saturated); }
+.verdict-head { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.verdict-mark { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-weight: 700; color: var(--bg); }
+.verdict.is-pass .verdict-mark { background: var(--ok); } .verdict.is-warn .verdict-mark { background: var(--strained); } .verdict.is-fail .verdict-mark { background: var(--saturated); }
+.verdict .sec-title { border: 0; padding: 6px 0 2px; }
+.verdict-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+.verdict-action div { margin-top: 2px; }

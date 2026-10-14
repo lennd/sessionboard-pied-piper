@@ -11,6 +11,7 @@ import { errorText } from '../errors';
 import { formatRelative } from '../format';
 import { BRANCH, decidePull, explainPull, fetchPull, fetchPullImpact, fetchPulls, postReview, previewRisks, type Decision, type PullDetail, type PullSummary, type ReviewPosted, type ReviewState, type RiskAnchor } from './pullsApi';
 import type { Scene } from '@rdi/scene';
+import { verdictOf, type VerdictAction } from './verdict';
 
 const STATUS_GLYPH: Record<string, string> = { added: '+', removed: '−', modified: '~' };
 const NOT_FOUND = 404;
@@ -191,6 +192,38 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
         )}
         {noMap && <p className="chat-notice" data-testid="pull-no-map">{t('pulls.noMap')}</p>}
         {error && <p className="alert error" role="alert">{error}</p>}
+        {pull && scene && explanation && (() => {
+          const verdict = verdictOf(scene, risks ?? []);
+          const action = (a: VerdictAction) => (
+            <li key={a.riskId} className="verdict-action" data-testid={`verdict-action-${a.riskId}`}>
+              <b>{a.rule ? '§ ' : ''}{a.title}</b>
+              <div>{a.what}</div>
+              {a.where && <div className="muted">{a.where}</div>}
+            </li>
+          );
+          return (
+            <div className={`verdict is-${verdict.status}`} data-testid="pull-verdict">
+              <div className="verdict-head">
+                <span className="verdict-mark">{verdict.status === 'pass' ? '✓' : verdict.status === 'warn' ? '!' : '✕'}</span>
+                <b>{t(`pulls.verdict.${verdict.status}`)}</b>
+                <span className="muted">{t('pulls.verdict.counts', { blockers: verdict.blockers.length, warnings: verdict.warnings.length, total: verdict.total })}</span>
+              </div>
+              {verdict.blockers.length > 0 && (
+                <>
+                  <div className="sec-title">{t('pulls.verdict.toPass')}</div>
+                  <ol className="verdict-list">{verdict.blockers.map(action)}</ol>
+                </>
+              )}
+              {verdict.warnings.length > 0 && (
+                <>
+                  <div className="sec-title">{t('pulls.verdict.watch')}</div>
+                  <ol className="verdict-list">{verdict.warnings.map(action)}</ol>
+                </>
+              )}
+              {verdict.status === 'pass' && <p className="muted">{t('pulls.verdict.passHint')}</p>}
+            </div>
+          );
+        })()}
         {explanation && <div className="pull-body" data-testid="pull-explanation"><Markdown text={explanation} /></div>}
         {pull && scene && (
           <div data-testid="pull-risks">

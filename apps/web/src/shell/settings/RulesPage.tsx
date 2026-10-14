@@ -11,7 +11,8 @@ const ROWS = 12;
 
 export const RulesPage = () => {
   const { t } = useI18n();
-  const { repo } = useSettingsContext();
+  const { repo: maybeRepo } = useSettingsContext();
+  const repo = maybeRepo ?? { id: '' };
   const client = useQueryClient();
   const key = ['rules', repo.id];
   const rules = useQuery({ queryKey: key, queryFn: () => apiFetch<Rules>(`/repos/${repo.id}/rules`) });

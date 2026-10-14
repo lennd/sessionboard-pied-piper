@@ -36,7 +36,7 @@ describe('SettingsLayout', () => {
     expect(screen.getByTestId('nav-preferences')).toHaveAttribute('href', '/repos/r1/settings/preferences');
     expect(screen.getByTestId('nav-solutions')).toHaveAttribute('href', '/repos/r1/settings/solutions');
     expect(screen.getByTestId('nav-explore')).toHaveAttribute('href', '/repos/r1/explore');
-    expect(screen.getByTestId('nav-repos')).toHaveAttribute('href', '/');
+    expect(screen.getByTestId('nav-repos')).toHaveAttribute('href', '/repos');
     expect(screen.getByText('content')).toBeInTheDocument();
   });
 });
