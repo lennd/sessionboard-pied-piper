@@ -7,6 +7,7 @@ import { mcpRoutes } from './mcp/route';
 import { agentRoutes } from './routes/agent';
 import { codeRoutes } from './routes/code';
 import { prefsRoutes } from './routes/prefs';
+import { pullRoutes } from './routes/pulls';
 import { repoRoutes } from './routes/repos';
 import { runRoutes } from './routes/runs';
 import { sessionRoutes } from './routes/sessions';
@@ -38,6 +39,7 @@ export const buildApp = (deps: AppDeps): FastifyInstance => {
       solutionRoutes(api, deps);
       sessionRoutes(api, deps);
       runRoutes(api, deps);
+      pullRoutes(api, deps);
     },
     { prefix: API_PREFIX },
   );

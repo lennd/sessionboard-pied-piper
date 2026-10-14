@@ -6,6 +6,7 @@ export type Config = {
   host: string;
   home: string;
   claudeHome: string;
+  ghBin: string;
   nodeEnv: string;
   webDist: string | null;
   agent: { fake: boolean; model: string | null; maxTurns: number; maxBudgetUsd: number | null; heartbeatMs: number; claudeExecutable: string | null };
@@ -16,6 +17,7 @@ const DEFAULTS = {
   RDI_HOST: '127.0.0.1',
   RDI_HOME: '',
   RDI_CLAUDE_HOME: '',
+  RDI_GH_BIN: 'gh',
   NODE_ENV: 'development',
   RDI_WEB_DIST: '',
   RDI_FAKE_AGENT: 'false',
@@ -42,6 +44,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     host: read('RDI_HOST'),
     home: read('RDI_HOME') || join(homedir(), RDI_DIR),
     claudeHome: read('RDI_CLAUDE_HOME') || join(homedir(), CLAUDE_DIR),
+    ghBin: read('RDI_GH_BIN'),
     nodeEnv,
     webDist: orNull(read('RDI_WEB_DIST')),
     agent: {

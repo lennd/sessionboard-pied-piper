@@ -11,6 +11,7 @@ import { Splash } from '../components/Splash';
 import { errorText } from '../errors';
 import { repoKey, usePrefs, useRepo, useUpdatePrefs } from '../local';
 import { effectiveExplanationLanguage, effectiveLevel, effectiveTheme } from '../preferences';
+import { PullsPanel } from '../pulls/PullsPanel';
 import { SessionsPanel } from '../sessions/SessionsPanel';
 
 const NOT_FOUND = 404;
@@ -71,7 +72,10 @@ export const ExplorePage = () => {
       )}
       <Workspace
         loadCode={loadCode}
-        panels={[{ id: 'sessions', glyph: '⏱', title: t('sessions.title'), render: (ctx) => <SessionsPanel repoId={repoId} ctx={ctx} /> }]}
+        panels={[
+          { id: 'sessions', glyph: '⏱', title: t('sessions.title'), render: (ctx) => <SessionsPanel repoId={repoId} ctx={ctx} /> },
+          { id: 'pulls', glyph: '⇄', title: t('pulls.title'), render: (ctx) => <PullsPanel repoId={repoId} ctx={ctx} /> },
+        ]}
         chat={(ctx) => <ChatPanel repoId={repoId} ctx={ctx} language={explanationLanguage} />}
         extraScenes={systemMap.data ? [systemMap.data] : []}
         theme={effectiveTheme(prefs)}
