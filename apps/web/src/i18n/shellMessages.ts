@@ -245,6 +245,11 @@ export const shellEn = {
   'pulls.approveConfirm': 'Approve the pull request',
   'pulls.approving': 'Approving…',
   'pulls.approved': 'Pull request approved.',
+  'pulls.pending': 'Pending review',
+  'pulls.approvedList': 'Approved',
+  'pulls.review.mine': 'approved by you',
+  'pulls.review.approved': 'approved',
+  'pulls.review.changes': 'changes requested',
 } as const;
 
 export type ShellKey = keyof typeof shellEn;
@@ -497,6 +502,11 @@ export const shellEs: ShellCatalog = {
   'pulls.approveConfirm': 'Aprobar el pull request',
   'pulls.approving': 'Aprobando…',
   'pulls.approved': 'Pull request aprobado.',
+  'pulls.pending': 'Pendientes de review',
+  'pulls.approvedList': 'Aprobados',
+  'pulls.review.mine': 'aprobado por vos',
+  'pulls.review.approved': 'aprobado',
+  'pulls.review.changes': 'cambios pedidos',
 };
 
 export const shellPt: ShellCatalog = {
@@ -746,4 +756,9 @@ export const shellPt: ShellCatalog = {
   'pulls.approveConfirm': 'Aprovar o pull request',
   'pulls.approving': 'Aprovando…',
   'pulls.approved': 'Pull request aprovado.',
+  'pulls.pending': 'Pendentes de review',
+  'pulls.approvedList': 'Aprovados',
+  'pulls.review.mine': 'aprovado por você',
+  'pulls.review.approved': 'aprovado',
+  'pulls.review.changes': 'mudanças solicitadas',
 };

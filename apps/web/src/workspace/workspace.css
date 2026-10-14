@@ -234,3 +234,6 @@ button, select, input { font: inherit; color: inherit; }
 .tl-event.is-error .tl-glyph { color: var(--saturated); }
 .tl-event.is-pending .tl-glyph { color: var(--strained); }
 .tl-event .payload { position: static; margin: 4px 0 6px 26px; }
+
+.pull-item.is-approved { opacity: .75; border-style: dashed; }
+.pull-item.is-approved:hover { opacity: 1; }

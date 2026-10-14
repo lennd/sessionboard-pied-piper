@@ -10,10 +10,12 @@ const run = promisify(execFile);
 const MAX_BUFFER = 64 * 1024 * 1024;
 const LIST_LIMIT = 30;
 const CACHE_MS = 30_000;
-const LIST_FIELDS = 'number,title,author,headRefName,baseRefName,isDraft,updatedAt,url,additions,deletions,changedFiles';
+const LIST_FIELDS = 'number,title,author,headRefName,baseRefName,isDraft,updatedAt,url,additions,deletions,changedFiles,reviewDecision,latestReviews';
+const LOGIN_CACHE_MS = 60 * 60_000;
 const VIEW_FIELDS = `${LIST_FIELDS},body,files`;
 
-export type PullSummary = { number: number; title: string; author: string; draft: boolean; headRef: string; baseRef: string; updatedAt: string; url: string; additions: number; deletions: number; changedFiles: number };
+export type ReviewState = { decision: 'approved' | 'changes_requested' | 'pending'; approvedByMe: boolean; approvals: number; changesRequested: number };
+export type PullSummary = { number: number; title: string; author: string; draft: boolean; headRef: string; baseRef: string; updatedAt: string; url: string; additions: number; deletions: number; changedFiles: number; review: ReviewState };
 export type PullFile = { path: string; additions: number; deletions: number; change: TouchedFile['change'] };
 export type PullDetail = { pull: PullSummary & { body: string }; files: PullFile[] };
 export type GhError = 'gh_missing' | 'gh_not_logged_in' | 'no_remote' | 'gh_failed';
@@ -23,7 +25,8 @@ export class GhFailure extends Error {
   }
 }
 
-type RawPull = { number: number; title: string; author: { login: string }; headRefName: string; baseRefName: string; isDraft: boolean; updatedAt: string; url: string; additions: number; deletions: number; changedFiles: number };
+type RawReview = { author?: { login?: string }; state?: string };
+type RawPull = { number: number; title: string; author: { login: string }; headRefName: string; baseRefName: string; isDraft: boolean; updatedAt: string; url: string; additions: number; deletions: number; changedFiles: number; reviewDecision?: string; latestReviews?: RawReview[] };
 
 const classify = (error: unknown): GhFailure => {
   const e = error as NodeJS.ErrnoException & { stderr?: string };
@@ -51,9 +54,18 @@ export type ReviewResult = { id: number; url: string };
 export type GistResult = { id: string; owner: string; url: string; rawUrl: (file: string) => string };
 const GIST_URL = /gist\.github\.com\/(?:([^/\s]+)\/)?([0-9a-f]+)/;
 
-const summary = (p: RawPull): PullSummary => ({
+/** Review state from the latest review of each reviewer, plus GitHub's own decision when branch protection computes one. */
+export const reviewState = (p: Pick<RawPull, 'reviewDecision' | 'latestReviews'>, me: string | null): ReviewState => {
+  const latest = p.latestReviews ?? [];
+  const approvals = latest.filter((r) => r.state === 'APPROVED').length;
+  const changesRequested = latest.filter((r) => r.state === 'CHANGES_REQUESTED').length;
+  const decision = p.reviewDecision === 'APPROVED' || (p.reviewDecision !== 'CHANGES_REQUESTED' && approvals > 0 && changesRequested === 0) ? 'approved' : p.reviewDecision === 'CHANGES_REQUESTED' || changesRequested > 0 ? 'changes_requested' : 'pending';
+  return { decision, approvedByMe: me !== null && latest.some((r) => r.state === 'APPROVED' && r.author?.login === me), approvals, changesRequested };
+};
+
+const summary = (p: RawPull, me: string | null): PullSummary => ({
   number: p.number, title: p.title, author: p.author?.login ?? '', draft: p.isDraft, headRef: p.headRefName, baseRef: p.baseRefName, updatedAt: p.updatedAt, url: p.url,
-  additions: p.additions, deletions: p.deletions, changedFiles: p.changedFiles,
+  additions: p.additions, deletions: p.deletions, changedFiles: p.changedFiles, review: reviewState(p, me),
 });
 
 /** Reads added/removed/renamed from the diff headers; anything else in the file list is a modification. */
@@ -75,12 +87,22 @@ export const diffStatuses = (diff: string): Map<string, TouchedFile['change']> =
 };
 
 const cache = new Map<string, { at: number; pulls: PullSummary[] }>();
+let login: { at: number; value: string | null } | null = null;
 
-export const createGh = (bin: string) => ({
+export const createGh = (bin: string) => {
+  const me = async (cwd: string): Promise<string | null> => {
+    if (login && Date.now() - login.at < LOGIN_CACHE_MS) return login.value;
+    const value = await gh(bin, cwd, ['api', 'user', '--jq', '.login']).then((out) => out.trim() || null).catch(() => null);
+    login = { at: Date.now(), value };
+    return value;
+  };
+  return {
+  invalidate: (cwd: string) => cache.delete(cwd),
   listPulls: async (cwd: string, refresh = false): Promise<PullSummary[]> => {
     const hit = cache.get(cwd);
     if (!refresh && hit && Date.now() - hit.at < CACHE_MS) return hit.pulls;
-    const pulls = (JSON.parse(await gh(bin, cwd, ['pr', 'list', '--state', 'open', '--limit', String(LIST_LIMIT), '--json', LIST_FIELDS])) as RawPull[]).map(summary);
+    const user = await me(cwd);
+    const pulls = (JSON.parse(await gh(bin, cwd, ['pr', 'list', '--state', 'open', '--limit', String(LIST_LIMIT), '--json', LIST_FIELDS])) as RawPull[]).map((p) => summary(p, user));
     cache.set(cwd, { at: Date.now(), pulls });
     return pulls;
   },
@@ -120,7 +142,8 @@ export const createGh = (bin: string) => ({
   pullDetail: async (cwd: string, number: number): Promise<PullDetail> => {
     const raw = JSON.parse(await gh(bin, cwd, ['pr', 'view', String(number), '--json', VIEW_FIELDS])) as RawPull & { body: string; files: { path: string; additions: number; deletions: number }[] };
     const statuses = diffStatuses(await gh(bin, cwd, ['pr', 'diff', String(number)]));
-    return { pull: { ...summary(raw), body: raw.body ?? '' }, files: raw.files.map((f) => ({ ...f, change: statuses.get(f.path) ?? 'modified' })) };
+    return { pull: { ...summary(raw, await me(cwd)), body: raw.body ?? '' }, files: raw.files.map((f) => ({ ...f, change: statuses.get(f.path) ?? 'modified' })) };
   },
-});
+  };
+};
 export type Gh = ReturnType<typeof createGh>;

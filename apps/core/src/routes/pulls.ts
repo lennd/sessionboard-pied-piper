@@ -140,6 +140,7 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const text = [body.note || (body.decision === 'approve' ? 'Looks good from the impact review.' : 'Please look at the risks raised in the impact review.'), signature(logoUrl)].join('\n\n');
     try {
       const result = await gh.reviewPull(req.repo!.path, number, body.decision, text);
+      gh.invalidate(req.repo!.path);
       return reply.code(201).send({ ...result, decision: body.decision });
     } catch (error) {
       return ghFail(reply, error);

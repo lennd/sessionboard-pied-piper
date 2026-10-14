@@ -4,7 +4,8 @@ import { apiFetch } from '../api';
 import { explainToScene } from '../chat/chatApi';
 import type { FileChange } from '../sessions/sessionsApi';
 
-export type PullSummary = { number: number; title: string; author: string; draft: boolean; headRef: string; baseRef: string; updatedAt: string; url: string; additions: number; deletions: number; changedFiles: number };
+export type ReviewState = { decision: 'approved' | 'changes_requested' | 'pending'; approvedByMe: boolean; approvals: number; changesRequested: number };
+export type PullSummary = { number: number; title: string; author: string; draft: boolean; headRef: string; baseRef: string; updatedAt: string; url: string; additions: number; deletions: number; changedFiles: number; review: ReviewState };
 export type PullFile = { path: string; additions: number; deletions: number; change: FileChange };
 export type PullDetail = { pull: PullSummary & { body: string }; files: PullFile[] };
 export type BranchCompare = { branch: string; base: string; ahead: number; touched: { path: string; change: FileChange }[] };

@@ -21,7 +21,9 @@ const DIFF = [
   'diff --git a/old.md b/old.md', 'deleted file mode 100644', '--- a/old.md', '+++ /dev/null',
   'diff --git a/a.ts b/b.ts', 'similarity index 90%', 'rename from a.ts', 'rename to b.ts',
 ].join('\n');
-const PULL = { number: 7, title: 'Store rewrite', author: { login: 'ana' }, headRefName: 'feature/store', baseRefName: 'main', isDraft: false, updatedAt: '2026-10-13T10:00:00Z', url: 'https://github.com/acme/x/pull/7', additions: 3, deletions: 2, changedFiles: 4 };
+const PULL = { number: 7, title: 'Store rewrite', author: { login: 'ana' }, headRefName: 'feature/store', baseRefName: 'main', isDraft: false, updatedAt: '2026-10-13T10:00:00Z', url: 'https://github.com/acme/x/pull/7', additions: 3, deletions: 2, changedFiles: 4, reviewDecision: '', latestReviews: [{ author: { login: 'bob' }, state: 'APPROVED' }] };
+const PULL8 = { ...PULL, number: 8, title: 'Mine approved', latestReviews: [{ author: { login: 'me' }, state: 'APPROVED' }] };
+const PULL9 = { ...PULL, number: 9, title: 'Needs work', reviewDecision: 'CHANGES_REQUESTED', latestReviews: [{ author: { login: 'bob' }, state: 'CHANGES_REQUESTED' }] };
 const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.email=a@b.c', '-c', 'user.name=t', ...args], { cwd }).toString();
 
 let home: string;
@@ -36,7 +38,7 @@ const fakeGh = async (mode: 'ok' | 'missing' | 'logged_out') => {
   const body = mode === 'logged_out' ? 'echo "To get started with GitHub CLI, please run: gh auth login" >&2; exit 4' : `
 case "$*" in
   "pr list"*) cat <<'JSON'
-[${JSON.stringify(PULL)}]
+[${JSON.stringify(PULL)},${JSON.stringify(PULL8)},${JSON.stringify(PULL9)}]
 JSON
   ;;
   "pr view 7"*) cat <<'JSON'
@@ -50,6 +52,7 @@ DIFF
   "api --method POST repos/{owner}/{repo}/pulls/7/reviews --input -") cat > "$(dirname "$0")/review.json"; echo '{"id": 55, "html_url": "https://github.com/acme/x/pull/7#pullrequestreview-55"}';;
   "pr review 7 --approve --body"*) echo "$@" > "$(dirname "$0")/approve.txt"; echo "Approved pull request #7";;
   "pr review 7 --request-changes --body"*) echo "You can not request changes on your own pull request" >&2; exit 1;;
+  "api user --jq .login") echo me;;
   "api repos/{owner}/{repo}/pulls/7/reviews") echo '[{"id": 9, "html_url": "https://github.com/acme/x/pull/7#pullrequestreview-9", "state": "APPROVED"}]';;
   "gist create --public --desc"*) ls "$6" "$7" "$8" 2>/dev/null | sed 's#.*/##' > "$(dirname "$0")/gist-files.txt"; echo "https://gist.github.com/ana/abc123def456";;
   *) echo "no pull requests found" >&2; exit 1;;
@@ -94,7 +97,11 @@ describe('pull requests', () => {
   it('lists open pull requests through gh and reads one with file statuses', async () => {
     const list = (await app.inject({ method: 'GET', url: `/api/repos/${repoId}/pulls` })).json();
     expect(list).toMatchObject({ available: true, branch: null });
-    expect(list.pulls).toEqual([expect.objectContaining({ number: 7, title: 'Store rewrite', author: 'ana', headRef: 'feature/store', draft: false })]);
+    expect(list.pulls).toEqual([
+      expect.objectContaining({ number: 7, title: 'Store rewrite', author: 'ana', headRef: 'feature/store', draft: false, review: { decision: 'approved', approvedByMe: false, approvals: 1, changesRequested: 0 } }),
+      expect.objectContaining({ number: 8, review: { decision: 'approved', approvedByMe: true, approvals: 1, changesRequested: 0 } }),
+      expect.objectContaining({ number: 9, review: { decision: 'changes_requested', approvedByMe: false, approvals: 0, changesRequested: 1 } }),
+    ]);
     const detail = (await app.inject({ method: 'GET', url: `/api/repos/${repoId}/pulls/7` })).json();
     expect(detail.pull.body).toBe('Rewrites the **store**.');
     expect(detail.files.map((f: { path: string; change: string }) => [f.path, f.change])).toEqual([['apps/core/src/app.ts', 'modified'], ['apps/core/src/store/fresh.ts', 'added'], ['old.md', 'removed'], ['b.ts', 'added']]);
