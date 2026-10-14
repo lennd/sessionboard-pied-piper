@@ -5,9 +5,10 @@ import { PullsPanel } from '../../src/shell/pulls/PullsPanel';
 import { renderShell } from './render';
 
 vi.mock('../../src/shell/api', async (original) => ({ ...(await original<typeof import('../../src/shell/api')>()), apiFetch: vi.fn() }));
-vi.mock('../../src/shell/chat/chatApi', async (original) => ({ ...(await original<typeof import('../../src/shell/chat/chatApi')>()), explainToScene: vi.fn() }));
-import { explainToScene } from '../../src/shell/chat/chatApi';
+vi.mock('../../src/shell/chat/chatApi', async (original) => ({ ...(await original<typeof import('../../src/shell/chat/chatApi')>()), explainToScene: vi.fn(), streamChat: vi.fn() }));
+import { explainToScene, streamChat } from '../../src/shell/chat/chatApi';
 const explainMock = vi.mocked(explainToScene);
+const streamMock = vi.mocked(streamChat);
 const api = vi.mocked(apiFetch);
 const scene = sampleRegistry['iot-telemetry']!;
 const pending = { decision: 'pending' as const, approvedByMe: false, approvals: 0, changesRequested: 0 };
@@ -35,6 +36,10 @@ const mockApi = (options: { available?: boolean; reason?: string; branch?: typeo
       return { id: 55, url: 'https://github.com/acme/x/pull/7#pullrequestreview-55', inline: 1, summary: 0 } as never;
     }
     if (p.endsWith('/pulls/7/decision') && init?.method === 'POST') return { id: 9, url: 'https://github.com/acme/x/pull/7#pullrequestreview-9', decision: 'approve' } as never;
+    if (p.endsWith('/agent')) return { enabled: true, model: 'm', usage: { input: 0, output: 0, costUsd: 0 } } as never;
+    if (p.endsWith('/conversations') && init?.method === 'POST') return { id: 'c9', title: (init.body as { title?: string }).title ?? 'New conversation', updatedAt: '2026-10-13T10:00:00Z' } as never;
+    if (p.endsWith('/conversations')) return [{ id: 'c1', title: 'General question', updatedAt: '2026-10-13T10:00:00Z' }] as never;
+    if (p.endsWith('/conversations/c9')) return { id: 'c9', title: '#7 · Store rewrite', items: [], scenes: [] } as never;
     if (p.endsWith('/pulls/7/triage')) return (init?.method === 'DELETE' ? undefined : { number: 7, triage: { state: (init?.body as { state: string }).state, at: '2026-10-13T10:00:00Z', note: null } }) as never;
     throw new Error(`unexpected ${p}`);
   });
@@ -129,6 +134,23 @@ describe('PullsPanel', () => {
     fireEvent.click(screen.getByTestId('pull-comment'));
     expect(await screen.findByRole('alert')).toHaveTextContent('GitHub could not be reached. Validation Failed');
     expect(screen.queryByTestId('pull-error-open')).toBeNull();
+  });
+
+  it('embeds a chat about the opened pull request with its own conversations', async () => {
+    mockApi();
+    streamMock.mockResolvedValue(undefined);
+    render();
+    fireEvent.click(await screen.findByTestId('pull-7'));
+    const chat = await screen.findByTestId('pull-chat');
+    expect(chat.querySelector('[data-testid="chat-panel"]')).not.toBeNull();
+    expect(screen.getByTestId('chat-about-pull')).toHaveTextContent('Chat about pull request #7');
+    await waitFor(() => expect(api).toHaveBeenCalledWith('/repos/r1/conversations'));
+    expect(screen.getByTestId('chat-conversations')).not.toHaveTextContent('General question');
+    fireEvent.change(screen.getByTestId('chat-input'), { target: { value: 'What does it change?' } });
+    fireEvent.click(screen.getByTestId('chat-send'));
+    await waitFor(() => expect(api).toHaveBeenCalledWith('/repos/r1/conversations', { method: 'POST', body: { title: '#7 · Store rewrite' } }));
+    await waitFor(() => expect(streamMock).toHaveBeenCalled());
+    expect(streamMock.mock.calls[0]![2]).toMatchObject({ text: 'What does it change?', pull: 7 });
   });
 
   it('marks a pull request as reviewed or dismissed and keeps dismissed ones apart', async () => {

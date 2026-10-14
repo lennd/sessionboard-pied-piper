@@ -191,6 +191,9 @@ button, select, input { font: inherit; color: inherit; }
 .pull-item-title { font-weight: 600; font-size: 13px; }
 .pull-draft { margin-left: 6px; font-size: 10px; }
 .pulls-back { align-self: flex-start; }
+.pull-chat { height: 440px; margin-top: 6px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; }
+.pull-chat .chat { height: 100%; }
+.chat-about { padding: 8px 10px 0; font-weight: 600; }
 .pull-title { font-size: 14px; }
 .pull-size .add { color: var(--ok, #3ccf91); }
 .pull-size .del { color: var(--bad, #ff6b81); }

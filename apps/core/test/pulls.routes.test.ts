@@ -65,8 +65,10 @@ esac`;
   return mode === 'missing' ? join(dir, 'nope') : script;
 };
 
+const prompts: string[] = [];
 const boot = async (ghBin: string) => {
-  app = buildApp({ config: loadConfig({ RDI_HOME: home, RDI_FAKE_AGENT: 'true', RDI_GH_BIN: ghBin }), queryFn: createFakeQuery(), events: new EventEmitter(), runs: createRunRegistry() });
+  const fake = createFakeQuery();
+  app = buildApp({ config: loadConfig({ RDI_HOME: home, RDI_FAKE_AGENT: 'true', RDI_GH_BIN: ghBin }), queryFn: (params, local) => { prompts.push(params.prompt); return fake(params, local); }, events: new EventEmitter(), runs: createRunRegistry() });
   await app.ready();
   repoId = (await app.inject({ method: 'POST', url: '/api/repos', payload: { path: repoPath } })).json().id;
 };
@@ -135,6 +137,22 @@ describe('pull requests', () => {
     expect((explained.find((e) => e.event === 'scene')!.data as { scene: { id: string } }).scene.id).toBe('impact-pr-7-explained');
     const branchExplained = parseSse((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/impact/explain`, payload: { pull: 'branch' } })).body);
     expect((branchExplained.find((e) => e.event === 'scene')!.data as { scene: { id: string } }).scene.id).toBe('impact-branch-explained');
+  });
+
+  it('gives a chat embedded in a pull request the title, files and diff of that pull request', async () => {
+    prompts.length = 0;
+    const created = await app.inject({ method: 'POST', url: `/api/repos/${repoId}/conversations`, payload: { title: '#7 · Store rewrite' } });
+    expect(created.json()).toMatchObject({ title: '#7 · Store rewrite' });
+    const id = created.json().id as string;
+    const first = await app.inject({ method: 'POST', url: `/api/repos/${repoId}/conversations/${id}/messages`, payload: { text: 'What does this change?', pull: 7 } });
+    expect(first.statusCode).toBe(200);
+    expect(prompts[0]).toContain('pull request #7 "Store rewrite" by ana');
+    expect(prompts[0]).toContain('- apps/core/src/store/fresh.ts');
+    expect(prompts[0]).toContain('```diff');
+    const second = await app.inject({ method: 'POST', url: `/api/repos/${repoId}/conversations/${id}/messages`, payload: { text: 'And the risks?', pull: 7 } });
+    expect(second.statusCode).toBe(200);
+    expect(prompts[1]).toContain('pull request #7');
+    expect(prompts[1]).not.toContain('```diff');
   });
 
   it('reports a pending review on GitHub with its link and removes the evidence gist it had just created', async () => {

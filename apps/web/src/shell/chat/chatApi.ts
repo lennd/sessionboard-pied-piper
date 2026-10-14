@@ -8,7 +8,7 @@ export type ChatEvent =
   | { type: 'solution'; id: string; n: number; title: string }
   | { type: 'error'; code: string; message: string }
   | { type: 'done'; sceneIds: string[]; usage: { input: number; output: number } };
-export type AskBody = { text: string; language?: string; focus?: { label: string; graphRef: string } | null; mode?: 'analyze' | 'plan' };
+export type AskBody = { text: string; language?: string; focus?: { label: string; graphRef: string } | null; mode?: 'analyze' | 'plan'; pull?: number };
 
 const SEPARATOR = /\r?\n\r?\n/;
 const EVENT_TYPES = new Set(['text', 'tool', 'scene', 'solution', 'error', 'done']);

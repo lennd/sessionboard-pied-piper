@@ -68,6 +68,18 @@ export const chatPrompt = (question: string, options: { language: string; focus?
     question,
   ].join('\n\n');
 
+export type PullContextInput = { number: number; title: string; author: string; headRef: string; baseRef: string; additions: number; deletions: number; files: string[]; body: string; diff: string | null };
+const MAX_PULL_BODY = 2000;
+
+/** Context for a chat that lives inside a pull request: who changed what, and the diff itself on the first turn. */
+export const pullContext = (pull: PullContextInput): string =>
+  [
+    `This conversation is about pull request #${pull.number} "${pull.title}" by ${pull.author} (${pull.headRef} → ${pull.baseRef}, +${pull.additions} −${pull.deletions}). Answer about this change: what it does, what it touches, what could break and what to check.`,
+    ...(pull.body.trim() ? [`Description:\n${pull.body.trim().slice(0, MAX_PULL_BODY)}`] : []),
+    `Changed files:\n${pull.files.map((f) => `- ${f}`).join('\n')}`,
+    ...(pull.diff ? [`Diff:\n\`\`\`diff\n${pull.diff}\n\`\`\``] : []),
+  ].join('\n\n');
+
 /** Asks for the architecture map of the repository; the result is cached per commit. */
 export const systemMapPrompt = (language: string, repoName: string): string =>
   [

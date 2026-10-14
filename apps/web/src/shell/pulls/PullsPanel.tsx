@@ -5,6 +5,7 @@ import type { MessageKey } from '../../i18n/messages';
 import type { ChatContext } from '../../workspace/Workspace';
 import { beginActivity } from '../../components/activity';
 import { ApiError } from '../api';
+import { ChatPanel } from '../chat/ChatPanel';
 import { Markdown } from '../chat/Markdown';
 import { desktop } from '../desktop';
 import { errorLink, errorText } from '../errors';
@@ -27,7 +28,7 @@ const ReviewTag = ({ review, t }: { review: ReviewState; t: (key: MessageKey) =>
 const PULLS_STALE_MS = 20_000;
 type Target = number | typeof BRANCH;
 
-export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }) => {
+export const PullsPanel = ({ repoId, ctx, chatLanguage }: { repoId: string; ctx: ChatContext; chatLanguage?: string }) => {
   const { t, language } = useI18n();
   const client = useQueryClient();
   const key = ['pulls', repoId];
@@ -314,6 +315,11 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
             </li>
           ))}
         </ul>
+        {pull && (
+          <div className="pull-chat" data-testid="pull-chat">
+            <ChatPanel base={`/repos/${repoId}`} ctx={ctx} language={chatLanguage ?? language} pull={{ number: pull.number, title: pull.title }} />
+          </div>
+        )}
       </div>
     );
   }

@@ -25,12 +25,18 @@ const validScenes = (rows: Conversation['scenes']): SceneEntry[] =>
     return result.ok ? [{ id: row.id, turn: row.turn, scene: result.scene }] : [];
   });
 
-/** `base` is the API scope the chat belongs to: `/repos/<id>` or `/features/<id>`; it is also the route prefix for links. */
-export const ChatPanel = ({ base, ctx, language }: { base: string; ctx: ChatContext; language: string }) => {
+export type ChatPull = { number: number; title: string };
+/** Conversations that belong to a pull request are titled after it, so they can be told apart from the general ones. */
+export const pullConversationTitle = (pull: ChatPull): string => `#${pull.number} · ${pull.title}`;
+const pullPrefix = (pull: ChatPull): string => `#${pull.number} ·`;
+
+/** `base` is the API scope the chat belongs to: `/repos/<id>` or `/features/<id>`; it is also the route prefix for links. With `pull`, the chat is embedded in that pull request: its own conversations, and the pull request as context. */
+export const ChatPanel = ({ base, ctx, language, pull }: { base: string; ctx: ChatContext; language: string; pull?: ChatPull }) => {
   const { t } = useI18n();
   const client = useQueryClient();
   const agent = useQuery({ queryKey: ['agent', base], queryFn: () => apiFetch<Agent>(`${base}/agent`) });
-  const conversations = useQuery({ queryKey: ['conversations', base], queryFn: () => apiFetch<Summary[]>(`${base}/conversations`) });
+  const allConversations = useQuery({ queryKey: ['conversations', base], queryFn: () => apiFetch<Summary[]>(`${base}/conversations`) });
+  const conversations = { data: allConversations.data?.filter((c) => (pull ? c.title.startsWith(pullPrefix(pull)) : true)) };
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [scenes, setScenes] = useState<SceneEntry[]>([]);
@@ -99,7 +105,7 @@ export const ChatPanel = ({ base, ctx, language }: { base: string; ctx: ChatCont
     const endActivity = beginActivity(t('busy.chat'));
     try {
       const existing = options.fresh ? null : conversationId;
-      const id = existing ?? (await apiFetch<Summary>(`${base}/conversations`, { method: 'POST', body: {} })).id;
+      const id = existing ?? (await apiFetch<Summary>(`${base}/conversations`, { method: 'POST', body: pull ? { title: pullConversationTitle(pull) } : {} })).id;
       if (!existing) {
         justCreated.current = id;
         setConversationId(id);
@@ -129,7 +135,7 @@ export const ChatPanel = ({ base, ctx, language }: { base: string; ctx: ChatCont
           setError(errorText(event.code));
         }
       };
-      await streamChat(base, id, { text, language, focus, mode: options.mode }, onEvent, controller.signal);
+      await streamChat(base, id, { text, language, focus, mode: options.mode, ...(pull ? { pull: pull.number } : {}) }, onEvent, controller.signal);
       setFocus(null);
       void client.invalidateQueries({ queryKey: ['conversations', base] });
       void client.invalidateQueries({ queryKey: ['agent', base] });
@@ -172,7 +178,8 @@ export const ChatPanel = ({ base, ctx, language }: { base: string; ctx: ChatCont
   const visibleItems = items.filter((item) => item.role === 'user' || item.text);
 
   return (
-    <div className="chat" data-testid="chat-panel">
+    <div className={pull ? 'chat is-embedded' : 'chat'} data-testid="chat-panel">
+      {pull && <div className="chat-about" data-testid="chat-about-pull">✦ {t('chat.aboutPull', { number: pull.number })}</div>}
       <div className="chat-head">
         <select aria-label={t('chat.conversations')} data-testid="chat-conversations" value={conversationId ?? ''} disabled={busy} onChange={(e) => (e.target.value ? setConversationId(e.target.value) : startNew())}>
           <option value="">{t('chat.new')}</option>
@@ -182,7 +189,7 @@ export const ChatPanel = ({ base, ctx, language }: { base: string; ctx: ChatCont
       </div>
       {agent.data && disabled && <p className="chat-notice" data-testid="chat-disabled">{t('chat.disabled')}</p>}
       <div className="chat-log">
-        {visibleItems.length === 0 && <p className="muted">{t('chat.empty')}</p>}
+        {visibleItems.length === 0 && <p className="muted">{t(pull ? 'chat.emptyPull' : 'chat.empty')}</p>}
         {visibleItems.map((item, i) => (
           <div key={i}>
             <div className={`chat-msg ${item.role}`} data-testid={`chat-message-${i}`}>{item.role === 'assistant' ? <Markdown text={item.text} /> : item.text}</div>

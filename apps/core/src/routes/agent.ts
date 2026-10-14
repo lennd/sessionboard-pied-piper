@@ -1,7 +1,8 @@
 import { validateScene, type Scene } from '@rdi/scene';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { chatPrompt, questionOf, systemMapPrompt } from '../agent/prompt';
+import { chatPrompt, pullContext, questionOf, systemMapPrompt } from '../agent/prompt';
+import { createGh } from '../git/gh';
 import { runAgent, type AgentEvent } from '../agent/sdkRunner';
 import { translateScene, TranslateError } from '../agent/translate';
 import type { ToolContext } from '../agent/tools';
@@ -17,7 +18,7 @@ import {
 import { readPrefs } from '../store/prefs';
 import { readRules, ruleLines } from '../store/rules';
 import { readToolkit } from '../store/toolkit';
-import { repoDir } from '../store/repos';
+import { repoDir, type RepoEntry } from '../store/repos';
 import { findScene, insertScene, listConversationScenes, readSystemMap, SYSTEM_MAP_ID, writeSystemMap } from '../store/scenes';
 
 const TITLE_LENGTH = 60;
@@ -26,12 +27,15 @@ const LANGUAGE_TAG = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
 const DEFAULT_LANGUAGE = 'en';
 const SSE_HEADERS = { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache, no-transform', connection: 'keep-alive', 'x-accel-buffering': 'no' };
 
+const MAX_CONVERSATION_TITLE = 200;
 const askBody = z.object({
   text: z.string().trim().min(1).max(MAX_QUESTION),
   language: z.string().regex(LANGUAGE_TAG).optional(),
   focus: z.object({ label: z.string().min(1).max(200), graphRef: z.string().min(1).max(500) }).nullish(),
   mode: z.enum(['analyze', 'plan']).default('analyze'),
+  pull: z.number().int().positive().optional(),
 });
+const conversationBody = z.object({ title: z.string().trim().min(1).max(MAX_CONVERSATION_TITLE).optional() });
 const mapBody = z.object({ language: z.string().regex(LANGUAGE_TAG).optional(), force: z.boolean().optional() });
 
 const publicConversation = (c: ConversationSummary) => ({ id: c.id, title: c.title, updatedAt: c.updatedAt });
@@ -75,6 +79,18 @@ const openSse = (reply: FastifyReply, heartbeatMs: number) => {
 
 /** Chat, scenes and system map for one scope; mounted once per prefix (`/repos/:repoId`, `/features/:featureId`). */
 export const agentRoutes = (api: FastifyInstance, deps: AppDeps, prefix = '/repos/:repoId') => {
+  const gh = createGh(deps.config.ghBin);
+  /** Pull request facts for a chat embedded in that pull request; the diff travels only on the first turn, later turns resume the same session. */
+  const pullChatContext = async (repo: RepoEntry, number: number, turn: number): Promise<string | undefined> => {
+    try {
+      const detail = await gh.pullDetail(repo.path, number, repo.remote);
+      const diff = turn === 1 ? await gh.pullDiff(repo.path, number, undefined, repo.remote) : null;
+      return pullContext({ number, title: detail.pull.title, author: detail.pull.author, headRef: detail.pull.headRef, baseRef: detail.pull.baseRef, additions: detail.pull.additions, deletions: detail.pull.deletions, files: detail.files.map((f) => f.path), body: detail.pull.body, diff });
+    } catch (error) {
+      api.log.warn({ err: error, number }, 'pull request context unavailable for the chat');
+      return undefined;
+    }
+  };
   const withRepo = [requireScope(deps)];
   const url = (path: string) => `${prefix}${path}`;
   const languageFor = async (requested?: string) => requested ?? (await readPrefs(deps.config.home)).explanationLanguage ?? (await readPrefs(deps.config.home)).uiLanguage ?? DEFAULT_LANGUAGE;
@@ -111,8 +127,10 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps, prefix = '/repo
 
   api.get(url('/conversations'), { preHandler: withRepo }, async (req) => (await listConversations(req.scope!.dir)).map(publicConversation));
 
-  api.post(url('/conversations'), { preHandler: withRepo }, async (req, reply) =>
-    reply.code(201).send(publicConversation(await createConversation(req.scope!.dir, nowOf(deps)))));
+  api.post(url('/conversations'), { preHandler: withRepo }, async (req, reply) => {
+    const { title } = conversationBody.parse(req.body ?? {});
+    return reply.code(201).send(publicConversation(await createConversation(req.scope!.dir, nowOf(deps), title)));
+  });
 
   api.get(url('/conversations/:id'), { preHandler: withRepo }, async (req, reply) => {
     const conversation = await ownConversation(req, reply);
@@ -137,7 +155,7 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps, prefix = '/repo
       language, focus: body.focus ?? null, mode: body.mode,
       rules: repoRdi ? ruleLines(await readRules(repoRdi)) : [],
       toolkit: repoRdi ? await readToolkit(repoRdi) : '',
-      context: scope.kind === 'feature' && scope.feature ? await featureContext(scope.feature, scope.roots) : undefined,
+      context: scope.kind === 'feature' && scope.feature ? await featureContext(scope.feature, scope.roots) : body.pull && scope.repo ? await pullChatContext(scope.repo, body.pull, turn) : undefined,
     });
     const { send, end, signal } = openSse(reply, deps.config.agent.heartbeatMs);
     const sceneIds: string[] = [];

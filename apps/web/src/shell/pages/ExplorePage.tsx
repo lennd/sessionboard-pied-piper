@@ -85,7 +85,7 @@ export const ExplorePage = () => {
         loadCode={loadCode}
         panels={[
           { id: 'sessions', glyph: '⏱', title: t('sessions.title'), render: (ctx) => <SessionsPanel repoId={repoId} ctx={ctx} /> },
-          { id: 'pulls', glyph: '⇄', title: t('pulls.title'), render: (ctx) => <PullsPanel repoId={repoId} ctx={ctx} /> },
+          { id: 'pulls', glyph: '⇄', title: t('pulls.title'), render: (ctx) => <PullsPanel repoId={repoId} ctx={ctx} chatLanguage={explanationLanguage} /> },
         ]}
         chat={(ctx) => <ChatPanel base={`/repos/${repoId}`} ctx={ctx} language={explanationLanguage} />}
         extraScenes={systemMap.data ? [systemMap.data] : []}
