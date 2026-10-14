@@ -8,7 +8,7 @@
     "build:main": "esbuild src/main.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/main.cjs && esbuild src/preload.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/preload.cjs",
     "build:core": "esbuild ../core/src/server.ts --bundle --platform=node --format=esm --target=node20 --external:@anthropic-ai/claude-agent-sdk-darwin-arm64 --external:@anthropic-ai/claude-agent-sdk-darwin-x64 --external:@anthropic-ai/claude-agent-sdk-linux-x64 --external:@anthropic-ai/claude-agent-sdk-linux-arm64 --banner:js=\"import { createRequire as __rdiCreateRequire } from 'node:module'; const require = __rdiCreateRequire(import.meta.url);\" --outfile=resources/core/server.mjs",
     "build:web": "cd ../web && npm run build",
-    "dev": "npm run build:main && RDI_DEV=1 electron .",
+    "dev": "npm run build:main && node build/devName.cjs && RDI_DEV=1 electron .",
     "build": "npm run build:main && npm run build:core && npm run build:web && electron-builder --dir",
     "dist": "npm run build:main && npm run build:core && npm run build:web && electron-builder --mac",
     "typecheck": "tsc -p tsconfig.json"
