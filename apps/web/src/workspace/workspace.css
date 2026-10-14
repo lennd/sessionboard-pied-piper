@@ -265,7 +265,12 @@ button, select, input { font: inherit; color: inherit; }
 .ws-brand:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .ws-brand:focus-visible { outline: 1px solid var(--accent); }
 
-.ws-context { display: inline-flex; flex-direction: column; min-width: 0; max-width: 260px; padding: 2px 8px; border-radius: var(--radius); color: inherit; text-decoration: none; line-height: 1.15; border: 1px solid var(--line); }
+.ws-context { display: inline-flex; flex-direction: column; flex: 0 0 auto; min-width: 140px; max-width: 220px; padding: 2px 8px; border-radius: var(--radius); color: inherit; text-decoration: none; line-height: 1.15; border: 1px solid var(--line); }
 .ws-context:hover { border-color: var(--accent); }
 .ws-context-title { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
 .ws-context-detail { color: var(--muted); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.ws-top > * { white-space: nowrap; }
+.ws-top .select { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.ws-top .seg button, .ws-top .tabs-inline button, .ws-top .btn { white-space: nowrap; }
+@media (max-width: 1500px) { .ws-top .ws-regenerate { display: none; } }

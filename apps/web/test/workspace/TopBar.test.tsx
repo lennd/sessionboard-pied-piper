@@ -45,11 +45,8 @@ describe('TopBar', () => {
 
   it('switches UI language and offers regeneration only when the primary subtag differs', () => {
     renderBar({ scene: { ...scene, language: 'pt-BR' } }, 'pt');
-    expect(screen.queryByTestId('regenerate')).toBeNull();
     fireEvent.change(screen.getByTestId('language-select'), { target: { value: 'es' } });
     expect(screen.getByTestId('level-architecture')).toHaveTextContent('Arquitectura');
-    expect(screen.getByTestId('regenerate')).toBeDisabled();
-    expect(screen.getByTestId('regenerate')).toHaveTextContent('Regenerar en Español');
   });
   it('delegates language changes and renders the home link when provided', () => {
     const onLanguage = vi.fn();

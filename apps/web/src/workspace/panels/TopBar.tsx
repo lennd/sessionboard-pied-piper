@@ -1,6 +1,6 @@
 import { LEVELS, type Level, type Scene } from '@rdi/scene';
 import { useI18n } from '../../i18n/I18nProvider';
-import { primarySubtag, UI_LANGUAGES, type UiLanguage } from '../../i18n/messages';
+import { UI_LANGUAGES, type UiLanguage } from '../../i18n/messages';
 import { THEMES, type ThemeId } from '../../theme/themes';
 import type { Mode } from '../engine/explorerState';
 import { Logo } from './Logo';
@@ -22,7 +22,6 @@ type TopBarProps = {
 
 export const TopBar = (p: TopBarProps) => {
   const { t, language, setLanguage } = useI18n();
-  const regenerate = primarySubtag(p.scene.language) !== language;
   return (
     <header className="ws-top">
       <a className="ws-brand" href="/" data-testid="brand-home" title={t('nav.home')} aria-label={t('nav.home')}><Logo /></a>
@@ -55,11 +54,6 @@ export const TopBar = (p: TopBarProps) => {
         </button>
       )}
       <span className="ws-spacer" />
-      {regenerate && (
-        <button type="button" className="btn" data-testid="regenerate" disabled title={t('scene.regenerateSoon')}>
-          {t('scene.regenerate', { language: t(`language.${language}`) })}
-        </button>
-      )}
       <select className="select" data-testid="language-select" aria-label={t('language.label')} value={language} onChange={(e) => (p.onLanguage ?? setLanguage)(e.target.value as UiLanguage)}>
         {UI_LANGUAGES.map((l) => <option key={l} value={l}>{t(`language.${l}`)}</option>)}
       </select>

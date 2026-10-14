@@ -26,7 +26,8 @@
       "output": "release"
     },
     "files": [
-      "dist/**"
+      "dist/**",
+      "build/icon.png"
     ],
     "extraResources": [
       {
@@ -46,9 +47,11 @@
       "target": [
         "dir"
       ],
-      "category": "public.app-category.developer-tools"
+      "category": "public.app-category.developer-tools",
+      "icon": "build/icon.icns"
     },
-    "electronVersion": "41.10.7"
+    "electronVersion": "41.10.7",
+    "icon": "build/icon.icns"
   },
   "author": "Pied Piper"
 }

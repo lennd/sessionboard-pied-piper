@@ -48,7 +48,7 @@ const startCore = (): Promise<number> =>
   });
 
 const createWindow = async (port: number) => {
-  const window = new BrowserWindow({ ...WINDOW, title: 'Pied Piper', webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false } });
+  const window = new BrowserWindow({ ...WINDOW, title: 'Pied Piper', icon: join(__dirname, '..', 'build', 'icon.png'), webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false } });
   window.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url);
     return { action: 'deny' };
@@ -64,6 +64,7 @@ ipcMain.handle('rdi:pick-folder', async () => {
 ipcMain.handle('rdi:open-external', (_event, url: string) => shell.openExternal(url));
 
 app.whenReady().then(async () => {
+  if (process.platform === 'darwin') app.dock?.setIcon(join(__dirname, '..', 'build', 'icon.png'));
   try {
     const port = await startCore();
     await createWindow(port);
