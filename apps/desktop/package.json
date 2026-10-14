@@ -78,7 +78,8 @@
           "path": "/Applications"
         }
       ]
-    }
+    },
+    "afterPack": "build/afterPack.cjs"
   },
   "author": "Pied Piper"
 }
