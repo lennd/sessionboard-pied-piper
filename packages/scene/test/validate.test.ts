@@ -83,6 +83,15 @@ describe('validateScene', () => {
     );
   });
 
+  it('accepts a risk that points at exact lines and rejects an inverted range', () => {
+    const ok = base();
+    ok.risks = [{ ...ok.risks[0]!, code: { path: 'a.ts', startLine: 3, endLine: 9 } }] as never;
+    expect(validateScene(ok).ok).toBe(true);
+    const bad = base();
+    bad.risks = [{ ...bad.risks[0]!, code: { path: 'a.ts', startLine: 9, endLine: 3 } }] as never;
+    expect(errorsOf(bad)).toContain('risks.0.code.endLine: must be >= startLine');
+  });
+
   it('rejects dangling references in edges, groups, steps and risks', () => {
     const scene = {
       ...base(),

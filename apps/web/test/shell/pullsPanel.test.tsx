@@ -29,7 +29,7 @@ const mockApi = (options: { available?: boolean; reason?: string; branch?: typeo
       return impact(p.includes('/branch/') ? 'impact-branch' : 'impact-pr-7') as never;
     }
     void init;
-    if (p.endsWith('/pulls/7/risks') && init?.method === 'POST') return { risks: [{ id: 'r1', title: 'Breaks callers', severity: 'high', category: 'reliability', pieces: ['API'], anchor: { path: 'src/a.ts', line: 12 } }, { id: 'r2', title: 'Unclear', severity: 'low', category: 'complexity', pieces: [], anchor: null }] } as never;
+    if (p.endsWith('/pulls/7/risks') && init?.method === 'POST') return { risks: [{ id: 'r1', title: 'Breaks callers', severity: 'high', category: 'reliability', pieces: ['API'], anchor: { path: 'src/a.ts', startLine: 12, line: 18 } }, { id: 'r2', title: 'Unclear', severity: 'low', category: 'complexity', pieces: [], anchor: null }] } as never;
     if (p.endsWith('/pulls/7/review') && init?.method === 'POST') {
       if (options.reviewError) throw options.reviewError;
       return { id: 55, url: 'https://github.com/acme/x/pull/7#pullrequestreview-55', inline: 1, summary: 0 } as never;
@@ -77,7 +77,7 @@ describe('PullsPanel', () => {
     expect(await screen.findByTestId('pull-explanation')).toHaveTextContent('store is rewritten');
     expect(await screen.findByTestId('pull-verdict')).toHaveTextContent('Does not pass yet');
     expect(screen.getByTestId('verdict-action-r1')).toHaveTextContent('Run the suite.');
-    await waitFor(() => expect(screen.getByTestId('verdict-action-r1')).toHaveTextContent('src/a.ts:12'));
+    await waitFor(() => expect(screen.getByTestId('verdict-action-r1')).toHaveTextContent('src/a.ts:12-18'));
     expect(explainMock).toHaveBeenCalledWith('/repos/r1', { pull: 7 }, expect.any(Function));
     expect(openScene).toHaveBeenCalledWith(expect.objectContaining({ id: 'impact-pr-7-explained' }), 'changes');
     const open = vi.spyOn(window, 'open').mockImplementation(() => null);
@@ -96,7 +96,7 @@ describe('PullsPanel', () => {
     fireEvent.click(await screen.findByTestId('pull-7'));
     expect(await screen.findByTestId('pull-risk-r1')).toHaveTextContent('high');
     expect(screen.getByTestId('pull-risk-r1')).toHaveTextContent('reliability');
-    expect(screen.getByTestId('pull-risk-anchor-r1')).toHaveTextContent('src/a.ts:12');
+    expect(screen.getByTestId('pull-risk-anchor-r1')).toHaveTextContent('src/a.ts:12-18');
     expect(screen.getByTestId('pull-risk-r1')).toHaveTextContent('API');
     expect(screen.getByTestId('pull-risk-anchor-r2')).toHaveTextContent('summary');
     expect(api).toHaveBeenCalledWith('/repos/r1/pulls/7/risks', { method: 'POST', body: { scene: expect.objectContaining({ id: 'impact-pr-7' }) } });

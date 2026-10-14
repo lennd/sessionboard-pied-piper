@@ -119,6 +119,12 @@ const stepSchema: z.ZodType<Step, StepInput> = z.lazy(() =>
   }),
 );
 
+const riskCodeSchema = z.object({
+  path: z.string().min(1).max(MAX_PATH),
+  startLine: z.number().int().positive(),
+  endLine: z.number().int().positive(),
+});
+
 const riskSchema = z.object({
   id: idSchema,
   category: z.enum(RISK_CATEGORIES),
@@ -127,6 +133,7 @@ const riskSchema = z.object({
   explanation: textSchema,
   nodeIds: z.array(idSchema).min(1),
   mitigation: textSchema.optional(),
+  code: riskCodeSchema.optional(),
 });
 
 export const sceneSchema = z.object({

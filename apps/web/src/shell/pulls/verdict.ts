@@ -8,9 +8,12 @@ export type Verdict = { status: VerdictStatus; blockers: VerdictAction[]; warnin
 const BLOCKING = new Set<SceneRisk['severity']>(['critical', 'high']);
 const RULE_PREFIX = /^rule:/i;
 
+/** `path:start-end` (or `path:line`) of the changed code a risk is anchored to. */
+export const whereOf = (anchor: NonNullable<RiskAnchor['anchor']>): string => `${anchor.path}:${anchor.startLine !== undefined ? `${anchor.startLine}-` : ''}${anchor.line}`;
+
 const actionOf = (risk: SceneRisk, anchors: Map<string, RiskAnchor>): VerdictAction => {
   const anchor = anchors.get(risk.id)?.anchor ?? null;
-  return { riskId: risk.id, title: risk.title, what: risk.mitigation ?? risk.explanation, where: anchor ? `${anchor.path}:${anchor.line}` : null, severity: risk.severity, rule: RULE_PREFIX.test(risk.title) };
+  return { riskId: risk.id, title: risk.title, what: risk.mitigation ?? risk.explanation, where: anchor ? whereOf(anchor) : null, severity: risk.severity, rule: RULE_PREFIX.test(risk.title) };
 };
 
 /** Deterministic verdict from the explained impact scene: a broken team rule or a high/critical risk blocks; medium risks only warn. */

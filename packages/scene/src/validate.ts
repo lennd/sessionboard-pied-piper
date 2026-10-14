@@ -32,6 +32,12 @@ const checkNodes = (scene: Scene, nodeIds: Set<string>, errors: string[]) => {
   });
 };
 
+const checkRisks = (scene: Scene, errors: string[]) => {
+  scene.risks.forEach((risk, i) => {
+    if (risk.code && risk.code.endLine < risk.code.startLine) errors.push(`risks.${i}.code.endLine: must be >= startLine`);
+  });
+};
+
 const checkGroups = (scene: Scene, nodeIds: Set<string>, errors: string[]) => {
   collectDuplicates(scene.groups, 'group', 'groups', errors);
   const parentOf = new Map(scene.nodes.map((n) => [n.id, n.parent]));
@@ -91,6 +97,7 @@ const checkReferences = (scene: Scene): string[] => {
   const edgeIds = collectDuplicates(scene.edges, 'edge', 'edges', errors);
   collectDuplicates(scene.risks, 'risk', 'risks', errors);
   checkNodes(scene, nodeIds, errors);
+  checkRisks(scene, errors);
 
   scene.edges.forEach((edge, i) => {
     if (!nodeIds.has(edge.from)) errors.push(`edges.${i}.from: unknown node "${edge.from}"`);

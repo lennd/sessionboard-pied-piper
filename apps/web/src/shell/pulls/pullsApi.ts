@@ -31,7 +31,7 @@ export const explainPull = async (repoId: string, target: number | typeof BRANCH
   return { scene: valid.scene, text: result.text };
 };
 
-export type RiskAnchor = { id: string; title: string; severity: string; category: string; pieces: string[]; anchor: { path: string; line: number } | null };
+export type RiskAnchor = { id: string; title: string; severity: string; category: string; pieces: string[]; anchor: { path: string; line: number; startLine?: number } | null };
 export type ReviewPosted = { id: number; url: string; inline: number; summary: number };
 
 export const previewRisks = (repoId: string, number: number, scene: Scene) => apiFetch<{ risks: RiskAnchor[] }>(`/repos/${repoId}/pulls/${number}/risks`, { method: 'POST', body: { scene } });

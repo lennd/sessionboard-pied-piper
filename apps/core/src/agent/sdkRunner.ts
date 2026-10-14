@@ -52,6 +52,13 @@ const under = (root: string, file: string): string | null => {
 /** Rewrites absolute code paths under any of the roots as root-relative ones and names the root in code.repo, which is what the change overlay and the code drawer match on. */
 export const relativizeScene = (scene: Scene, roots: Root[] | string): Scene => {
   const list: Root[] = typeof roots === 'string' ? [{ id: '', name: '', path: roots }] : roots;
+  const relativePath = (path: string): string => {
+    for (const root of list) {
+      const rel = under(root.path, path);
+      if (rel) return rel;
+    }
+    return path;
+  };
   return {
     ...scene,
     nodes: scene.nodes.map((n) => {
@@ -62,6 +69,7 @@ export const relativizeScene = (scene: Scene, roots: Root[] | string): Scene => 
       }
       return n;
     }),
+    risks: scene.risks.map((r) => (r.code && isAbsolute(r.code.path) ? { ...r, code: { ...r.code, path: relativePath(r.code.path) } } : r)),
   };
 };
 

@@ -11,7 +11,7 @@ import { errorLink, errorText } from '../errors';
 import { formatRelative } from '../format';
 import { BRANCH, clearTriage, decidePull, explainPull, fetchPull, fetchPullImpact, fetchPulls, postReview, previewRisks, setTriage, type Decision, type PullDetail, type PullSummary, type ReviewPosted, type ReviewState, type RiskAnchor, type TriageState } from './pullsApi';
 import type { Scene } from '@rdi/scene';
-import { verdictOf, type VerdictAction } from './verdict';
+import { whereOf, verdictOf, type VerdictAction } from './verdict';
 
 const STATUS_GLYPH: Record<string, string> = { added: '+', removed: '−', modified: '~' };
 const NOT_FOUND = 404;
@@ -282,7 +282,7 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
                           <span className="risk-pick-meta">
                             <span className={`tag sev-tag is-${r.severity}`}>{r.severity}</span>
                             <span className="muted">{r.category}</span>
-                            <span className="muted" data-testid={`pull-risk-anchor-${r.id}`}>{r.anchor ? `${r.anchor.path}:${r.anchor.line}` : t('pulls.inSummary')}</span>
+                            <span className="muted" data-testid={`pull-risk-anchor-${r.id}`}>{r.anchor ? whereOf(r.anchor) : t('pulls.inSummary')}</span>
                           </span>
                           {r.pieces.length > 0 && <span className="muted risk-pick-pieces">{r.pieces.slice(0, MAX_PIECES).join(', ')}{r.pieces.length > MAX_PIECES ? ` +${r.pieces.length - MAX_PIECES}` : ''}</span>}
                         </span>

@@ -32,6 +32,13 @@ describe('diffLines', () => {
     expect(lines.get('src/a.ts')!.added).toEqual([11, 12, 15]);
     expect(lines.get('src/n.ts')!.added).toEqual([1, 2]);
   });
+
+  it('remembers the hunk of every added line', () => {
+    const two = [...DIFF.split('\n').slice(0, 5), '+first', '@@ -30,1 +31,2 @@', ' ctx', '+second'].join('\n');
+    const file = diffLines(two).get('src/a.ts')!;
+    expect(file.added).toEqual([10, 32]);
+    expect([file.hunkOf.get(10), file.hunkOf.get(32)]).toEqual([0, 1]);
+  });
 });
 
 describe('anchorRisks', () => {
@@ -40,10 +47,37 @@ describe('anchorRisks', () => {
     expect(anchored.map((e) => [e.risk.id, e.anchor])).toEqual([
       ['r1', { path: 'src/a.ts', line: 15 }],
       ['r2', { path: 'src/a.ts', line: 11 }],
-      ['r3', { path: 'src/n.ts', line: 1 }],
+      ['r3', { path: 'src/n.ts', startLine: 1, line: 2 }],
       ['r4', null],
     ]);
     expect(anchored[3]!.pieces).toEqual(['Q', 'Z']);
+  });
+
+  it('highlights the exact lines the risk points at before the piece it names', () => {
+    const risky: Scene = { ...scene, risks: [
+      { id: 'own', title: 'Own range', category: 'security', severity: 'high', explanation: 'e', nodeIds: ['b'], code: { path: 'src/a.ts', startLine: 11, endLine: 12 } },
+      { id: 'single', title: 'One line', category: 'security', severity: 'high', explanation: 'e', nodeIds: ['b'], code: { path: 'src/a.ts', startLine: 15, endLine: 18 } },
+      { id: 'elsewhere', title: 'Range outside the diff', category: 'security', severity: 'high', explanation: 'e', nodeIds: ['a'], code: { path: 'src/a.ts', startLine: 100, endLine: 120 } },
+      { id: 'piece', title: 'Whole new piece', category: 'security', severity: 'low', explanation: 'e', nodeIds: ['n'] },
+    ] };
+    expect(anchorRisks(risky, diffLines(DIFF)).map((e) => [e.risk.id, e.anchor])).toEqual([
+      ['own', { path: 'src/a.ts', startLine: 11, line: 12 }],
+      ['single', { path: 'src/a.ts', line: 15 }],
+      ['elsewhere', { path: 'src/a.ts', line: 15 }],
+      ['piece', { path: 'src/n.ts', startLine: 1, line: 2 }],
+    ]);
+  });
+
+  it('keeps a highlighted range inside one hunk and under the span cap', () => {
+    const big = ['diff --git a/big.ts b/big.ts', '--- a/big.ts', '+++ b/big.ts', '@@ -0,0 +1,60 @@', ...Array.from({ length: 60 }, (_, i) => `+l${i}`), '@@ -70,0 +100,2 @@', '+tail1', '+tail2'].join('\n');
+    const whole: Scene = { ...scene, nodes: [{ id: 'f', label: 'F', role: 'logic', kind: 'k', summary: 's', code: code('big.ts', 1, 200) }], risks: [
+      { id: 'piece', title: 'Whole file', category: 'complexity', severity: 'low', explanation: 'e', nodeIds: ['f'] },
+      { id: 'own', title: 'Across hunks', category: 'complexity', severity: 'low', explanation: 'e', nodeIds: ['f'], code: { path: 'big.ts', startLine: 55, endLine: 101 } },
+    ] };
+    expect(anchorRisks(whole, diffLines(big)).map((e) => e.anchor)).toEqual([
+      { path: 'big.ts', startLine: 1, line: 40 },
+      { path: 'big.ts', startLine: 55, line: 60 },
+    ]);
   });
 
   it('builds a review with inline comments and a summary for unanchored risks', () => {
@@ -51,6 +85,7 @@ describe('anchorRisks', () => {
     const review = buildReview(entries, null);
     expect(review.comments).toHaveLength(3);
     expect(review.comments[0]).toMatchObject({ path: 'src/a.ts', line: 15, side: 'RIGHT' });
+    expect(review.comments[2]).toMatchObject({ path: 'src/n.ts', start_line: 1, line: 2 });
     expect(review.comments[0]!.body).toContain('🟠 high · security: Exact');
     expect(review.comments[0]!.body).toContain('**Mitigation:** m1');
     expect(review.body).toContain('4 risks');
@@ -58,5 +93,16 @@ describe('anchorRisks', () => {
     expect(review.body.endsWith(SIGNATURE)).toBe(true);
     expect(buildReview(entries.slice(0, 1), 'Custom intro').body.startsWith('Custom intro')).toBe(true);
     expect(commentBody(entries[1]!)).not.toContain('Mitigation');
+  });
+
+  it('sends ranges as multi-line comments and names the code of summary risks', () => {
+    const risky: Scene = { ...scene, risks: [
+      { id: 'own', title: 'Own range', category: 'security', severity: 'high', explanation: 'e', nodeIds: ['b'], code: { path: 'src/a.ts', startLine: 11, endLine: 12 } },
+      { id: 'far', title: 'Not in the diff', category: 'security', severity: 'low', explanation: 'e', nodeIds: ['q'], code: { path: 'src/q.ts', startLine: 7, endLine: 9 } },
+    ] };
+    const review = buildReview(anchorRisks(risky, diffLines(DIFF)), null);
+    expect(review.comments).toEqual([expect.objectContaining({ path: 'src/a.ts', start_line: 11, start_side: 'RIGHT', line: 12, side: 'RIGHT' })]);
+    expect(review.body).toContain('Not in the diff');
+    expect(review.body).toContain('at `src/q.ts:7-9`');
   });
 });

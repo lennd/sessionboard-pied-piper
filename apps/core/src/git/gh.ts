@@ -70,7 +70,7 @@ const gh = async (bin: string, cwd: string, args: string[], stdin?: string): Pro
   }
 };
 
-export type ReviewComment = { path: string; line: number; side: 'RIGHT' | 'LEFT'; body: string };
+export type ReviewComment = { path: string; line: number; side: 'RIGHT' | 'LEFT'; start_line?: number; start_side?: 'RIGHT' | 'LEFT'; body: string };
 export type ReviewResult = { id: number; url: string };
 export type GistResult = { id: string; owner: string; url: string; rawUrl: (file: string) => string };
 const GIST_URL = /gist\.github\.com\/(?:([^/\s]+)\/)?([0-9a-f]+)/;

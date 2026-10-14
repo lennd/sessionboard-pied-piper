@@ -33,7 +33,7 @@ export const fakeScene = (language: string, title: string, id = nextId('scene'))
     { id: 's1', narration: 'The web app asks the API.', focus: ['api'], travel: { edgeId: 'e1' } },
     { id: 's2', narration: 'The API writes the result.', focus: ['store'], travel: { edgeId: 'e2' } },
   ],
-  risks: [{ id: 'r1', title: 'Unbounded files', category: 'performance', severity: 'low', explanation: 'Scenes accumulate on disk.', nodeIds: ['store'], mitigation: 'Prune old scenes.' }],
+  risks: [{ id: 'r1', title: 'Unbounded files', category: 'performance', severity: 'low', explanation: 'Scenes accumulate on disk.', nodeIds: ['store'], mitigation: 'Prune old scenes.', code: { path: 'apps/core/src/store/json.ts', startLine: 1, endLine: 1 } }],
 });
 
 const basename = (path: string) => path.split('/').filter(Boolean).pop() ?? path;

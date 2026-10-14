@@ -10,6 +10,7 @@ const WINDOW = { width: 1480, height: 920, minWidth: 980, minHeight: 640 };
 const EXTRA_PATH = ['/opt/homebrew/bin', '/usr/local/bin', join(app.getPath('home'), '.local', 'bin'), join(app.getPath('home'), '.npm-global', 'bin')];
 
 let core: ChildProcess | null = null;
+app.setName('Pied Piper');
 
 /** Apps launched from Finder get a minimal PATH; add the places where git and claude usually live. */
 const augmentedPath = () => [...new Set([...(process.env.PATH ?? '').split(delimiter), ...EXTRA_PATH])].filter(Boolean).join(delimiter);

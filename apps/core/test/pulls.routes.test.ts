@@ -162,7 +162,7 @@ describe('pull requests', () => {
       ],
       edges: [], steps: [],
       risks: [
-        { id: 'r1', title: 'Breaks callers', category: 'reliability', severity: 'high', explanation: 'The handler changed.', mitigation: 'Run the suite.', nodeIds: ['api'] },
+        { id: 'r1', title: 'Breaks callers', category: 'reliability', severity: 'high', explanation: 'The handler changed.', mitigation: 'Run the suite.', nodeIds: ['api'], code: { path: 'apps/core/src/app.ts', startLine: 1, endLine: 1 } },
         { id: 'r2', title: 'Unclear', category: 'complexity', severity: 'low', explanation: 'No code.', nodeIds: ['web'] },
       ],
     };
