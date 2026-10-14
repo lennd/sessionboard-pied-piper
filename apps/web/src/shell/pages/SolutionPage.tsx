@@ -15,6 +15,7 @@ import { codeLoader } from './ExplorePage';
 
 export const SolutionPage = () => {
   const { repoId = '', solutionId = '' } = useParams();
+  const base = `/repos/${repoId}`;
   const repo = useRepo(repoId);
   const { data: prefs } = usePrefs();
   const updatePrefs = useUpdatePrefs();
@@ -23,12 +24,12 @@ export const SolutionPage = () => {
   const [version, setVersion] = useState<number | undefined>(undefined);
   const [handoff, setHandoff] = useState(false);
   const detail = useQuery({
-    queryKey: solutionKey(repoId, solutionId, version),
+    queryKey: solutionKey(base, solutionId, version),
     queryFn: () => apiFetch<SolutionDetail>(`/repos/${repoId}/solutions/${solutionId}${version ? `?version=${version}` : ''}`),
     enabled: Boolean(repoId && solutionId),
     placeholderData: keepPreviousData,
   });
-  useEffect(() => subscribeSolution(repoId, solutionId, () => void client.invalidateQueries({ queryKey: ['solution', repoId, solutionId] })), [repoId, solutionId, client]);
+  useEffect(() => subscribeSolution(base, solutionId, () => void client.invalidateQueries({ queryKey: ['solution', base, solutionId] })), [base, solutionId, client]);
   const loadCode = useMemo(() => codeLoader(repoId), [repoId]);
   const scenes = useMemo(() => (detail.data ? solutionScenes(detail.data, t) : []), [detail.data, t]);
 
@@ -41,7 +42,7 @@ export const SolutionPage = () => {
         extraScenes={scenes}
         initialPanel="plan"
         panels={[{ id: 'plan', glyph: '☰', title: t('plan.title'), render: (ctx) => <PlanPanel detail={data} ctx={ctx} onVersion={setVersion} onExecute={() => setHandoff(true)} /> }]}
-        chat={(ctx) => <ChatPanel repoId={repoId} ctx={ctx} language={effectiveExplanationLanguage(prefs, language)} />}
+        chat={(ctx) => <ChatPanel base={base} ctx={ctx} language={effectiveExplanationLanguage(prefs, language)} />}
         loadCode={loadCode}
         theme={effectiveTheme(prefs)}
         onTheme={(theme) => updatePrefs.mutate({ theme })}

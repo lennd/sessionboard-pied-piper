@@ -26,7 +26,7 @@ describe('streamChat', () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(streamOf(['event: text\ndata: {"delta":"Hel', 'lo"}\n\nevent: done\ndata: {"sceneIds":[],"usage":{"input":1,"output":2}}\n\n']), { status: 200, headers: { 'content-type': 'text/event-stream' } }));
     vi.stubGlobal('fetch', fetchMock);
     const events: ChatEvent[] = [];
-    await streamChat('r1', 'c1', { text: 'hi', language: 'es' }, (e) => events.push(e));
+    await streamChat('/repos/r1', 'c1', { text: 'hi', language: 'es' }, (e) => events.push(e));
     expect(fetchMock).toHaveBeenCalledWith('/api/repos/r1/conversations/c1/messages', expect.objectContaining({ method: 'POST', body: JSON.stringify({ text: 'hi', language: 'es' }) }));
     expect(fetchMock.mock.calls[0]![1].headers).toMatchObject({ 'content-type': 'application/json' });
     expect(events).toEqual([{ type: 'text', delta: 'Hello' }, { type: 'done', sceneIds: [], usage: { input: 1, output: 2 } }]);
@@ -34,6 +34,6 @@ describe('streamChat', () => {
 
   it('throws API errors for non-stream responses', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { code: 'agent_not_configured' } }), { status: 409 })));
-    await expect(streamChat('r1', 'c1', { text: 'hi' }, () => {})).rejects.toEqual(new ApiError(409, 'agent_not_configured'));
+    await expect(streamChat('/repos/r1', 'c1', { text: 'hi' }, () => {})).rejects.toEqual(new ApiError(409, 'agent_not_configured'));
   });
 });

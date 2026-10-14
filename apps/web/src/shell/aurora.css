@@ -108,3 +108,8 @@
   .shell-nav { flex-direction: row; overflow-x: auto; }
   .shell-content { margin: 0; border-radius: 0; }
 }
+
+.home-nav { display: inline-flex; gap: 4px; margin-left: 12px; }
+.home-nav-item { padding: 6px 12px; border-radius: 999px; color: var(--mint); text-decoration: none; font-weight: 600; }
+.home-nav-item.is-active { background: #fff; color: var(--green-deep); }
+.home-nav-item:hover:not(.is-active) { background: rgba(255, 255, 255, .12); color: #fff; }

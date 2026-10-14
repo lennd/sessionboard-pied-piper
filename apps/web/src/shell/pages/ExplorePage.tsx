@@ -76,7 +76,7 @@ export const ExplorePage = () => {
           { id: 'sessions', glyph: '⏱', title: t('sessions.title'), render: (ctx) => <SessionsPanel repoId={repoId} ctx={ctx} /> },
           { id: 'pulls', glyph: '⇄', title: t('pulls.title'), render: (ctx) => <PullsPanel repoId={repoId} ctx={ctx} /> },
         ]}
-        chat={(ctx) => <ChatPanel repoId={repoId} ctx={ctx} language={explanationLanguage} />}
+        chat={(ctx) => <ChatPanel base={`/repos/${repoId}`} ctx={ctx} language={explanationLanguage} />}
         extraScenes={systemMap.data ? [systemMap.data] : []}
         theme={effectiveTheme(prefs)}
         onTheme={(theme) => updatePrefs.mutate({ theme })}

@@ -25,9 +25,9 @@ export const parseSse = (buffer: string): { messages: SseMessage[]; rest: string
   return { messages, rest };
 };
 
-export const streamChat = async (repoId: string, conversationId: string, body: AskBody, onEvent: (event: ChatEvent) => void, signal?: AbortSignal): Promise<void> => {
+export const streamChat = async (base: string, conversationId: string, body: AskBody, onEvent: (event: ChatEvent) => void, signal?: AbortSignal): Promise<void> => {
   const headers: Record<string, string> = { 'content-type': 'application/json', accept: 'text/event-stream' };
-  const response = await fetch(`/api/repos/${repoId}/conversations/${conversationId}/messages`, { method: 'POST', headers, body: JSON.stringify(body), signal });
+  const response = await fetch(`/api${base}/conversations/${conversationId}/messages`, { method: 'POST', headers, body: JSON.stringify(body), signal });
   if (!response.ok || !response.body) {
     const data = (await response.json().catch(() => null)) as { error?: { code?: string } } | null;
     throw new ApiError(response.status, data?.error?.code ?? 'unknown');

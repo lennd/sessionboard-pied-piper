@@ -24,11 +24,12 @@ const validScenes = (rows: Conversation['scenes']): SceneEntry[] =>
     return result.ok ? [{ id: row.id, turn: row.turn, scene: result.scene }] : [];
   });
 
-export const ChatPanel = ({ repoId, ctx, language }: { repoId: string; ctx: ChatContext; language: string }) => {
+/** `base` is the API scope the chat belongs to: `/repos/<id>` or `/features/<id>`; it is also the route prefix for links. */
+export const ChatPanel = ({ base, ctx, language }: { base: string; ctx: ChatContext; language: string }) => {
   const { t } = useI18n();
   const client = useQueryClient();
-  const agent = useQuery({ queryKey: ['agent', repoId], queryFn: () => apiFetch<Agent>(`/repos/${repoId}/agent`) });
-  const conversations = useQuery({ queryKey: ['conversations', repoId], queryFn: () => apiFetch<Summary[]>(`/repos/${repoId}/conversations`) });
+  const agent = useQuery({ queryKey: ['agent', base], queryFn: () => apiFetch<Agent>(`${base}/agent`) });
+  const conversations = useQuery({ queryKey: ['conversations', base], queryFn: () => apiFetch<Summary[]>(`${base}/conversations`) });
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [scenes, setScenes] = useState<SceneEntry[]>([]);
@@ -57,7 +58,7 @@ export const ChatPanel = ({ repoId, ctx, language }: { repoId: string; ctx: Chat
     if (!conversationId || conversationId === justCreated.current) return;
     justCreated.current = null;
     let cancelled = false;
-    void apiFetch<Conversation>(`/repos/${repoId}/conversations/${conversationId}`).then((c) => {
+    void apiFetch<Conversation>(`${base}/conversations/${conversationId}`).then((c) => {
       if (cancelled) return;
       setItems(c.items);
       setScenes(validScenes(c.scenes));
@@ -66,7 +67,7 @@ export const ChatPanel = ({ repoId, ctx, language }: { repoId: string; ctx: Chat
     return () => {
       cancelled = true;
     };
-  }, [repoId, conversationId]);
+  }, [base, conversationId]);
 
   useEffect(() => () => abort.current?.abort(), []);
   useEffect(() => {
@@ -80,7 +81,7 @@ export const ChatPanel = ({ repoId, ctx, language }: { repoId: string; ctx: Chat
     setScenes([]);
     setSolutions([]);
     setError(null);
-    void client.setQueryData(['conversations', repoId], (list: Summary[] | undefined) => list ?? []);
+    void client.setQueryData(['conversations', base], (list: Summary[] | undefined) => list ?? []);
   };
 
   const chooseMode = (next: ChatMode) => {
@@ -96,7 +97,7 @@ export const ChatPanel = ({ repoId, ctx, language }: { repoId: string; ctx: Chat
     setDraft('');
     try {
       const existing = options.fresh ? null : conversationId;
-      const id = existing ?? (await apiFetch<Summary>(`/repos/${repoId}/conversations`, { method: 'POST', body: {} })).id;
+      const id = existing ?? (await apiFetch<Summary>(`${base}/conversations`, { method: 'POST', body: {} })).id;
       if (!existing) {
         justCreated.current = id;
         setConversationId(id);
@@ -125,10 +126,10 @@ export const ChatPanel = ({ repoId, ctx, language }: { repoId: string; ctx: Chat
           setError(errorText(event.code));
         }
       };
-      await streamChat(repoId, id, { text, language, focus, mode: options.mode }, onEvent, controller.signal);
+      await streamChat(base, id, { text, language, focus, mode: options.mode }, onEvent, controller.signal);
       setFocus(null);
-      void client.invalidateQueries({ queryKey: ['conversations', repoId] });
-      void client.invalidateQueries({ queryKey: ['agent', repoId] });
+      void client.invalidateQueries({ queryKey: ['conversations', base] });
+      void client.invalidateQueries({ queryKey: ['agent', base] });
     } catch (err) {
       setError(err instanceof ApiError ? errorText(err.code) : t('errors.unknown'));
     } finally {
@@ -153,7 +154,7 @@ export const ChatPanel = ({ repoId, ctx, language }: { repoId: string; ctx: Chat
   const translate = async (entry: SceneEntry) => {
     setError(null);
     try {
-      const result = await apiFetch<{ id: string; scene: unknown }>(`/repos/${repoId}/scenes/${entry.id}/translate`, { method: 'POST', body: { language } });
+      const result = await apiFetch<{ id: string; scene: unknown }>(`${base}/scenes/${entry.id}/translate`, { method: 'POST', body: { language } });
       const valid = validateScene(result.scene);
       if (!valid.ok) return;
       setScenes((current) => [...current, { id: result.id, turn: entry.turn, scene: valid.scene }]);
@@ -184,7 +185,7 @@ export const ChatPanel = ({ repoId, ctx, language }: { repoId: string; ctx: Chat
             {item.role === 'assistant' && solutions.filter((s) => s.turn === item.turn).map((s) => (
               <div key={`${s.id}-${s.n}`} className="chat-scene" data-testid={`chat-solution-${s.id}`}>
                 <span>☰ {t('chat.solution', { title: s.title, n: s.n })}</span>
-                <Link className="btn" data-testid={`chat-solution-open-${s.id}`} to={`/repos/${repoId}/solutions/${s.id}`}>{t('chat.open')}</Link>
+                <Link className="btn" data-testid={`chat-solution-open-${s.id}`} to={`${base}/solutions/${s.id}`}>{t('chat.open')}</Link>
               </div>
             ))}
             {item.role === 'assistant' && scenes.filter((s) => s.turn === item.turn).map((entry) => (

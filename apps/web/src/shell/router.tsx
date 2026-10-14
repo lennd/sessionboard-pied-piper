@@ -1,5 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { Shell } from './guards';
+import { FeaturePage } from './features/FeaturePage';
+import { FeaturesPage } from './features/FeaturesPage';
 import { ExplorePage } from './pages/ExplorePage';
 import { ReposPage } from './pages/ReposPage';
 import { SolutionPage } from './pages/SolutionPage';
@@ -14,6 +16,8 @@ export const router = createBrowserRouter([
     element: <Shell />,
     children: [
       { path: '/', element: <ReposPage /> },
+      { path: '/features', element: <FeaturesPage /> },
+      { path: '/features/:featureId', element: <FeaturePage /> },
       { path: '/repos/:repoId/explore', element: <ExplorePage /> },
       { path: '/repos/:repoId/solutions/:solutionId', element: <SolutionPage /> },
       {

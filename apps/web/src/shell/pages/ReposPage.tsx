@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { HomeNav } from '../components/HomeNav';
 import { useI18n } from '../../i18n/I18nProvider';
 import { AnimatedLogo } from '../components/AnimatedLogo';
 import { AuroraBackground } from '../components/AuroraBackground';
@@ -41,6 +42,7 @@ export const ReposPage = () => {
       <div className="shell">
         <header className="shell-top">
           <AnimatedLogo size={30} />
+          <HomeNav />
           <span className="shell-spacer" />
         </header>
         <main className="shell-content glass rise repos-main">

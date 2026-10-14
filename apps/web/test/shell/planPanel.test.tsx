@@ -26,7 +26,7 @@ describe('PlanPanel', () => {
     expect(screen.getByTestId('plan-task-status-t1')).toHaveTextContent('done');
     expect(screen.getByTestId('plan-task-t1')).toHaveTextContent('PR #12');
     expect(screen.getByTestId('plan-task-status-t2')).toHaveTextContent('to do');
-    expect(screen.getByTestId('plan-task-t2')).toHaveTextContent('After t1');
+    expect(screen.getByTestId('plan-task-t2')).toHaveTextContent('After Add limiter');
     expect(screen.getByTestId('plan-risks')).toHaveTextContent('Bursts throttled');
     fireEvent.click(screen.getByTestId('plan-task-t1'));
     expect(ctx.selectNode).toHaveBeenCalledWith(scene.nodes[1]!.id);

@@ -200,3 +200,6 @@ button, select, input { font: inherit; color: inherit; }
 .pull-file-name { overflow-wrap: anywhere; }
 .pull-file.is-added .pull-file-status { color: var(--ok, #3ccf91); }
 .pull-file.is-removed .pull-file-status { color: var(--bad, #ff6b81); }
+
+.plan-repo-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; text-transform: none; font-size: 12px; letter-spacing: 0; color: var(--text); }
+.plan-repo-meta { display: inline-flex; align-items: center; gap: 6px; }
