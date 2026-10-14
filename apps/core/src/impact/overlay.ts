@@ -1,6 +1,8 @@
 import type { Scene, SceneNode, SceneRisk } from '@rdi/scene';
 import type { TouchedFile } from '../observer/parse';
 
+export type TouchedInRepo = TouchedFile & { repo?: string };
+
 const MAX_IMPACT_RISKS = 12;
 const ROOT = '.';
 
@@ -11,21 +13,23 @@ const dirname = (path: string) => {
 const normalize = (path: string) => path.replace(/^\.\//, '').replace(/\/+$/, '');
 
 /** Which touched file matches a piece: the same file, a file inside a directory reference, or a sibling in the same (non-root) folder. */
-export const matchNode = (node: SceneNode, touched: TouchedFile[]): TouchedFile | null => {
+export const matchNode = (node: SceneNode, touched: TouchedInRepo[]): TouchedInRepo | null => {
   if (!node.code?.path) return null;
   const nodePath = normalize(node.code.path);
   const dir = dirname(nodePath);
+  const repo = node.code.repo;
+  const candidates = touched.filter((t) => !t.repo || !repo || t.repo === repo);
   return (
-    touched.find((t) => normalize(t.path) === nodePath) ??
-    touched.find((t) => normalize(t.path).startsWith(`${nodePath}/`)) ??
-    (dir === ROOT ? null : touched.find((t) => dirname(normalize(t.path)) === dir)) ??
+    candidates.find((t) => normalize(t.path) === nodePath) ??
+    candidates.find((t) => normalize(t.path).startsWith(`${nodePath}/`)) ??
+    (dir === ROOT ? null : candidates.find((t) => dirname(normalize(t.path)) === dir)) ??
     null
   );
 };
 
 /** Marks the pieces of a system map touched by a set of file changes and flags their neighbours as at risk. Pure; the input scene is not modified. */
-export const overlayChanges = (map: Scene, touched: TouchedFile[], options: { id: string; title: string; summary?: string }): Scene => {
-  const changed = new Map<string, TouchedFile>();
+export const overlayChanges = (map: Scene, touched: TouchedInRepo[], options: { id: string; title: string; summary?: string }): Scene => {
+  const changed = new Map<string, TouchedInRepo>();
   for (const node of map.nodes) {
     const hit = matchNode(node, touched);
     if (hit) changed.set(node.id, hit);

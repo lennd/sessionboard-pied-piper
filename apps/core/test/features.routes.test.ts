@@ -10,6 +10,9 @@ import type { QueryFn } from '../src/agent/sdkRunner';
 import { buildApp } from '../src/app';
 import { loadConfig } from '../src/config';
 import { createRunRegistry } from '../src/runs/registry';
+import { fakeScene } from '../src/agent/fakeQuery';
+import { writeSystemMap } from '../src/store/scenes';
+import { validateScene } from '@rdi/scene';
 import { parseSse } from './sse';
 
 let home: string;
@@ -115,6 +118,29 @@ describe('features', () => {
     expect(prompts[1]!.mcp).toEqual({ rdi: { type: 'http', url: expect.stringMatching(new RegExp(`/mcp/features/${feature.id}$`)) } });
     expect((await app.inject({ method: 'GET', url: `/api/features/${feature.id}/runs` })).json()).toEqual([expect.objectContaining({ repoId: webId })]);
     expect((await app.inject({ method: 'POST', url: `/api/features/${feature.id}/repos/nope/run` })).statusCode).toBe(404);
+  });
+
+  it('combines the cached maps of its repositories and overlays the changes of every repository', async () => {
+    const feature = await createFeature();
+    const missing = await app.inject({ method: 'GET', url: `/api/features/${feature.id}/system-map` });
+    expect(missing.statusCode).toBe(404);
+    expect(missing.json().error.missing.map((m: { name: string }) => m.name)).toEqual(['shop-api', 'shop-web']);
+    const map = (name: string) => ({ ...fakeScene('en', `${name} map`, 'system-map'), nodes: fakeScene('en', 'x', 'system-map').nodes.map((n) => ({ ...n, code: { ...n.code, path: 'src/index.ts' } })) });
+    await writeSystemMap(join(apiRepo, '.rdi'), git(apiRepo, 'rev-parse', 'HEAD').trim(), map('shop-api') as never);
+    const partial = (await app.inject({ method: 'GET', url: `/api/features/${feature.id}/system-map` })).json();
+    expect(partial.missing.map((m: { name: string }) => m.name)).toEqual(['shop-web']);
+    await writeSystemMap(join(webRepo, '.rdi'), git(webRepo, 'rev-parse', 'HEAD').trim(), map('shop-web') as never);
+    const combined = (await app.inject({ method: 'GET', url: `/api/features/${feature.id}/system-map` })).json();
+    expect(combined.missing).toEqual([]);
+    expect(validateScene(combined.scene).ok).toBe(true);
+    expect(combined.scene.nodes.map((n: { id: string; repo: string }) => [n.id, n.repo])).toEqual(expect.arrayContaining([['shop-api:api', 'shop-api'], ['shop-web:api', 'shop-web']]));
+    expect(combined.scene.edges.map((e: { id: string }) => e.id)).toEqual(expect.arrayContaining(['shop-api:e1', 'shop-web:e1']));
+    await writeFile(join(webRepo, 'src', 'index.ts'), 'changed\n');
+    const impact = (await app.inject({ method: 'GET', url: `/api/features/${feature.id}/impact` })).json();
+    expect(impact.touched).toEqual([{ path: 'src/index.ts', change: 'modified', repo: 'shop-web' }]);
+    const changed = impact.scene.nodes.filter((n: { change?: string }) => n.change).map((n: { id: string }) => n.id);
+    expect(changed).toEqual(expect.arrayContaining(['shop-web:api', 'shop-web:store', 'shop-web:web']));
+    expect(changed.some((id: string) => id.startsWith('shop-api:'))).toBe(false);
   });
 
   it('exposes the feature plan to Claude Code through its own MCP endpoint', async () => {

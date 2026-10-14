@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { sampleRegistry } from '@rdi/scene';
-import { apiFetch } from '../../src/shell/api';
+import { ApiError, apiFetch } from '../../src/shell/api';
 import { FeaturePage } from '../../src/shell/features/FeaturePage';
 import { subscribeSolution } from '../../src/shell/solutions/solutionsApi';
 import { prefsFixture, renderShell, repoFixture } from './render';
@@ -43,6 +43,8 @@ beforeEach(() => {
     if (p === '/features/f1/runs') return [{ id: 'run1', repoId: 'r1', featureId: 'f1', solutionId: 'sol', status: 'done', startedAt: '', endedAt: '', pending: [] }] as never;
     if (p === '/features/f1/repos/r2/run' && init?.method === 'POST') return { id: 'run2', repoId: 'r2', featureId: 'f1', solutionId: 'sol', status: 'running', startedAt: '', endedAt: null, pending: [] } as never;
     if (p === '/repos') return [repoFixture(), repoFixture({ id: 'r2', name: 'shop-web' })] as never;
+    if (p === '/features/f1/system-map') return { scene: { ...scene, id: 'feature-map-f1' }, missing: [] } as never;
+    if (p === '/features/f1/impact') throw new ApiError(404, 'no_system_map');
     throw new Error(`unexpected ${p}`);
   });
 });
@@ -53,6 +55,7 @@ describe('FeaturePage', () => {
   it('shows the brief, the plan grouped by repository with run state, and the feature chat', async () => {
     open();
     await waitFor(() => expect(screen.getByTestId('workspace-scenes')).toHaveTextContent('sol-v1-proposed'));
+    await waitFor(() => expect(screen.getByTestId('workspace-scenes')).toHaveTextContent('feature-map-f1'));
     expect(screen.getByTestId('brief-text')).toHaveValue('Add 2FA');
     expect(screen.getByTestId('chat')).toHaveTextContent('/features/f1');
     expect(screen.getByTestId('plan-repo-r1')).toHaveTextContent('shop-api');

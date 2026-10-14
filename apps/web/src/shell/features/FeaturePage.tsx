@@ -4,7 +4,8 @@ import { Navigate, useParams } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nProvider';
 import type { CodeRef } from '../../workspace/panels/CodeDrawer';
 import { Workspace } from '../../workspace/Workspace';
-import { apiFetch } from '../api';
+import { ApiError, apiFetch } from '../api';
+import { validateScene, type Scene } from '@rdi/scene';
 import { ChatPanel } from '../chat/ChatPanel';
 import { Splash } from '../components/Splash';
 import { errorText } from '../errors';
@@ -15,6 +16,19 @@ import { RunView } from '../solutions/RunView';
 import { solutionKey, solutionScenes, subscribeSolution, type SolutionDetail } from '../solutions/solutionsApi';
 import { BriefPanel } from './BriefPanel';
 import { featureBase, startFeatureRun, useFeature, useFeatureRuns } from './featuresApi';
+
+const NOT_FOUND = 404;
+const MAP_STALE_MS = 30_000;
+
+const fetchScene = async (path: string): Promise<Scene | null> => {
+  try {
+    const result = validateScene((await apiFetch<{ scene: unknown }>(path)).scene);
+    return result.ok ? result.scene : null;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === NOT_FOUND) return null;
+    throw error;
+  }
+};
 
 const codeLoader = (featureId: string) => async (code: CodeRef) => {
   const query = new URLSearchParams({ repo: code.repo, path: code.path, start: String(code.startLine), end: String(code.endLine) });
@@ -40,6 +54,8 @@ export const FeaturePage = () => {
     placeholderData: keepPreviousData,
   });
   const runs = useFeatureRuns(featureId, Boolean(planId));
+  const combinedMap = useQuery({ queryKey: ['feature-map', featureId], queryFn: () => fetchScene(`/features/${featureId}/system-map`), enabled: Boolean(featureId), staleTime: MAP_STALE_MS, retry: false });
+  const impact = useQuery({ queryKey: ['feature-impact', featureId], queryFn: () => fetchScene(`/features/${featureId}/impact`), enabled: Boolean(featureId), staleTime: MAP_STALE_MS, retry: false });
   useEffect(() => {
     if (!planId) return;
     return subscribeSolution(base, planId, () => {
@@ -48,7 +64,7 @@ export const FeaturePage = () => {
     });
   }, [base, planId, featureId, client]);
   const loadCode = useMemo(() => codeLoader(featureId), [featureId]);
-  const scenes = useMemo(() => (plan.data ? solutionScenes(plan.data, t) : []), [plan.data, t]);
+  const scenes = useMemo(() => [...(plan.data ? solutionScenes(plan.data, t) : []), ...(impact.data ? [impact.data] : []), ...(combinedMap.data ? [combinedMap.data] : [])], [plan.data, impact.data, combinedMap.data, t]);
   const repos: PlanRepo[] = useMemo(
     () => (feature.data?.repos ?? []).map((r) => ({ id: r.id, name: r.name, available: r.available, run: runs.data?.find((x) => x.repoId === r.id)?.status ?? null })),
     [feature.data, runs.data],
@@ -59,6 +75,7 @@ export const FeaturePage = () => {
     try {
       const started = await startFeatureRun(featureId, repoId);
       setRun({ repoId, runId: started.id });
+      void client.invalidateQueries({ queryKey: ['feature-impact', featureId] });
     } catch (err) {
       setError(errorText(t, err));
     }
@@ -94,7 +111,7 @@ export const FeaturePage = () => {
       {run && (
         <div className="dialog-backdrop" role="dialog" aria-modal="true" data-testid="feature-run-dialog">
           <div className="dialog glass">
-            <RunView repoId={run.repoId} runId={run.runId} onClose={() => { setRun(null); void runs.refetch(); }} />
+            <RunView repoId={run.repoId} runId={run.runId} onClose={() => { setRun(null); void runs.refetch(); void client.invalidateQueries({ queryKey: ['feature-impact', featureId] }); }} />
           </div>
         </div>
       )}

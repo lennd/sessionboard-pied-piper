@@ -8,6 +8,12 @@ import { listSummaries } from '../solutions/service';
 import { createFeature, FEATURE_STATUSES, listFeatures, removeFeature, updateFeature, type FeatureFile } from '../store/features';
 import { listRepos } from '../store/repos';
 import { insideRepo, languageOf, MAX_CODE_LINES, sliceLines } from './code';
+import { gitChanges, gitInfo } from '../git/git';
+import { combineMaps } from '../impact/combined';
+import { overlayChanges, type TouchedInRepo } from '../impact/overlay';
+import { readPrefs } from '../store/prefs';
+import { readSystemMap } from '../store/scenes';
+import { join } from 'node:path';
 
 const MAX_TITLE = 200;
 const MAX_BRIEF = 40_000;
@@ -58,6 +64,33 @@ export const featureRoutes = (api: FastifyInstance, deps: AppDeps) => {
   api.delete('/features/:featureId', async (req, reply) => {
     const { featureId } = req.params as { featureId: string };
     return isUuid(featureId) && (await removeFeature(home, featureId)) ? reply.code(204).send() : fail(reply, 404, 'feature_not_found');
+  });
+
+  const RDI = '.rdi';
+  const combinedMap = async (scope: NonNullable<Parameters<typeof requireScope>[0]> extends never ? never : { roots: { id: string; name: string; path: string }[]; feature?: FeatureFile; id: string }) => {
+    const maps = (await Promise.all(scope.roots.map(async (root) => {
+      const scene = await readSystemMap(join(root.path, RDI), (await gitInfo(root.path)).head);
+      return scene ? [{ root, scene }] : [];
+    }))).flat();
+    const prefs = await readPrefs(home);
+    return { maps, scene: combineMaps(maps, { id: `feature-map-${scope.id}`, title: scope.feature?.title ?? 'Feature', language: prefs.explanationLanguage ?? prefs.uiLanguage ?? 'en' }) };
+  };
+
+  /** The maps of every repository of the feature side by side; repositories without a cached map are listed as missing. */
+  api.get('/features/:featureId/system-map', { preHandler: [requireScope(deps)] }, async (req, reply) => {
+    const scope = req.scope!;
+    const { maps, scene } = await combinedMap(scope);
+    const missing = scope.roots.filter((r) => !maps.some((m) => m.root.id === r.id)).map((r) => ({ id: r.id, name: r.name }));
+    return scene ? { scene, missing } : fail(reply, 404, 'no_system_map', { missing });
+  });
+
+  /** Uncommitted changes of every repository of the feature overlaid on the combined map. */
+  api.get('/features/:featureId/impact', { preHandler: [requireScope(deps)] }, async (req, reply) => {
+    const scope = req.scope!;
+    const { scene } = await combinedMap(scope);
+    if (!scene) return fail(reply, 404, 'no_system_map');
+    const touched: TouchedInRepo[] = (await Promise.all(scope.roots.map(async (root) => (await gitChanges(root.path)).map((t) => ({ ...t, repo: root.name }))))).flat();
+    return { scene: overlayChanges(scene, touched, { id: `feature-impact-${scope.id}`, title: `${scope.feature?.title ?? 'Feature'} · changes` }), touched };
   });
 
   /** Code of any repository of the feature, addressed by repository name (what scenes carry in code.repo). */
