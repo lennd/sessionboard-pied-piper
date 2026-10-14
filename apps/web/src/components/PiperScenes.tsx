@@ -23,7 +23,8 @@ const Notes = ({ x, y, className = '' }: { x: number; y: number; className?: str
   </g>
 );
 
-const TONES: Record<PiperSceneVariant, [string, string]> = { repos: ['#118a53', '#063d25'], feature: ['#17995c', '#0a4a2e'], settings: ['#0b6b3f', '#04301c'] };
+/** Hole colour of the follower blocks: the card shows through, so it matches the card tint. */
+const HOLE = 'rgba(11, 107, 63, .9)';
 
 /** The piper leads a procession of repositories: three blocks follow the flute. */
 const ReposScene = () => (
@@ -31,9 +32,9 @@ const ReposScene = () => (
     <Piper transform="translate(28 10) scale(1.3)" />
     <Notes x={31} y={38} className="to-left" />
     <g fill="#fff" className="followers">
-      <g className="follower f1"><rect x="92" y="46" width="16" height="16" rx="4" /><circle cx="100" cy="54" r="2.6" fill={TONES.repos[1]} /></g>
-      <g className="follower f2"><rect x="114" y="50" width="12" height="12" rx="3.5" /><circle cx="120" cy="56" r="2" fill={TONES.repos[1]} /></g>
-      <g className="follower f3"><rect x="132" y="53" width="9" height="9" rx="3" /><circle cx="136.5" cy="57.5" r="1.5" fill={TONES.repos[1]} /></g>
+      <g className="follower f1"><rect x="92" y="46" width="16" height="16" rx="4" /><circle cx="100" cy="54" r="2.6" fill={HOLE} /></g>
+      <g className="follower f2"><rect x="114" y="50" width="12" height="12" rx="3.5" /><circle cx="120" cy="56" r="2" fill={HOLE} /></g>
+      <g className="follower f3"><rect x="132" y="53" width="9" height="9" rx="3" /><circle cx="136.5" cy="57.5" r="1.5" fill={HOLE} /></g>
     </g>
   </>
 );
@@ -65,19 +66,11 @@ const SettingsScene = () => (
 
 const SCENES: Record<PiperSceneVariant, () => ReactNode> = { repos: ReposScene, feature: FeatureScene, settings: SettingsScene };
 
-/** A small picture of the piper for the front door: one version of the mark per place to go. */
+/** A small picture of the piper for the front door: one version of the mark per place to go, drawn straight on the card. */
 export const PiperScene = ({ variant, title }: { variant: PiperSceneVariant; title?: string }) => {
-  const [light, dark] = TONES[variant];
   const Scene = SCENES[variant];
   return (
     <svg className={`piper-mark piper-scene is-${variant}`} viewBox="0 0 160 72" role={title ? 'img' : undefined} aria-hidden={title ? undefined : true} aria-label={title}>
-      <defs>
-        <linearGradient id={`pp-bg-${variant}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor={light} />
-          <stop offset="1" stopColor={dark} />
-        </linearGradient>
-      </defs>
-      <rect width="160" height="72" rx="12" fill={`url(#pp-bg-${variant})`} />
       <Scene />
     </svg>
   );

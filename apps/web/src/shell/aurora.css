@@ -120,10 +120,10 @@
 .home-wordmark { font-family: var(--serif); font-size: 64px; font-weight: 600; letter-spacing: -.03em; line-height: 1; margin: 8px 0 0; color: #fff; }
 .home-tagline { color: var(--mint); max-width: 520px; font-size: 15px; line-height: 1.5; margin: 0; }
 .home-cards { display: grid; grid-template-columns: repeat(3, minmax(200px, 260px)); gap: 16px; width: 100%; max-width: 860px; }
-.home-card { display: flex; flex-direction: column; gap: 6px; padding: 14px 14px 18px; color: #fff; text-decoration: none; transition: transform .15s, background .15s; }
+.home-card { display: flex; flex-direction: column; gap: 6px; padding: 18px 20px 20px; color: #fff; text-decoration: none; transition: transform .15s, background .15s; }
 .home-card:hover { transform: translateY(-2px); background: rgba(255, 255, 255, .14); }
 .home-card:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-.home-card-picture { display: block; width: 100%; margin-bottom: 6px; border-radius: 12px; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); }
+.home-card-picture { display: block; width: 100%; margin-bottom: 4px; }
 .home-card-picture .piper-scene { display: block; width: 100%; height: auto; }
 .piper-scene .to-left .note { animation-name: piper-note-left; }
 .piper-scene .to-spark .note { animation-name: piper-note-spark; }
