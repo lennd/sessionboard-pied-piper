@@ -97,6 +97,7 @@ export const ExplorePage = () => {
         }}
         initialLevel={effectiveLevel(prefs)}
         homeHref={`/repos/${repoId}/settings`}
+        context={repo.data ? { title: repo.data.name, detail: repo.data.remote ? t('repos.remoteTag') : repo.data.branch ? `${repo.data.branch} · ${(repo.data.head ?? '').slice(0, 7)}` : null, href: '/repos' } : undefined}
       />
     </>
   );

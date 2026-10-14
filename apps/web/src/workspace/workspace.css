@@ -264,3 +264,8 @@ button, select, input { font: inherit; color: inherit; }
 .ws-brand { display: inline-flex; align-items: center; border-radius: var(--radius); padding: 2px; color: inherit; }
 .ws-brand:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .ws-brand:focus-visible { outline: 1px solid var(--accent); }
+
+.ws-context { display: inline-flex; flex-direction: column; min-width: 0; max-width: 260px; padding: 2px 8px; border-radius: var(--radius); color: inherit; text-decoration: none; line-height: 1.15; border: 1px solid var(--line); }
+.ws-context:hover { border-color: var(--accent); }
+.ws-context-title { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+.ws-context-detail { color: var(--muted); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

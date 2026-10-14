@@ -106,6 +106,7 @@ export const FeaturePage = () => {
         }}
         initialLevel={effectiveLevel(prefs)}
         homeHref="/features"
+        context={{ title: data.title, detail: data.repos.map((r) => r.name).join(' · '), href: '/features' }}
       />
       {error && <p className="alert error" role="alert" style={{ position: 'fixed', top: 64, left: '50%', transform: 'translateX(-50%)', zIndex: 50 }}>{error}</p>}
       {run && (

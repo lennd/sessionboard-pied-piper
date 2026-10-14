@@ -52,6 +52,7 @@ export const SolutionPage = () => {
         }}
         initialLevel={effectiveLevel(prefs)}
         homeHref={`/repos/${repoId}/settings/solutions`}
+        context={repo.data ? { title: repo.data.name, detail: `${t('plan.title')} · ${data.title}`, href: `/repos/${repoId}/settings/solutions` } : undefined}
       />
       {handoff && <HandoffDialog repoId={repoId} solutionId={data.id} onClose={() => setHandoff(false)} />}
     </>

@@ -39,9 +39,10 @@ export type ChatContext = {
 };
 export type WorkspacePanel = { id: string; glyph: string; title: string; label?: string; render: (ctx: ChatContext) => ReactNode };
 
-type WorkspaceProps = { chat?: (ctx: ChatContext) => ReactNode; panels?: WorkspacePanel[]; initialPanel?: string; loadCode?: (code: CodeRef) => Promise<string>; extraScenes?: Scene[]; theme?: ThemeId; onTheme?: (theme: ThemeId) => void; onLanguage?: (language: UiLanguage) => void; initialLevel?: Level; homeHref?: string };
+export type WorkspaceContextInfo = { title: string; detail?: string | null; href?: string };
+type WorkspaceProps = { chat?: (ctx: ChatContext) => ReactNode; panels?: WorkspacePanel[]; initialPanel?: string; loadCode?: (code: CodeRef) => Promise<string>; extraScenes?: Scene[]; theme?: ThemeId; onTheme?: (theme: ThemeId) => void; onLanguage?: (language: UiLanguage) => void; initialLevel?: Level; homeHref?: string; context?: WorkspaceContextInfo };
 
-export const Workspace = ({ chat, panels, initialPanel, loadCode, extraScenes = NO_SCENES, theme: controlledTheme, onTheme, onLanguage, initialLevel = DEFAULT_LEVEL, homeHref }: WorkspaceProps = {}) => {
+export const Workspace = ({ chat, panels, initialPanel, loadCode, extraScenes = NO_SCENES, theme: controlledTheme, onTheme, onLanguage, initialLevel = DEFAULT_LEVEL, homeHref, context }: WorkspaceProps = {}) => {
   const { language, t } = useI18n();
   const [chatScenes, setChatScenes] = useState<Scene[]>([]);
   const [sidebar, setSidebar] = useState<string>(initialPanel ?? 'explorer');
@@ -62,6 +63,9 @@ export const Workspace = ({ chat, panels, initialPanel, loadCode, extraScenes = 
   const theme = controlledTheme ?? localTheme;
   const setTheme = (next: ThemeId) => (onTheme ? onTheme(next) : setLocalTheme(next));
 
+  useEffect(() => {
+    document.title = context ? `${context.title} · Pied Piper` : 'Pied Piper';
+  }, [context]);
   useEffect(() => {
     applyTheme(document.documentElement, theme);
     if (!controlledTheme) localStorage.setItem(THEME_STORAGE_KEY, theme);
@@ -134,7 +138,7 @@ export const Workspace = ({ chat, panels, initialPanel, loadCode, extraScenes = 
         scenes={scenes} scene={scene} level={explorer.level} mode={explorer.mode} scaleOverlay={explorer.scaleOverlay} theme={theme}
         onSceneChange={loadScene} onLevel={(level) => dispatchRaw({ type: 'setLevel', level })} onMode={(mode) => dispatchRaw({ type: 'setMode', mode })}
         onToggleOverlay={() => dispatchRaw({ type: 'toggleScaleOverlay' })} onTheme={setTheme}
-        onLanguage={onLanguage} homeHref={homeHref}
+        onLanguage={onLanguage} homeHref={homeHref} context={context}
       />
       <div className={sidebar !== 'explorer' && allPanels.some((p) => p.id === sidebar) ? 'ws-body chat-open' : 'ws-body'}>
         <ExplorerPanel

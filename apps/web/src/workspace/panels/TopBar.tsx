@@ -17,7 +17,7 @@ type TopBarProps = {
   scenes: Scene[]; scene: Scene; level: Level; mode: Mode; scaleOverlay: boolean; theme: ThemeId;
   onSceneChange: (id: string) => void; onLevel: (level: Level) => void; onMode: (mode: Mode) => void;
   onToggleOverlay: () => void; onTheme: (theme: ThemeId) => void;
-  onLanguage?: (language: UiLanguage) => void; homeHref?: string;
+  onLanguage?: (language: UiLanguage) => void; homeHref?: string; context?: { title: string; detail?: string | null; href?: string };
 };
 
 export const TopBar = (p: TopBarProps) => {
@@ -26,6 +26,12 @@ export const TopBar = (p: TopBarProps) => {
   return (
     <header className="ws-top">
       <a className="ws-brand" href="/" data-testid="brand-home" title={t('nav.home')} aria-label={t('nav.home')}><Logo /></a>
+      {p.context && (
+        <a className="ws-context" href={p.context.href ?? p.homeHref ?? '/'} data-testid="ws-context" title={p.context.detail ? `${p.context.title} · ${p.context.detail}` : p.context.title}>
+          <span className="ws-context-title">{p.context.title}</span>
+          {p.context.detail && <span className="ws-context-detail">{p.context.detail}</span>}
+        </a>
+      )}
       <select className="select" data-testid="scene-select" aria-label={t('scene.label')} value={p.scene.id} onChange={(e) => p.onSceneChange(e.target.value)}>
         {p.scenes.map((s) => <option key={s.id} value={s.id}>{s.title} ({s.language})</option>)}
       </select>
