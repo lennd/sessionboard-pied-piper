@@ -7,6 +7,7 @@ export type Config = {
   home: string;
   claudeHome: string;
   ghBin: string;
+  signatureLogoUrl: string | null;
   nodeEnv: string;
   webDist: string | null;
   agent: { fake: boolean; model: string | null; maxTurns: number; maxBudgetUsd: number | null; heartbeatMs: number; claudeExecutable: string | null };
@@ -18,6 +19,7 @@ const DEFAULTS = {
   RDI_HOME: '',
   RDI_CLAUDE_HOME: '',
   RDI_GH_BIN: 'gh',
+  RDI_SIGNATURE_LOGO_URL: '',
   NODE_ENV: 'development',
   RDI_WEB_DIST: '',
   RDI_FAKE_AGENT: 'false',
@@ -45,6 +47,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     home: read('RDI_HOME') || join(homedir(), RDI_DIR),
     claudeHome: read('RDI_CLAUDE_HOME') || join(homedir(), CLAUDE_DIR),
     ghBin: read('RDI_GH_BIN'),
+    signatureLogoUrl: orNull(read('RDI_SIGNATURE_LOGO_URL')),
     nodeEnv,
     webDist: orNull(read('RDI_WEB_DIST')),
     agent: {

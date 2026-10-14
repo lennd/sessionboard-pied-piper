@@ -1,4 +1,7 @@
 import { execFile } from 'node:child_process';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { promisify } from 'node:util';
 import type { TouchedFile } from '../observer/parse';
 import { clipDiff, MAX_DIFF_BYTES } from './git';
@@ -45,6 +48,8 @@ const gh = async (bin: string, cwd: string, args: string[], stdin?: string): Pro
 
 export type ReviewComment = { path: string; line: number; side: 'RIGHT' | 'LEFT'; body: string };
 export type ReviewResult = { id: number; url: string };
+export type GistResult = { id: string; owner: string; url: string; rawUrl: (file: string) => string };
+const GIST_URL = /gist\.github\.com\/(?:([^/\s]+)\/)?([0-9a-f]+)/;
 
 const summary = (p: RawPull): PullSummary => ({
   number: p.number, title: p.title, author: p.author?.login ?? '', draft: p.isDraft, headRef: p.headRefName, baseRef: p.baseRefName, updatedAt: p.updatedAt, url: p.url,
@@ -85,6 +90,25 @@ export const createGh = (bin: string) => ({
     const out = await gh(bin, cwd, ['api', '--method', 'POST', `repos/{owner}/{repo}/pulls/${number}/reviews`, '--input', '-'], JSON.stringify({ event: 'COMMENT', ...review }));
     const parsed = JSON.parse(out) as { id: number; html_url: string };
     return { id: parsed.id, url: parsed.html_url };
+  },
+  /** Publishes text files (SVG, markdown) as one public gist so GitHub can render them inside pull request comments. */
+  createGist: async (cwd: string, description: string, files: Record<string, string>): Promise<GistResult> => {
+    const dir = await mkdtemp(join(tmpdir(), 'rdi-gist-'));
+    try {
+      const paths = await Promise.all(Object.entries(files).map(async ([name, content]) => {
+        const path = join(dir, name);
+        await writeFile(path, content);
+        return path;
+      }));
+      const out = await gh(bin, cwd, ['gist', 'create', '--public', '--desc', description, ...paths]);
+      const match = GIST_URL.exec(out);
+      if (!match) throw new GhFailure('gh_failed', `unexpected gist output: ${out.trim()}`);
+      const id = match[2]!;
+      const owner = match[1] ?? (await gh(bin, cwd, ['api', 'user', '--jq', '.login'])).trim();
+      return { id, owner, url: `https://gist.github.com/${owner}/${id}`, rawUrl: (file) => `https://gist.githubusercontent.com/${owner}/${id}/raw/${file}` };
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   },
   pullDetail: async (cwd: string, number: number): Promise<PullDetail> => {
     const raw = JSON.parse(await gh(bin, cwd, ['pr', 'view', String(number), '--json', VIEW_FIELDS])) as RawPull & { body: string; files: { path: string; additions: number; deletions: number }[] };

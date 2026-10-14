@@ -57,25 +57,35 @@ export const anchorRisks = (scene: Scene, lines: DiffLines): AnchoredRisk[] => {
 };
 
 const SEVERITY_GLYPH: Record<string, string> = { critical: '🔴', high: '🟠', medium: '🟡', low: '🟢' };
-export const SIGNATURE = '_Posted from Pied Pieper_';
+export const SIGNATURE = '_Posted from Pied Piper_';
+const LOGO_SIZE = 18;
 
-export const commentBody = (entry: AnchoredRisk): string =>
+/** Signature line with the mark when a public logo URL is known. */
+export const signature = (logoUrl: string | null): string =>
+  logoUrl ? `<img src="${logoUrl}" width="${LOGO_SIZE}" height="${LOGO_SIZE}" alt="Pied Piper" align="absmiddle"> _Reviewed with Pied Piper_` : SIGNATURE;
+
+export type Evidence = { logoUrl: string | null; images: Map<string, string> };
+export const NO_EVIDENCE: Evidence = { logoUrl: null, images: new Map() };
+
+export const commentBody = (entry: AnchoredRisk, evidence: Evidence = NO_EVIDENCE): string =>
   [
     `**${SEVERITY_GLYPH[entry.risk.severity] ?? '•'} ${entry.risk.severity} · ${entry.risk.category}: ${entry.risk.title}**`,
     entry.risk.explanation,
     ...(entry.risk.mitigation ? [`**Mitigation:** ${entry.risk.mitigation}`] : []),
     ...(entry.pieces.length ? [`Pieces: ${entry.pieces.join(', ')}`] : []),
-    SIGNATURE,
+    ...(evidence.images.has(entry.risk.id) ? [`![${entry.pieces.join(', ') || 'Impact'} on the system map](${evidence.images.get(entry.risk.id)})`] : []),
+    signature(evidence.logoUrl),
   ].join('\n\n');
 
 /** Splits the selected risks into inline comments and a summary for the ones the diff cannot anchor. */
-export const buildReview = (entries: AnchoredRisk[], intro: string | null) => {
+export const buildReview = (entries: AnchoredRisk[], intro: string | null, evidence: Evidence = NO_EVIDENCE) => {
   const inline = entries.filter((e): e is AnchoredRisk & { anchor: { path: string; line: number } } => e.anchor !== null);
   const unanchored = entries.filter((e) => e.anchor === null);
+  const plain = (e: AnchoredRisk) => commentBody(e, { logoUrl: null, images: NO_EVIDENCE.images }).replace(SIGNATURE, '').trim().replace(/\n\n/g, ' — ');
   const body = [
-    intro ?? `Impact review: ${entries.length} risk${entries.length === 1 ? '' : 's'} found by Pied Pieper.`,
-    ...unanchored.map((e) => `- ${commentBody(e).replace(SIGNATURE, '').trim().replace(/\n\n/g, ' — ')}`),
-    SIGNATURE,
+    intro ?? `Impact review: ${entries.length} risk${entries.length === 1 ? '' : 's'} found by Pied Piper.`,
+    ...unanchored.map((e) => `- ${plain(e)}${evidence.images.has(e.risk.id) ? `\n\n  ![${e.pieces.join(', ') || 'Impact'} on the system map](${evidence.images.get(e.risk.id)})` : ''}`),
+    signature(evidence.logoUrl),
   ].join('\n\n');
-  return { body, comments: inline.map((e) => ({ path: e.anchor.path, line: e.anchor.line, side: 'RIGHT' as const, body: commentBody(e) })) };
+  return { body, comments: inline.map((e) => ({ path: e.anchor.path, line: e.anchor.line, side: 'RIGHT' as const, body: commentBody(e, evidence) })) };
 };

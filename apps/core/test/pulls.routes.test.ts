@@ -47,6 +47,7 @@ ${DIFF}
 DIFF
   ;;
   "api --method POST repos/{owner}/{repo}/pulls/7/reviews --input -") cat > "$(dirname "$0")/review.json"; echo '{"id": 55, "html_url": "https://github.com/acme/x/pull/7#pullrequestreview-55"}';;
+  "gist create --public --desc"*) ls "$6" "$7" "$8" 2>/dev/null | sed 's#.*/##' > "$(dirname "$0")/gist-files.txt"; echo "https://gist.github.com/ana/abc123def456";;
   *) echo "no pull requests found" >&2; exit 1;;
 esac`;
   await writeFile(script, `#!/bin/sh\n${body}\n`);
@@ -142,13 +143,24 @@ describe('pull requests', () => {
     ]);
     const posted = await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/review`, payload: { scene, riskIds: ['r1', 'r2'], intro: 'Please check these.' } });
     expect(posted.statusCode).toBe(201);
-    expect(posted.json()).toEqual({ id: 55, url: 'https://github.com/acme/x/pull/7#pullrequestreview-55', inline: 1, summary: 1 });
+    expect(posted.json()).toEqual({ id: 55, url: 'https://github.com/acme/x/pull/7#pullrequestreview-55', inline: 1, summary: 1, images: 2, logo: true, gistUrl: 'https://gist.github.com/ana/abc123def456' });
     const sent = JSON.parse(await readFile(join(dirname(bin), 'review.json'), 'utf8'));
     expect(sent.event).toBe('COMMENT');
     expect(sent.body.startsWith('Please check these.')).toBe(true);
     expect(sent.body).toContain('Unclear');
+    expect(sent.body).toContain('![Web on the system map](https://gist.githubusercontent.com/ana/abc123def456/raw/risk-r2.svg)');
+    expect(sent.body).toContain('<img src="https://gist.githubusercontent.com/ana/abc123def456/raw/pied-piper-mark.svg"');
     expect(sent.comments).toEqual([expect.objectContaining({ path: 'apps/core/src/app.ts', line: 1, side: 'RIGHT' })]);
     expect(sent.comments[0].body).toContain('Breaks callers');
+    expect(sent.comments[0].body).toContain('raw/risk-r1.svg');
+    expect(sent.comments[0].body).toContain('_Reviewed with Pied Piper_');
+    expect((await readFile(join(dirname(bin), 'gist-files.txt'), 'utf8')).trim().split('\n').sort()).toEqual(['pied-piper-mark.svg', 'risk-r1.svg', 'risk-r2.svg']);
+    expect(JSON.parse(await readFile(join(home, 'signature.json'), 'utf8'))).toEqual({ logoUrl: 'https://gist.githubusercontent.com/ana/abc123def456/raw/pied-piper-mark.svg' });
+    const second = await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/review`, payload: { scene, riskIds: ['r1'], evidence: false } });
+    expect(second.json()).toMatchObject({ images: 0, logo: true });
+    const sentAgain = JSON.parse(await readFile(join(dirname(bin), 'review.json'), 'utf8'));
+    expect(sentAgain.comments[0].body).not.toContain('raw/risk-r1.svg');
+    expect(sentAgain.comments[0].body).toContain('pied-piper-mark.svg');
     expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/review`, payload: { scene, riskIds: ['zz'] } })).statusCode).toBe(404);
     expect((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/risks`, payload: { scene: { id: 'bad' } } })).statusCode).toBe(404);
     const explained = (await app.inject({ method: 'POST', url: `/api/repos/${repoId}/impact/explain`, payload: { pull: 7 } })).json();
