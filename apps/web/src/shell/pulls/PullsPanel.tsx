@@ -15,6 +15,7 @@ import { verdictOf, type VerdictAction } from './verdict';
 
 const STATUS_GLYPH: Record<string, string> = { added: '+', removed: '−', modified: '~' };
 const NOT_FOUND = 404;
+const MAX_PIECES = 3;
 
 /** Small status pill of a pull request's review state. */
 const ReviewTag = ({ review, t }: { review: ReviewState; t: (key: MessageKey) => string }) => {
@@ -232,14 +233,19 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
             {risks && risks.length > 0 && (
               <>
                 <p className="muted">{t('pulls.risksHint')}</p>
-                <ul className="pull-files">
+                <ul className="risk-picks">
                   {risks.map((r) => (
-                    <li key={r.id} className={`pull-file is-${r.severity}`} data-testid={`pull-risk-${r.id}`}>
-                      <label className="row" style={{ gap: 8, alignItems: 'flex-start' }}>
+                    <li key={r.id} className={`risk-pick is-${r.severity}`} data-testid={`pull-risk-${r.id}`}>
+                      <label className="risk-pick-row">
                         <input type="checkbox" data-testid={`pull-risk-check-${r.id}`} checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
-                        <span>
-                          <span className="pull-file-status">{r.severity} · {r.category}</span> <b>{r.title}</b>
-                          <div className="muted" data-testid={`pull-risk-anchor-${r.id}`}>{r.anchor ? `${r.anchor.path}:${r.anchor.line}` : t('pulls.inSummary')}{r.pieces.length ? ` · ${r.pieces.join(', ')}` : ''}</div>
+                        <span className="risk-pick-body">
+                          <span className="risk-pick-title">{r.title}</span>
+                          <span className="risk-pick-meta">
+                            <span className={`tag sev-tag is-${r.severity}`}>{r.severity}</span>
+                            <span className="muted">{r.category}</span>
+                            <span className="muted" data-testid={`pull-risk-anchor-${r.id}`}>{r.anchor ? `${r.anchor.path}:${r.anchor.line}` : t('pulls.inSummary')}</span>
+                          </span>
+                          {r.pieces.length > 0 && <span className="muted risk-pick-pieces">{r.pieces.slice(0, MAX_PIECES).join(', ')}{r.pieces.length > MAX_PIECES ? ` +${r.pieces.length - MAX_PIECES}` : ''}</span>}
                         </span>
                       </label>
                     </li>

@@ -184,6 +184,7 @@ button, select, input { font: inherit; color: inherit; }
 .chat-modes button { font-size: 12px; }
 
 .pulls { display: flex; flex-direction: column; gap: 6px; padding: 10px; overflow: auto; height: 100%; }
+.pulls > * { flex-shrink: 0; }
 .pulls-head { display: flex; justify-content: space-between; align-items: center; }
 .pull-item { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; padding: 8px; margin-bottom: 6px; border: 1px solid var(--line); border-radius: var(--radius); background: transparent; color: var(--text); cursor: pointer; font: inherit; font-size: 12px; }
 .pull-item:hover { border-color: var(--accent); }
@@ -246,3 +247,16 @@ button, select, input { font: inherit; color: inherit; }
 .verdict .sec-title { border: 0; padding: 6px 0 2px; }
 .verdict-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
 .verdict-action div { margin-top: 2px; }
+
+.risk-picks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.risk-pick { border: 1px solid var(--line); border-left-width: 3px; border-radius: var(--radius); }
+.risk-pick.is-critical { border-left-color: var(--saturated); } .risk-pick.is-high { border-left-color: var(--limit); } .risk-pick.is-medium { border-left-color: var(--strained); } .risk-pick.is-low { border-left-color: var(--ok); }
+.risk-pick-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: start; padding: 6px 8px; cursor: pointer; }
+.risk-pick-row input { margin-top: 3px; }
+.risk-pick-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.risk-pick-title { font-weight: 600; font-size: 12px; line-height: 1.3; }
+.risk-pick-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 11px; }
+.risk-pick-meta .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.risk-pick-pieces { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sev-tag { padding: 0 6px; font-size: 10px; border-color: transparent; color: var(--bg); }
+.sev-tag.is-critical { background: var(--saturated); } .sev-tag.is-high { background: var(--limit); } .sev-tag.is-medium { background: var(--strained); } .sev-tag.is-low { background: var(--ok); }

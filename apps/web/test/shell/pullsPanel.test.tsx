@@ -89,8 +89,10 @@ describe('PullsPanel', () => {
     mockApi();
     render();
     fireEvent.click(await screen.findByTestId('pull-7'));
-    expect(await screen.findByTestId('pull-risk-r1')).toHaveTextContent('high · reliability');
-    expect(screen.getByTestId('pull-risk-anchor-r1')).toHaveTextContent('src/a.ts:12 · API');
+    expect(await screen.findByTestId('pull-risk-r1')).toHaveTextContent('high');
+    expect(screen.getByTestId('pull-risk-r1')).toHaveTextContent('reliability');
+    expect(screen.getByTestId('pull-risk-anchor-r1')).toHaveTextContent('src/a.ts:12');
+    expect(screen.getByTestId('pull-risk-r1')).toHaveTextContent('API');
     expect(screen.getByTestId('pull-risk-anchor-r2')).toHaveTextContent('summary');
     expect(api).toHaveBeenCalledWith('/repos/r1/pulls/7/risks', { method: 'POST', body: { scene: expect.objectContaining({ id: 'impact-pr-7' }) } });
     fireEvent.click(screen.getByTestId('pull-risk-check-r2'));
