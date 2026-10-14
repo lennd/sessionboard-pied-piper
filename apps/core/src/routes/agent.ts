@@ -15,6 +15,7 @@ import {
 } from '../store/conversations';
 import { readPrefs } from '../store/prefs';
 import { readRules, ruleLines } from '../store/rules';
+import { readToolkit } from '../store/toolkit';
 import { repoDir, type RepoEntry } from '../store/repos';
 import { findScene, insertScene, listConversationScenes, readSystemMap, SYSTEM_MAP_ID, writeSystemMap } from '../store/scenes';
 
@@ -127,7 +128,7 @@ export const agentRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const dir = repoDir(repo);
     const turn = itemsOf(conversation.messages).turns + 1;
     const language = await languageFor(body.language);
-    const prompt = chatPrompt(body.text, { language, focus: body.focus ?? null, mode: body.mode, rules: ruleLines(await readRules(dir)) });
+    const prompt = chatPrompt(body.text, { language, focus: body.focus ?? null, mode: body.mode, rules: ruleLines(await readRules(dir)), toolkit: await readToolkit(dir) });
     const { send, end, signal } = openSse(reply, deps.config.agent.heartbeatMs);
     const sceneIds: string[] = [];
     const emit = async (event: AgentEvent) => {

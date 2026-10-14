@@ -6,6 +6,7 @@ import { requireRepo } from '../http/repo';
 import { mcpUrl } from '../mcp/route';
 import { solutionDetail } from '../solutions/service';
 import { repoDir } from '../store/repos';
+import { readToolkit } from '../store/toolkit';
 
 const HEARTBEAT_MS = 15_000;
 const decisionBody = z.object({ allow: z.boolean() });
@@ -18,7 +19,7 @@ export const runRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const repo = req.repo!;
     if (!isUuid(id) || !(await solutionDetail(repoDir(repo), id))) return fail(reply, 404, 'not_found');
     if (!deps.queryFn) return fail(reply, 409, 'agent_not_configured');
-    const started = deps.runs.start({ repoId: repo.id, repoPath: repo.path, solutionId: id, queryFn: deps.queryFn, agent: deps.config.agent, mcpHttpUrl: mcpUrl(deps.config, repo.id), now: () => nowOf(deps) });
+    const started = deps.runs.start({ repoId: repo.id, repoPath: repo.path, solutionId: id, queryFn: deps.queryFn, agent: deps.config.agent, mcpHttpUrl: mcpUrl(deps.config, repo.id), now: () => nowOf(deps), toolkit: await readToolkit(repoDir(repo)) });
     if ('error' in started) return fail(reply, 409, started.error);
     return reply.code(201).send(started);
   });

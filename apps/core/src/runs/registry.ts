@@ -10,7 +10,7 @@ export type RunEvent =
   | { type: 'permission_resolved'; id: string; allow: boolean }
   | { type: 'status'; status: RunStatus; message?: string };
 export type Run = { id: string; repoId: string; solutionId: string; status: RunStatus; startedAt: string; endedAt: string | null; sdkSessionId: string | null; usage: RunUsage; events: RunEvent[]; pending: string[] };
-export type StartInput = { repoId: string; repoPath: string; solutionId: string; queryFn: QueryFn; agent: Config['agent']; mcpHttpUrl: string; now: () => Date };
+export type StartInput = { repoId: string; repoPath: string; solutionId: string; queryFn: QueryFn; agent: Config['agent']; mcpHttpUrl: string; now: () => Date; toolkit?: string };
 
 const DENIED_MESSAGE = 'The user denied this action in Pied Piper.';
 const CANCELLED_MESSAGE = 'The run was stopped by the user.';
@@ -72,7 +72,7 @@ export const createRunRegistry = () => {
         emit(entry, { type: 'permission', id, tool, input: toolInput, description: options.description ?? null });
       });
     void runAgent(input.queryFn, {
-      cwd: input.repoPath, prompt: runSolutionPrompt(input.solutionId), mode: 'run', signal: controller.signal, agent: input.agent, mcpHttpUrl: input.mcpHttpUrl, canUseTool,
+      cwd: input.repoPath, prompt: runSolutionPrompt(input.solutionId, input.toolkit ?? ''), mode: 'run', signal: controller.signal, agent: input.agent, mcpHttpUrl: input.mcpHttpUrl, canUseTool,
       ctx: { upsertSolution: async () => { throw new Error('not available while running'); } },
       emit: (event) => emit(entry, event),
     })

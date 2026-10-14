@@ -8,7 +8,7 @@ const file = (dir: string) => join(dir, RULES_FILE);
 /** Free-text validation rules the team wants the agent to check, one per line; stored next to the scenes so the repository can share them. */
 export const readRules = async (dir: string): Promise<string> => {
   try {
-    return await readFile(file(dir), 'utf8');
+    return (await readFile(file(dir), 'utf8')).trimEnd();
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return '';
     throw error;

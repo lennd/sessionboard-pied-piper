@@ -48,11 +48,21 @@ export const rulesBlock = (rules: string[]): string =>
     ? ''
     : ['The team wants these rules checked on every change; when a change breaks or risks one of them, add a risk whose title starts with "Rule:" followed by the rule, pointing at the piece where it happens:', ...rules.map((r) => `- ${r}`)].join('\n');
 
-export const chatPrompt = (question: string, options: { language: string; focus?: { label: string; graphRef: string } | null; mode?: ChatMode; rules?: string[] }): string =>
+/** The team's harness: what to install only when it is missing, and which commands to prefer over guessing. */
+export const toolkitBlock = (toolkit: string): string =>
+  toolkit.trim()
+    ? [
+        'Tooling for this repository, written by the team. Use the commands it names instead of guessing; install what it lists only when it is actually missing (check first), never reinstall or upgrade on your own:',
+        toolkit.trim(),
+      ].join('\n')
+    : '';
+
+export const chatPrompt = (question: string, options: { language: string; focus?: { label: string; graphRef: string } | null; mode?: ChatMode; rules?: string[]; toolkit?: string }): string =>
   [
     languageLine(options.language),
     MODE_DIRECTIVES[options.mode ?? 'analyze'],
     ...(options.rules && options.rules.length > 0 ? [rulesBlock(options.rules)] : []),
+    ...(options.toolkit?.trim() ? [toolkitBlock(options.toolkit)] : []),
     ...(options.focus ? [`The user is looking at "${options.focus.label}" (piece id ${options.focus.graphRef}).`] : []),
     question,
   ].join('\n\n');
@@ -88,9 +98,10 @@ export const explainPrompt = (input: { language: string; repoName: string; sourc
   ].filter(Boolean).join('\n\n');
 
 /** Asks Claude Code to implement a Solution through the rdi MCP server. */
-export const runSolutionPrompt = (solutionId: string): string =>
+export const runSolutionPrompt = (solutionId: string, toolkit = ''): string =>
   [
     RUN_MARKER,
+    ...(toolkit.trim() ? [toolkitBlock(toolkit)] : []),
     `Use the rdi MCP server: call get_solution with id ${solutionId}, then implement the plan task by task in this repository.`,
     'Call report_task_progress with in_progress when you start a task and done (with a short note such as the files changed or the commit) when it is finished; call it with blocked and the reason if you cannot complete a task.',
     'Call update_solution if the plan must change. Run the tests that cover what you changed before marking a task done. Do not commit unless a task explicitly asks for it.',

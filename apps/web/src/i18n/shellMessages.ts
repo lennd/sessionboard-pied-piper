@@ -348,6 +348,12 @@ export const shellEn = {
   'rules.save': 'Save',
   'rules.saved': 'Rules saved.',
   'rules.hint': 'Lines starting with # are comments.',
+  'nav.toolkit': 'Harness',
+  'toolkit.title': 'Harness and commands',
+  'toolkit.subtitle': 'Tell Claude what tooling this repository relies on and how to use it: plugins or CLIs to install only if they are missing (for example a devflow plugin), and the commands it should prefer for tests, lint, build or migrations. Used when Claude runs a Solution from the app and when you plan in the chat. Saved in .rdi/toolkit.md.',
+  'toolkit.placeholder': 'If the /devflow skill is missing, install it: claude plugin install devflow@sessionboard\\nUnit tests: npm run test:unit -- --selectProjects unit\\nIntegration tests need Postgres: npm run infra:up first\\nLint only the touched files: npx eslint <files>\\nNever run db:migrate against production URLs',
+  'toolkit.save': 'Save',
+  'toolkit.saved': 'Harness saved.',
 } as const;
 
 export type ShellKey = keyof typeof shellEn;
@@ -703,6 +709,12 @@ export const shellEs: ShellCatalog = {
   'rules.save': 'Guardar',
   'rules.saved': 'Reglas guardadas.',
   'rules.hint': 'Las líneas que empiezan con # son comentarios.',
+  'nav.toolkit': 'Harness',
+  'toolkit.title': 'Harness y comandos',
+  'toolkit.subtitle': 'Contale a Claude de qué herramientas depende este repositorio y cómo usarlas: plugins o CLIs que debe instalar solo si faltan (por ejemplo un plugin devflow), y los comandos que conviene usar para tests, lint, build o migraciones. Se usa cuando Claude ejecuta una Solution desde la app y cuando planificás en el chat. Se guarda en .rdi/toolkit.md.',
+  'toolkit.placeholder': 'Si falta el skill /devflow, instalalo: claude plugin install devflow@sessionboard\\nTests unitarios: npm run test:unit -- --selectProjects unit\\nLos tests de integración necesitan Postgres: antes npm run infra:up\\nLint solo de los archivos tocados: npx eslint <archivos>\\nNunca correr db:migrate contra URLs de producción',
+  'toolkit.save': 'Guardar',
+  'toolkit.saved': 'Harness guardado.',
 };
 
 export const shellPt: ShellCatalog = {
@@ -1055,4 +1067,10 @@ export const shellPt: ShellCatalog = {
   'rules.save': 'Salvar',
   'rules.saved': 'Regras salvas.',
   'rules.hint': 'Linhas que começam com # são comentários.',
+  'nav.toolkit': 'Harness',
+  'toolkit.title': 'Harness e comandos',
+  'toolkit.subtitle': 'Diga ao Claude de quais ferramentas este repositório depende e como usá-las: plugins ou CLIs a instalar só se faltarem (por exemplo um plugin devflow), e os comandos preferidos para testes, lint, build ou migrações. Usado quando o Claude executa uma Solution pelo app e quando você planeja no chat. Salvo em .rdi/toolkit.md.',
+  'toolkit.placeholder': 'Se o skill /devflow faltar, instale: claude plugin install devflow@sessionboard\\nTestes unitários: npm run test:unit -- --selectProjects unit\\nTestes de integração precisam de Postgres: antes npm run infra:up\\nLint só dos arquivos alterados: npx eslint <arquivos>\\nNunca rode db:migrate contra URLs de produção',
+  'toolkit.save': 'Salvar',
+  'toolkit.saved': 'Harness salvo.',
 };

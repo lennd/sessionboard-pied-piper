@@ -149,3 +149,11 @@ describe('rules', () => {
     expect((await app.inject({ method: 'PUT', url: `/api/repos/${repoId}/rules`, payload: { text: 'x'.repeat(30000) } })).statusCode).toBe(400);
   });
 });
+
+describe('toolkit', () => {
+  it('stores the harness description next to the rules', async () => {
+    expect((await app.inject({ method: 'GET', url: `/api/repos/${repoId}/toolkit` })).json()).toEqual({ text: '' });
+    expect((await app.inject({ method: 'PUT', url: `/api/repos/${repoId}/toolkit`, payload: { text: 'Run tests with `npm test`\r\n  ' } })).json()).toEqual({ text: 'Run tests with `npm test`' });
+    expect((await app.inject({ method: 'GET', url: `/api/repos/${repoId}/toolkit` })).json().text).toBe('Run tests with `npm test`');
+  });
+});

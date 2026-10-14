@@ -10,7 +10,7 @@ import { EMPTY_PREFS } from '../preferences';
 export type SettingsContext = { repo: RepoInfo; prefs: Prefs };
 export const useSettingsContext = () => useOutletContext<SettingsContext>();
 
-const ITEMS: [string, MessageKey][] = [['preferences', 'nav.preferences'], ['rules', 'nav.rules'], ['solutions', 'nav.solutions']];
+const ITEMS: [string, MessageKey][] = [['preferences', 'nav.preferences'], ['rules', 'nav.rules'], ['toolkit', 'nav.toolkit'], ['solutions', 'nav.solutions']];
 
 export const SettingsLayout = () => {
   const { t } = useI18n();

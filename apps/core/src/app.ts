@@ -13,6 +13,7 @@ import { rulesRoutes } from './routes/rules';
 import { runRoutes } from './routes/runs';
 import { sessionRoutes } from './routes/sessions';
 import { solutionRoutes } from './routes/solutions';
+import { toolkitRoutes } from './routes/toolkit';
 
 const HTTP_BAD_REQUEST = 400;
 const HTTP_INTERNAL = 500;
@@ -42,6 +43,7 @@ export const buildApp = (deps: AppDeps): FastifyInstance => {
       runRoutes(api, deps);
       pullRoutes(api, deps);
       rulesRoutes(api, deps);
+      toolkitRoutes(api, deps);
     },
     { prefix: API_PREFIX },
   );

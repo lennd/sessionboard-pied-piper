@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chatPrompt, explainPrompt, MAP_MARKER, questionOf, rulesBlock, SYSTEM_PROMPT, systemMapPrompt } from '../../src/agent/prompt';
+import { chatPrompt, explainPrompt, MAP_MARKER, questionOf, rulesBlock, runSolutionPrompt, SYSTEM_PROMPT, systemMapPrompt, toolkitBlock } from '../../src/agent/prompt';
 
 describe('SYSTEM_PROMPT', () => {
   it('explains the product, the tools and the scene vocabulary for a local repository', () => {
@@ -52,5 +52,16 @@ describe('team rules', () => {
     expect(chatPrompt('q', { language: 'en', rules: [] })).not.toContain('Rule:');
     const explain = explainPrompt({ language: 'en', repoName: 'r', source: 's', touched: [], diff: '', systemMap: null, rules: ['Every endpoint validates its body'] });
     expect(explain).toContain('- Every endpoint validates its body');
+  });
+});
+
+describe('toolkit', () => {
+  it('tells the agent which harness to install only when missing and which commands to use', () => {
+    const toolkit = 'Install the devflow plugin with `claude plugin install devflow` if /devflow is missing.\nRun unit tests with `npm run test:unit`.';
+    expect(toolkitBlock('')).toBe('');
+    expect(toolkitBlock(toolkit)).toContain('only when it is actually missing');
+    expect(runSolutionPrompt('sol', toolkit)).toContain('npm run test:unit');
+    expect(runSolutionPrompt('sol')).not.toContain('Tooling for this repository');
+    expect(chatPrompt('q', { language: 'en', toolkit })).toContain('claude plugin install devflow');
   });
 });
