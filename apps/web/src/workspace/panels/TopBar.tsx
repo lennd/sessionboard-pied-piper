@@ -25,7 +25,7 @@ export const TopBar = (p: TopBarProps) => {
   const regenerate = primarySubtag(p.scene.language) !== language;
   return (
     <header className="ws-top">
-      <Logo />
+      <a className="ws-brand" href="/" data-testid="brand-home" title={t('nav.home')} aria-label={t('nav.home')}><Logo /></a>
       <select className="select" data-testid="scene-select" aria-label={t('scene.label')} value={p.scene.id} onChange={(e) => p.onSceneChange(e.target.value)}>
         {p.scenes.map((s) => <option key={s.id} value={s.id}>{s.title} ({s.language})</option>)}
       </select>

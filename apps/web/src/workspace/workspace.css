@@ -260,3 +260,7 @@ button, select, input { font: inherit; color: inherit; }
 .risk-pick-pieces { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sev-tag { padding: 0 6px; font-size: 10px; border-color: transparent; color: var(--bg); }
 .sev-tag.is-critical { background: var(--saturated); } .sev-tag.is-high { background: var(--limit); } .sev-tag.is-medium { background: var(--strained); } .sev-tag.is-low { background: var(--ok); }
+
+.ws-brand { display: inline-flex; align-items: center; border-radius: var(--radius); padding: 2px; color: inherit; }
+.ws-brand:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.ws-brand:focus-visible { outline: 1px solid var(--accent); }
