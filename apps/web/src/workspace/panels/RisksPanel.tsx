@@ -3,9 +3,9 @@ import { useState } from 'react';
 import { useI18n } from '../../i18n/I18nProvider';
 import { severityRank } from '../engine/risks';
 
-type RisksPanelProps = { scene: Scene; selectedRiskId: string | null; onSelect: (riskId: string) => void };
+type RisksPanelProps = { scene: Scene; selectedRiskId: string | null; onSelect: (riskId: string) => void; onHover?: (riskId: string | null) => void };
 
-export const RisksPanel = ({ scene, selectedRiskId, onSelect }: RisksPanelProps) => {
+export const RisksPanel = ({ scene, selectedRiskId, onSelect, onHover }: RisksPanelProps) => {
   const { t } = useI18n();
   const [filter, setFilter] = useState<RiskCategory | null>(null);
   if (scene.risks.length === 0) return <p className="muted" style={{ padding: '8px 10px' }}>{t('risks.empty')}</p>;
@@ -28,7 +28,7 @@ export const RisksPanel = ({ scene, selectedRiskId, onSelect }: RisksPanelProps)
             .filter((r) => r.category === category)
             .sort((a, b) => severityRank(b.severity) - severityRank(a.severity))
             .map((risk) => (
-              <button key={risk.id} type="button" className={risk.id === selectedRiskId ? 'risk-item is-selected' : 'risk-item'} data-testid={`risk-${risk.id}`} onClick={() => onSelect(risk.id)}>
+              <button key={risk.id} type="button" className={risk.id === selectedRiskId ? 'risk-item is-selected' : 'risk-item'} data-testid={`risk-${risk.id}`} onClick={() => onSelect(risk.id)} onMouseEnter={() => onHover?.(risk.id)} onMouseLeave={() => onHover?.(null)} onFocus={() => onHover?.(risk.id)} onBlur={() => onHover?.(null)}>
                 <span className={`risk-dot sev-${risk.severity}`} />
                 <span>
                   <span className="muted">{t(`severity.${risk.severity}`)} · </span>

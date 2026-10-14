@@ -3,7 +3,7 @@ import { useSceneLayout } from '../../src/workspace/canvas/useSceneLayout';
 
 describe('useSceneLayout', () => {
   it('resolves the layout for the current signature', async () => {
-    const layout = { boxes: new Map(), order: [] };
+    const layout = { boxes: new Map(), order: [], routes: new Map() };
     const { result } = renderHook(() => useSceneLayout('a', () => Promise.resolve(layout)));
     expect(result.current).toEqual({ layout: null, error: null });
     await waitFor(() => expect(result.current.layout).toBe(layout));

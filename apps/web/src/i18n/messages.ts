@@ -99,6 +99,11 @@ const workspaceEn = {
   'canvas.loading': 'Laying out…',
   'canvas.error': 'Could not lay out this scene: {error}',
   'piece.inside': '{count} inside',
+  'piece.persists': '{count} kept',
+  'piece.cycle': 'Part of a loop',
+  'canvas.dataKept': 'Kept in {label}',
+  'card.persists': 'Data kept',
+  'step.repeat': 'repeats {rule}',
 } as const;
 
 const en = { ...workspaceEn, ...shellEn } as const;
@@ -202,6 +207,11 @@ const esWorkspace: Catalog = {
   'canvas.loading': 'Acomodando…',
   'canvas.error': 'No se pudo acomodar la escena: {error}',
   'piece.inside': '{count} adentro',
+  'piece.persists': '{count} guardados',
+  'piece.cycle': 'Parte de un ciclo',
+  'canvas.dataKept': 'Se guarda en {label}',
+  'card.persists': 'Datos que guarda',
+  'step.repeat': 'se repite {rule}',
 };
 
 const es: Catalog = { ...esWorkspace, ...shellEs };
@@ -302,6 +312,11 @@ const ptWorkspace: Catalog = {
   'canvas.loading': 'Organizando…',
   'canvas.error': 'Não foi possível organizar a cena: {error}',
   'piece.inside': '{count} dentro',
+  'piece.persists': '{count} guardados',
+  'piece.cycle': 'Parte de um ciclo',
+  'canvas.dataKept': 'Guardado em {label}',
+  'card.persists': 'Dados guardados',
+  'step.repeat': 'repete {rule}',
 };
 
 const pt: Catalog = { ...ptWorkspace, ...shellPt };

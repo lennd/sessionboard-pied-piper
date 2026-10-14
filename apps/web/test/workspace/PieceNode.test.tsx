@@ -4,7 +4,7 @@ import { I18nProvider } from '../../src/i18n/I18nProvider';
 import { PieceNode } from '../../src/workspace/canvas/PieceNode';
 import type { PieceData } from '../../src/workspace/canvas/toFlow';
 
-const base: PieceData = { id: 'api', label: 'Orders API', kindLabel: 'REST API', glyph: '⚙', state: 'normal', active: false, selected: false, hiddenChildren: 0 };
+const base: PieceData = { id: 'api', label: 'Orders API', kindLabel: 'REST API', glyph: '⚙', role: 'compute', brands: [], state: 'normal', active: false, selected: false, hiddenChildren: 0, persists: 0, inCycle: false };
 const renderPiece = (data: PieceData) =>
   render(
     <I18nProvider initialLanguage="en">
@@ -32,5 +32,17 @@ describe('PieceNode', () => {
     expect(el).toHaveTextContent('added');
     expect(el.querySelector('.piece-bar')).not.toBeNull();
     expect(screen.getByText('one at a time')).toBeInTheDocument();
+  });
+
+  it('draws the role icon, product logos, kept-data count and loop mark', () => {
+    renderPiece({ ...base, role: 'storage', brands: ['postgresql', 'redis'], persists: 2, inCycle: true });
+    const el = screen.getByTestId('node-api');
+    expect(el).toHaveClass('role-storage', 'in-cycle');
+    expect(el.querySelector('.piece-tile.has-brand.brand-postgresql')).not.toBeNull();
+    expect(el.querySelector('.piece-brands .brand-redis')).not.toBeNull();
+    expect(screen.getByTestId('piece-persists')).toHaveTextContent('2 kept');
+    expect(el.querySelector('.piece-cycle')).not.toBeNull();
+    renderPiece({ ...base, id: 'db', brands: [] });
+    expect(screen.getByTestId('node-db').querySelector('.piece-tile.role-compute .role-icon')).not.toBeNull();
   });
 });

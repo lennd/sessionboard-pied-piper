@@ -29,6 +29,7 @@ export const WalkthroughTree = ({ steps, numbering, flat, cursor, openSteps, onS
             )}
             <button type="button" className={classes} data-testid={`step-${step.id}`} aria-current={step.id === currentId ? 'step' : undefined} onClick={() => position !== undefined && onSeek(position)}>
               <span className="step-path">{numbering.get(step.id)}</span>
+              {step.repeat && <span className="step-repeat" title={t('step.repeat', { rule: step.repeat })} data-testid={`step-repeat-${step.id}`}>↻</span>}
               {step.narration}
             </button>
           </div>

@@ -110,6 +110,7 @@ export const Workspace = ({ chat, panels, initialPanel, loadCode, extraScenes = 
     dispatchPlayer({ type: 'reset' });
   };
   const [pendingQuestion, setPendingQuestion] = useState<PendingQuestion | null>(null);
+  const [hoverRiskId, setHoverRiskId] = useState<string | null>(null);
   const questionCounter = useRef(0);
   const openScene = (next: Scene, mode?: Mode) => {
     setChatScenes((current) => [next, ...current.filter((s) => s.id !== next.id)]);
@@ -145,12 +146,12 @@ export const Workspace = ({ chat, panels, initialPanel, loadCode, extraScenes = 
           scene={scene} index={index} model={model} explorer={explorer} flat={flat} cursor={frame.index} numbering={numbering} byNode={byNode}
           onSelectNode={(id) => dispatchRaw({ type: 'selectNode', nodeId: id })} onToggleExpand={(id) => dispatchRaw({ type: 'toggleExpand', nodeId: id })}
           onSeek={(i) => dispatchPlayer({ type: 'seek', stepIndex: i })} onToggleStep={(id) => dispatchRaw({ type: 'toggleStep', stepId: id })}
-          onSelectRisk={(id) => dispatchRaw({ type: 'selectRisk', riskId: id })} onSetMode={(mode) => { setSidebar('explorer'); dispatchRaw({ type: 'setMode', mode }); }}
+          onSelectRisk={(id) => dispatchRaw({ type: 'selectRisk', riskId: id })} onHoverRisk={setHoverRiskId} onSetMode={(mode) => { setSidebar('explorer'); dispatchRaw({ type: 'setMode', mode }); }}
           panels={allPanels.map((p) => ({ id: p.id, glyph: p.glyph, title: p.title, label: p.label, node: p.render(chatContext) }))} sidebar={sidebar} onSidebar={setSidebar}
         />
         <main className="ws-canvas">
           <Canvas
-            scene={scene} index={index} model={model} projected={projected} frame={frame} phase={phase} explorer={explorer} byNode={byNode}
+            scene={scene} index={index} model={model} projected={projected} frame={frame} phase={phase} explorer={explorer} byNode={byNode} hoverRiskId={hoverRiskId}
             onSelect={(id) => dispatchRaw({ type: 'selectNode', nodeId: id })} onToggleExpand={(id) => dispatchRaw({ type: 'toggleExpand', nodeId: id })}
             onOpenCode={(id) => dispatchRaw({ type: 'openCode', nodeId: id })} onOpenStep={(id) => dispatchRaw({ type: 'toggleStep', stepId: id })}
             onSelectRisk={(id) => dispatchRaw({ type: 'selectRisk', riskId: id })}

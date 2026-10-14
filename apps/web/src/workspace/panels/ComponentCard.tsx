@@ -47,6 +47,17 @@ export const ComponentCard = ({ node, risks, canOpenInside, onOpenInside, onView
           </div>
         </div>
       )}
+      {node.persists && node.persists.length > 0 && (
+        <div data-testid="card-persists">
+          <div className="h">{t('card.persists')}</div>
+          {node.persists.map((row) => (
+            <div key={row.label} className="persist-row">
+              <div className="muted">{row.label}{row.format ? ` · ${row.format.toUpperCase()}` : ''}</div>
+              <pre>{row.example}</pre>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="h">{t('card.risks')}</div>
       {risks.length === 0 ? (
         <p className="muted">{t('card.noRisks')}</p>

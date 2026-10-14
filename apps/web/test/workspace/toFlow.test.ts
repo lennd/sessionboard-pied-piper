@@ -24,6 +24,26 @@ const build = async (opts: { level?: Parameters<typeof computeVisible>[2]; curso
 const data = (nodes: Awaited<ReturnType<typeof build>>['nodes'], id: string) => nodes.find((n) => n.id === id)!.data as PieceData;
 
 describe('toFlow', () => {
+  it('carries routes, product logos, kept-data counts and loop marks into the flow data', async () => {
+    const { nodes, edges } = await build({ level: 'architecture' });
+    const db = data(nodes, 'db');
+    expect(db.role).toBe('storage');
+    expect(db.brands).toEqual(['postgresql']);
+    expect(data(nodes, 'pay').brands).toEqual(['stripe']);
+    const first = edges[0]!.data as FlowEdgeData;
+    expect(first.route && first.route.length >= 2).toBe(true);
+    expect(first.inCycle).toBe(false);
+    const moved = await (async () => {
+      const model = computeVisible(scene, index, 'architecture', new Set());
+      const projected = projectEdges(scene, model);
+      const layout = await layoutScene(scene, index, model, projected.edges);
+      const frame = frameAt(model, projected, flattenSteps(scene.steps, new Set()), 0);
+      return toFlow({ scene, index, model, projected, layout, frame, phase: stepPhase(0, false), mode: 'walkthrough', selectedNodeId: null, selectedRisk: null, scaleOverlay: false, byNode, moved: new Set(['client']) });
+    })();
+    const touched = moved.edges.find((e) => e.source === 'client')!.data as FlowEdgeData;
+    expect(touched.route).toBeNull();
+  });
+
   it('emits groups before children with parent links and node types', async () => {
     const { nodes } = await build({ level: 'components' });
     const ids = nodes.map((n) => n.id);

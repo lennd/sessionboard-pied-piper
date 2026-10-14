@@ -1,6 +1,9 @@
 import {
-  descendantsOf, type Change, type EdgeKind, type ProjectedEdges, type ScaleStatus, type Scene, type SceneIndex, type SceneRisk, type Severity, type VisibleModel,
+  descendantsOf, type Change, type EdgeKind, type ProjectedEdges, type Role, type ScaleStatus, type Scene, type SceneIndex, type SceneRisk, type Severity, type VisibleModel,
 } from '@rdi/scene';
+import type { Point } from './floating';
+import { brandsFor } from './brands';
+import { findCycles } from './cycles';
 import type { Edge, Node } from '@xyflow/react';
 import type { Mode } from '../engine/explorerState';
 import type { Frame } from '../engine/frame';
@@ -12,24 +15,30 @@ import type { SceneLayout } from './layout';
 export type PieceState = 'normal' | 'focused' | 'highlighted' | 'dim';
 
 export type PieceData = {
-  id: string; label: string; kindLabel: string; glyph: string; state: PieceState; active: boolean; selected: boolean;
-  change?: Change; scaleWorst?: ScaleStatus; severity?: Severity; hiddenChildren: number; annotation?: string;
+  id: string; label: string; kindLabel: string; glyph: string; role?: Role; brands: string[]; state: PieceState; active: boolean; selected: boolean;
+  change?: Change; scaleWorst?: ScaleStatus; severity?: Severity; hiddenChildren: number; annotation?: string; persists: number; inCycle: boolean;
 };
-export type ContainerData = Omit<PieceData, 'hiddenChildren' | 'scaleWorst' | 'annotation'>;
+export type ContainerData = Omit<PieceData, 'hiddenChildren' | 'scaleWorst' | 'annotation' | 'persists'>;
 export type GroupData = { label: string };
-export type FlowEdgeData = { kind: EdgeKind; label?: string; active: boolean; visited: boolean; reverse: boolean; tokenProgress: number | null; tokenLabel: string | null };
+/** `route` is ELK's orthogonal path when both ends still sit where the layout put them; null means draw a free path. */
+export type FlowEdgeData = { kind: EdgeKind; label?: string; active: boolean; visited: boolean; reverse: boolean; tokenProgress: number | null; tokenLabel: string | null; route: Point[] | null; inCycle: boolean };
 
 export type ToFlowInput = {
   scene: Scene; index: SceneIndex; model: VisibleModel; projected: ProjectedEdges; layout: SceneLayout; frame: Frame; phase: Phase;
   mode: Mode; selectedNodeId: string | null; selectedRisk: SceneRisk | null; scaleOverlay: boolean; byNode: Map<string, SceneRisk[]>;
+  /** Ids the user dragged away from the automatic layout (their ELK routes no longer apply). */
+  moved?: Set<string>;
+  /** Risk under the pointer in risks mode: previewed like a selection until the pointer leaves. */
+  hoverRisk?: SceneRisk | null;
 };
 
 const membersOf = (model: VisibleModel, id: string) => model.repoBoxes.get(id) ?? [id];
 
 const pieceState = (id: string, input: ToFlowInput, covered: string[]): PieceState => {
-  const { mode, selectedRisk, frame, model } = input;
-  if (mode === 'risks' && selectedRisk) {
-    const reps = new Set(selectedRisk.nodeIds.map((n) => model.representative.get(n)));
+  const { mode, frame, model } = input;
+  const risk = mode === 'risks' ? input.hoverRisk ?? input.selectedRisk : null;
+  if (risk) {
+    const reps = new Set(risk.nodeIds.map((n) => model.representative.get(n)));
     return reps.has(id) ? 'focused' : 'dim';
   }
   if (mode === 'changes') return covered.some((n) => input.index.byId.get(n)?.change) ? 'normal' : 'dim';
@@ -41,9 +50,21 @@ const pieceState = (id: string, input: ToFlowInput, covered: string[]): PieceSta
 const worstOf = (statuses: (ScaleStatus | undefined)[]): ScaleStatus | undefined =>
   statuses.filter((s): s is ScaleStatus => s !== undefined).reduce<ScaleStatus | undefined>((a, b) => (a === undefined || statusRank(b) > statusRank(a) ? b : a), undefined);
 
+const ancestorsOf = (layout: SceneLayout, id: string): string[] => {
+  const chain: string[] = [];
+  let cursor: string | null = id;
+  while (cursor) {
+    chain.push(cursor);
+    cursor = layout.boxes.get(cursor)?.parent ?? null;
+  }
+  return chain;
+};
+
 export const toFlow = (input: ToFlowInput): { nodes: Node[]; edges: Edge[] } => {
   const { index, model, projected, layout, frame, phase, mode, selectedNodeId, scaleOverlay, byNode } = input;
+  const moved = input.moved ?? new Set<string>();
   const selected = selectedNodeId ? model.representative.get(selectedNodeId) ?? selectedNodeId : null;
+  const cycles = findCycles(projected.edges.map((e) => ({ key: e.key, from: e.from, to: e.to })));
 
   const nodes: Node[] = layout.order.map((id) => {
     const box = layout.boxes.get(id)!;
@@ -66,6 +87,9 @@ export const toFlow = (input: ToFlowInput): { nodes: Node[]; edges: Edge[] } => 
       selected: selected === id,
       change: covered.map((n) => index.byId.get(n)?.change).find((c) => c !== undefined),
       severity: aggregateSeverity(index, byNode, members),
+      role: box.kind === 'repoBox' ? undefined : node?.role,
+      brands: brandsFor(box.kind === 'repoBox' ? members.map((m) => index.byId.get(m)?.label ?? '').join(' ') : `${node?.label ?? ''} ${node?.kind ?? ''}`).map((b) => b.slug),
+      inCycle: cycles.nodes.has(id),
     };
     if (box.kind === 'container') {
       return { id, type: 'container', position, data: common satisfies ContainerData, style: size, draggable: false, ...parent };
@@ -75,15 +99,18 @@ export const toFlow = (input: ToFlowInput): { nodes: Node[]; edges: Edge[] } => 
       hiddenChildren: box.kind === 'repoBox' ? members.length : descendantsOf(index, id).length,
       scaleWorst: scaleOverlay ? worstOf(members.map((m) => { const n = index.byId.get(m); return n ? worstScale(n) : undefined; })) : undefined,
       annotation: frame.annotations.get(id),
+      persists: covered.reduce((sum, n) => sum + (index.byId.get(n)?.persists?.length ?? 0), 0),
     };
     return { id, type: 'piece', position, data, draggable: false, ...parent };
   });
 
   const edges: Edge[] = projected.edges.map((e) => {
     const active = mode === 'walkthrough' && frame.active?.key === e.key;
+    const touched = [...ancestorsOf(layout, e.from), ...ancestorsOf(layout, e.to)].some((id) => moved.has(id));
     const data: FlowEdgeData = {
       kind: e.kind, label: e.label, active, visited: frame.visited.has(e.key), reverse: active ? frame.active!.reverse : false,
       tokenProgress: active ? phase.tokenProgress : null, tokenLabel: active ? frame.active!.label : null,
+      route: touched ? null : layout.routes.get(e.key) ?? null, inCycle: cycles.edges.has(e.key),
     };
     return { id: e.key, source: e.from, target: e.to, type: 'flow', data };
   });

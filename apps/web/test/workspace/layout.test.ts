@@ -35,6 +35,16 @@ describe('layoutScene', () => {
     expect([...layout.boxes.values()].some((b) => b.kind === 'group')).toBe(false);
   });
 
+  it('returns an orthogonal route in absolute coordinates for every edge', async () => {
+    const { layout, model } = await run('architecture');
+    const edges = projectEdges(scene, model).edges;
+    expect(layout.routes.size).toBe(edges.length);
+    const route = layout.routes.get(edges[0]!.key)!;
+    expect(route.length).toBeGreaterThanOrEqual(2);
+    const from = absoluteRect(layout, edges[0]!.from)!;
+    expect(Math.round(route[0]!.x)).toBe(Math.round(from.x + from.width));
+  });
+
   it('produces a signature that changes with level and expansion', () => {
     const a = layoutSignature('fx', computeVisible(scene, index, 'architecture', new Set()));
     const b = layoutSignature('fx', computeVisible(scene, index, 'architecture', new Set(['worker'])));

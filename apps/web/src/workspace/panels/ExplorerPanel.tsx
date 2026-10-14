@@ -12,7 +12,7 @@ type ExplorerPanelProps = {
   scene: Scene; index: SceneIndex; model: VisibleModel; explorer: ExplorerState; flat: FlatStep[]; cursor: number;
   numbering: Map<string, string>; byNode: Map<string, SceneRisk[]>;
   onSelectNode: (id: string) => void; onToggleExpand: (id: string) => void; onSeek: (index: number) => void;
-  onToggleStep: (id: string) => void; onSelectRisk: (id: string) => void; onSetMode: (mode: Mode) => void;
+  onToggleStep: (id: string) => void; onSelectRisk: (id: string) => void; onHoverRisk?: (id: string | null) => void; onSetMode: (mode: Mode) => void;
   panels?: { id: string; glyph: string; title: string; label?: string; node: ReactNode }[]; sidebar?: string; onSidebar?: (sidebar: string) => void;
 };
 
@@ -77,7 +77,7 @@ export const ExplorerPanel = (p: ExplorerPanelProps) => {
         {p.explorer.mode === 'risks' ? (
           <>
             <div className="sec-title">{t('explorer.risks')}</div>
-            <RisksPanel scene={p.scene} selectedRiskId={p.explorer.selectedRiskId} onSelect={p.onSelectRisk} />
+            <RisksPanel scene={p.scene} selectedRiskId={p.explorer.selectedRiskId} onSelect={p.onSelectRisk} onHover={p.onHoverRisk} />
           </>
         ) : (
           <>

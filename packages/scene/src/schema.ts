@@ -34,6 +34,11 @@ const textSchema = z.string().min(1).max(MAX_TEXT);
 
 const scaleRowSchema = z.object({ status: z.enum(SCALE_STATUSES), note: textSchema });
 
+const MAX_PERSISTS = 4;
+/** One kind of record a piece keeps, with a realistic example so readers see what a valid scenario looks like. */
+const persistedSchema = z.object({ label: labelSchema, example: z.string().min(1).max(MAX_PAYLOAD), format: z.enum(PAYLOAD_FORMATS).optional() });
+export type Persisted = z.infer<typeof persistedSchema>;
+
 const nodeSchema = z.object({
   id: idSchema,
   label: labelSchema,
@@ -63,6 +68,7 @@ const nodeSchema = z.object({
       snippet: z.string().max(MAX_CODE).optional(),
     })
     .optional(),
+  persists: z.array(persistedSchema).max(MAX_PERSISTS).optional(),
   change: z.enum(CHANGES).optional(),
   graphRef: z.string().max(MAX_TEXT).optional(),
 });
@@ -89,6 +95,7 @@ export interface Step {
   highlight: string[];
   annotate: { nodeId: string; text: string }[];
   payload?: Payload;
+  repeat?: string;
   expand?: string;
   substeps: Step[];
 }
@@ -101,6 +108,7 @@ export interface StepInput {
   highlight?: string[];
   annotate?: { nodeId: string; text: string }[];
   payload?: Payload;
+  repeat?: string;
   expand?: string;
   substeps?: StepInput[];
 }
@@ -114,6 +122,7 @@ const stepSchema: z.ZodType<Step, StepInput> = z.lazy(() =>
     highlight: z.array(idSchema).default([]),
     annotate: z.array(z.object({ nodeId: idSchema, text: textSchema })).default([]),
     payload: payloadSchema.optional(),
+    repeat: z.string().min(1).max(MAX_LABEL).optional(),
     expand: idSchema.optional(),
     substeps: z.array(stepSchema).default([]),
   }),
