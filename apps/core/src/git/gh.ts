@@ -14,7 +14,7 @@ const LIST_FIELDS = 'number,title,author,headRefName,baseRefName,isDraft,updated
 const LOGIN_CACHE_MS = 60 * 60_000;
 const VIEW_FIELDS = `${LIST_FIELDS},body,files`;
 
-export type ReviewState = { decision: 'approved' | 'changes_requested' | 'pending'; approvedByMe: boolean; approvals: number; changesRequested: number };
+export type ReviewState = { decision: 'approved' | 'changes_requested' | 'pending'; approvedByMe: boolean; changesByMe: boolean; approvals: number; changesRequested: number };
 export type PullSummary = { number: number; title: string; author: string; draft: boolean; headRef: string; baseRef: string; updatedAt: string; url: string; additions: number; deletions: number; changedFiles: number; review: ReviewState };
 export type PullFile = { path: string; additions: number; deletions: number; change: TouchedFile['change'] };
 export type PullDetail = { pull: PullSummary & { body: string }; files: PullFile[] };
@@ -81,7 +81,8 @@ export const reviewState = (p: Pick<RawPull, 'reviewDecision' | 'latestReviews'>
   const approvals = latest.filter((r) => r.state === 'APPROVED').length;
   const changesRequested = latest.filter((r) => r.state === 'CHANGES_REQUESTED').length;
   const decision = p.reviewDecision === 'APPROVED' || (p.reviewDecision !== 'CHANGES_REQUESTED' && approvals > 0 && changesRequested === 0) ? 'approved' : p.reviewDecision === 'CHANGES_REQUESTED' || changesRequested > 0 ? 'changes_requested' : 'pending';
-  return { decision, approvedByMe: me !== null && latest.some((r) => r.state === 'APPROVED' && r.author?.login === me), approvals, changesRequested };
+  const mine = (state: string) => me !== null && latest.some((r) => r.state === state && r.author?.login === me);
+  return { decision, approvedByMe: mine('APPROVED'), changesByMe: mine('CHANGES_REQUESTED'), approvals, changesRequested };
 };
 
 const summary = (p: RawPull, me: string | null): PullSummary => ({

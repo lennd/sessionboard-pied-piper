@@ -103,9 +103,9 @@ describe('pull requests', () => {
     const list = (await app.inject({ method: 'GET', url: `/api/repos/${repoId}/pulls` })).json();
     expect(list).toMatchObject({ available: true, branch: null });
     expect(list.pulls).toEqual([
-      expect.objectContaining({ number: 7, title: 'Store rewrite', author: 'ana', headRef: 'feature/store', draft: false, review: { decision: 'approved', approvedByMe: false, approvals: 1, changesRequested: 0 } }),
-      expect.objectContaining({ number: 8, review: { decision: 'approved', approvedByMe: true, approvals: 1, changesRequested: 0 } }),
-      expect.objectContaining({ number: 9, review: { decision: 'changes_requested', approvedByMe: false, approvals: 0, changesRequested: 1 } }),
+      expect.objectContaining({ number: 7, title: 'Store rewrite', author: 'ana', headRef: 'feature/store', draft: false, review: { decision: 'approved', approvedByMe: false, changesByMe: false, approvals: 1, changesRequested: 0 } }),
+      expect.objectContaining({ number: 8, review: { decision: 'approved', approvedByMe: true, changesByMe: false, approvals: 1, changesRequested: 0 } }),
+      expect.objectContaining({ number: 9, review: { decision: 'changes_requested', approvedByMe: false, changesByMe: expect.any(Boolean), approvals: 0, changesRequested: 1 } }),
     ]);
     const detail = (await app.inject({ method: 'GET', url: `/api/repos/${repoId}/pulls/7` })).json();
     expect(detail.pull.body).toBe('Rewrites the **store**.');

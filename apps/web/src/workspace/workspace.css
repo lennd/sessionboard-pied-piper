@@ -240,6 +240,14 @@ button, select, input { font: inherit; color: inherit; }
 .tl-event .payload { position: static; margin: 4px 0 6px 26px; }
 
 .pull-item.is-approved { opacity: .75; border-style: dashed; }
+.pull-item.is-changes { border-color: color-mix(in srgb, var(--saturated) 55%, var(--line)); }
+.review-chip { border-color: transparent; font-weight: 600; margin-left: 6px; }
+.review-chip.is-approved { background: color-mix(in srgb, var(--ok) 22%, transparent); color: var(--ok); }
+.review-chip.is-changes { background: color-mix(in srgb, var(--saturated) 22%, transparent); color: var(--saturated); }
+.review-chip.is-pending { background: color-mix(in srgb, var(--muted) 18%, transparent); color: var(--muted); }
+.btn-danger { border-color: color-mix(in srgb, var(--saturated) 60%, var(--line)); color: var(--saturated); }
+.btn-danger:hover { background: color-mix(in srgb, var(--saturated) 14%, transparent); }
+.decision-form.is-request_changes { background: color-mix(in srgb, var(--saturated) 10%, transparent); }
 .pull-item.is-approved:hover { opacity: 1; }
 
 .verdict { border: 1px solid var(--line); border-left-width: 4px; border-radius: var(--radius); padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }

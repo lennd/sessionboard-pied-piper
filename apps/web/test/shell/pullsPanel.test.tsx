@@ -35,7 +35,7 @@ const mockApi = (options: { available?: boolean; reason?: string; branch?: typeo
       if (options.reviewError) throw options.reviewError;
       return { id: 55, url: 'https://github.com/acme/x/pull/7#pullrequestreview-55', inline: 1, summary: 0 } as never;
     }
-    if (p.endsWith('/pulls/7/decision') && init?.method === 'POST') return { id: 9, url: 'https://github.com/acme/x/pull/7#pullrequestreview-9', decision: 'approve' } as never;
+    if (p.endsWith('/pulls/7/decision') && init?.method === 'POST') return { id: 9, url: 'https://github.com/acme/x/pull/7#pullrequestreview-9', decision: (init.body as { decision: string }).decision } as never;
     if (p.endsWith('/agent')) return { enabled: true, model: 'm', usage: { input: 0, output: 0, costUsd: 0 } } as never;
     if (p.endsWith('/conversations') && init?.method === 'POST') return { id: 'c9', title: (init.body as { title?: string }).title ?? 'New conversation', updatedAt: '2026-10-13T10:00:00Z' } as never;
     if (p.endsWith('/conversations')) return [{ id: 'c1', title: 'General question', updatedAt: '2026-10-13T10:00:00Z' }] as never;
@@ -161,6 +161,21 @@ describe('PullsPanel', () => {
     fireEvent.click(screen.getByTestId('pull-7'));
     fireEvent.click(await screen.findByTestId('pull-triage-reviewed'));
     await waitFor(() => expect(api).toHaveBeenCalledWith('/repos/r1/pulls/7/triage', { method: 'PUT', body: { state: 'reviewed' } }));
+  });
+
+  it('shows a coloured chip per review state and lets the user request changes with a note', async () => {
+    mockApi();
+    render();
+    expect((await screen.findByTestId('pull-7')).querySelector('[data-testid="review-tag-pending"]')).toHaveTextContent('pending review');
+    expect(screen.getByTestId('pull-8').querySelector('.review-chip.is-approved')).not.toBeNull();
+    fireEvent.click(screen.getByTestId('pull-7'));
+    fireEvent.click(await screen.findByTestId('pull-request-changes'));
+    expect(screen.getByTestId('pull-approve-confirm')).toBeDisabled();
+    fireEvent.change(screen.getByTestId('pull-approve-note'), { target: { value: 'Please add tests' } });
+    fireEvent.click(screen.getByTestId('pull-approve-confirm'));
+    expect(await screen.findByTestId('pull-changes-requested')).toHaveTextContent('Changes requested');
+    expect(api).toHaveBeenCalledWith('/repos/r1/pulls/7/decision', { method: 'POST', body: { decision: 'request_changes', note: 'Please add tests' } });
+    expect(screen.getByTestId('pull-detail').querySelector('[data-testid="review-tag-changes-mine"]')).toHaveTextContent('changes requested by you');
   });
 
   it('approves the pull request from the app with an optional note', async () => {

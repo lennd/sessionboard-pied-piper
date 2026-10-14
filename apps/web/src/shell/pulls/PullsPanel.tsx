@@ -18,13 +18,18 @@ const STATUS_GLYPH: Record<string, string> = { added: '+', removed: '−', modif
 const NOT_FOUND = 404;
 const MAX_PIECES = 3;
 
-/** Small status pill of a pull request's review state. */
+/** Coloured chip with the review state of a pull request: green approved, red changes requested, neutral pending. */
 const ReviewTag = ({ review, t }: { review: ReviewState; t: (key: MessageKey) => string }) => {
-  if (review.approvedByMe) return <span className="tag status-done" data-testid="review-tag-mine">✓ {t('pulls.review.mine')}</span>;
-  if (review.decision === 'approved') return <span className="tag status-done" data-testid="review-tag-approved">✓ {t('pulls.review.approved')}</span>;
-  if (review.decision === 'changes_requested') return <span className="tag status-draft" data-testid="review-tag-changes">✎ {t('pulls.review.changes')}</span>;
-  return null;
+  if (review.changesByMe) return <span className="tag review-chip is-changes" data-testid="review-tag-changes-mine">✕ {t('pulls.review.changesMine')}</span>;
+  if (review.decision === 'changes_requested') return <span className="tag review-chip is-changes" data-testid="review-tag-changes">✕ {t('pulls.review.changes')}</span>;
+  if (review.approvedByMe) return <span className="tag review-chip is-approved" data-testid="review-tag-mine">✓ {t('pulls.review.mine')}</span>;
+  if (review.decision === 'approved') return <span className="tag review-chip is-approved" data-testid="review-tag-approved">✓ {t('pulls.review.approved')}</span>;
+  return <span className="tag review-chip is-pending" data-testid="review-tag-pending">○ {t('pulls.review.pending')}</span>;
 };
+type DecisionKind = 'approve' | 'request_changes';
+/** Review state as it looks right after this user decided from the app, before the list refreshes. */
+const afterDecision = (review: ReviewState, decision: DecisionKind): ReviewState =>
+  decision === 'approve' ? { ...review, approvedByMe: true, changesByMe: false, decision: 'approved' } : { ...review, approvedByMe: false, changesByMe: true, decision: 'changes_requested' };
 const PULLS_STALE_MS = 20_000;
 type Target = number | typeof BRANCH;
 
@@ -49,7 +54,7 @@ export const PullsPanel = ({ repoId, ctx, chatLanguage }: { repoId: string; ctx:
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [posting, setPosting] = useState(false);
   const [posted, setPosted] = useState<ReviewPosted | null>(null);
-  const [approving, setApproving] = useState(false);
+  const [approving, setApproving] = useState<DecisionKind | null>(null);
   const [approveNote, setApproveNote] = useState('');
   const [approved, setApproved] = useState<Decision | null>(null);
   const [deciding, setDeciding] = useState(false);
@@ -96,7 +101,7 @@ export const PullsPanel = ({ repoId, ctx, chatLanguage }: { repoId: string; ctx:
     setRisks(null);
     setPosted(null);
     setApproved(null);
-    setApproving(false);
+    setApproving(null);
     setLoading(target);
     try {
       setOpened({ target, detail: target === BRANCH ? null : await fetchPull(repoId, target) });
@@ -143,12 +148,12 @@ export const PullsPanel = ({ repoId, ctx, chatLanguage }: { repoId: string; ctx:
     }
   };
   const approve = async () => {
-    if (!opened || opened.target === BRANCH) return;
+    if (!opened || opened.target === BRANCH || !approving) return;
     setDeciding(true);
     setError(null);
     try {
-      setApproved(await decidePull(repoId, opened.target, 'approve', approveNote));
-      setApproving(false);
+      setApproved(await decidePull(repoId, opened.target, approving, approveNote));
+      setApproving(null);
       setApproveNote('');
       void client.invalidateQueries({ queryKey: key });
     } catch (err) {
@@ -183,14 +188,15 @@ export const PullsPanel = ({ repoId, ctx, chatLanguage }: { repoId: string; ctx:
       <div className="pulls" data-testid="pull-detail">
         <button type="button" className="btn pulls-back" data-testid="pull-back" onClick={() => setOpened(null)}>← {t('pulls.back')}</button>
         <div className="pull-title"><b>{pull ? `#${pull.number} ${pull.title}` : t('pulls.branch', { base: branch?.base ?? '' })}</b></div>
-        {pull && <div className="muted">{pull.author} · {pull.headRef} → {pull.baseRef} <ReviewTag review={approved ? { ...pull.review, approvedByMe: true } : pull.review} t={t} /></div>}
+        {pull && <div className="muted">{pull.author} · {pull.headRef} → {pull.baseRef} <ReviewTag review={approved ? afterDecision(pull.review, approved.decision) : pull.review} t={t} /></div>}
         {pull && <div className="pull-size"><span className="add">+{pull.additions}</span> <span className="del">−{pull.deletions}</span> · {t('pulls.files', { count: pull.changedFiles })}</div>}
         {!pull && branch && <div className="muted">{t('pulls.branchHint', { count: branch.ahead, files: branch.touched.length })}</div>}
         <div className="row pulls-actions">
           <button type="button" className="btn-primary btn-small" data-testid="pull-explain" disabled={explaining} onClick={() => void explain()}>✦ {explaining ? t('pulls.explaining') : t('pulls.explain')}</button>
           <button type="button" className="btn btn-small" data-testid="pull-impact" onClick={() => void showImpact(opened.target)}>{t('pulls.impact')}</button>
           {pull && <button type="button" className="btn btn-small" data-testid="pull-github" onClick={() => openExternal(pull.url)}>{t('pulls.openGithub')} ↗</button>}
-          {pull && !approved && !pull.review.approvedByMe && <button type="button" className="btn btn-small btn-accent" data-testid="pull-approve" onClick={() => setApproving((v) => !v)}>✓ {t('pulls.approve')}</button>}
+          {pull && !approved && !pull.review.approvedByMe && <button type="button" className="btn btn-small btn-accent" data-testid="pull-approve" aria-pressed={approving === 'approve'} onClick={() => setApproving((v) => (v === 'approve' ? null : 'approve'))}>✓ {t('pulls.approve')}</button>}
+          {pull && !approved && !pull.review.changesByMe && <button type="button" className="btn btn-small btn-danger" data-testid="pull-request-changes" aria-pressed={approving === 'request_changes'} onClick={() => setApproving((v) => (v === 'request_changes' ? null : 'request_changes'))}>✕ {t('pulls.requestChanges')}</button>}
         </div>
         {pull && (() => {
           const current = pulls.data?.pulls.find((p) => p.number === pull.number)?.triage ?? null;
@@ -211,18 +217,20 @@ export const PullsPanel = ({ repoId, ctx, chatLanguage }: { repoId: string; ctx:
           );
         })()}
         {pull && approving && !approved && (
-          <div className="chat-notice" data-testid="pull-approve-form">
-            <p className="muted">{t('pulls.approveHint')}</p>
-            <textarea className="input" data-testid="pull-approve-note" rows={3} placeholder={t('pulls.approvePlaceholder')} value={approveNote} onChange={(e) => setApproveNote(e.target.value)} style={{ width: '100%' }} />
+          <div className={`chat-notice decision-form is-${approving}`} data-testid="pull-approve-form">
+            <p className="muted">{t(approving === 'approve' ? 'pulls.approveHint' : 'pulls.requestChangesHint')}</p>
+            <textarea className="input" data-testid="pull-approve-note" rows={3} placeholder={t(approving === 'approve' ? 'pulls.approvePlaceholder' : 'pulls.requestChangesPlaceholder')} value={approveNote} onChange={(e) => setApproveNote(e.target.value)} style={{ width: '100%' }} />
             <div className="row">
-              <button type="button" className="btn-primary btn-small" data-testid="pull-approve-confirm" disabled={deciding} onClick={() => void approve()}>{deciding ? t('pulls.approving') : t('pulls.approveConfirm')}</button>
-              <button type="button" className="btn btn-small" data-testid="pull-approve-cancel" onClick={() => setApproving(false)}>{t('features.create.cancel')}</button>
+              <button type="button" className={approving === 'approve' ? 'btn-primary btn-small' : 'btn btn-small btn-danger'} data-testid="pull-approve-confirm" disabled={deciding || (approving === 'request_changes' && !approveNote.trim())} onClick={() => void approve()}>
+                {deciding ? t('pulls.sending') : t(approving === 'approve' ? 'pulls.approveConfirm' : 'pulls.requestChangesConfirm')}
+              </button>
+              <button type="button" className="btn btn-small" data-testid="pull-approve-cancel" onClick={() => setApproving(null)}>{t('features.create.cancel')}</button>
             </div>
           </div>
         )}
         {approved && (
-          <p className="alert ok" data-testid="pull-approved">
-            {t('pulls.approved')}{' '}
+          <p className={approved.decision === 'approve' ? 'alert ok' : 'alert error'} data-testid={approved.decision === 'approve' ? 'pull-approved' : 'pull-changes-requested'}>
+            {t(approved.decision === 'approve' ? 'pulls.approved' : 'pulls.changesRequested')}{' '}
             {approved.url && <button type="button" className="btn btn-small" data-testid="pull-approved-open" onClick={() => openExternal(approved.url)}>{t('pulls.openReview')} ↗</button>}
           </p>
         )}
@@ -349,7 +357,7 @@ export const PullsPanel = ({ repoId, ctx, chatLanguage }: { repoId: string; ctx:
         <div key={group.key} data-testid={`pulls-group-${group.key}`}>
           <div className="sec-title">{group.title} · {group.items.length}</div>
           {group.items.map((p) => (
-            <button key={p.number} type="button" className={`pull-item${p.review.decision === 'approved' ? ' is-approved' : ''}${p.triage ? ` is-${p.triage.state}` : ''}`} data-testid={`pull-${p.number}`} disabled={loading !== null} onClick={() => void open(p.number)}>
+            <button key={p.number} type="button" className={`pull-item${p.review.decision === 'approved' ? ' is-approved' : ''}${p.review.decision === 'changes_requested' ? ' is-changes' : ''}${p.triage ? ` is-${p.triage.state}` : ''}`} data-testid={`pull-${p.number}`} disabled={loading !== null} onClick={() => void open(p.number)}>
               <span className="pull-item-title">#{p.number} {p.title}{p.draft && <span className="tag pull-draft">{t('pulls.draft')}</span>} <ReviewTag review={p.review} t={t} />{p.triage && <span className="tag" data-testid={`triage-tag-${p.number}`}>{p.triage.state === 'reviewed' ? '◉' : '⌀'} {t(`pulls.triage.${p.triage.state}`)}</span>}</span>
               <span className="muted">{p.headRef} → {p.baseRef} · {p.author} · {formatRelative(p.updatedAt, language)}</span>
               {loading === p.number && <span className="muted">{t('pulls.opening')}</span>}

@@ -4,7 +4,7 @@ import { apiFetch } from '../api';
 import { explainToScene } from '../chat/chatApi';
 import type { FileChange } from '../sessions/sessionsApi';
 
-export type ReviewState = { decision: 'approved' | 'changes_requested' | 'pending'; approvedByMe: boolean; approvals: number; changesRequested: number };
+export type ReviewState = { decision: 'approved' | 'changes_requested' | 'pending'; approvedByMe: boolean; changesByMe?: boolean; approvals: number; changesRequested: number };
 export type TriageState = 'reviewed' | 'dismissed';
 export type Triage = { state: TriageState; at: string; note: string | null } | null;
 export type PullSummary = { number: number; title: string; author: string; draft: boolean; headRef: string; baseRef: string; updatedAt: string; url: string; additions: number; deletions: number; changedFiles: number; review: ReviewState; triage?: Triage };
