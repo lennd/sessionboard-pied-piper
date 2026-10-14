@@ -32,6 +32,8 @@ export const transcript = [
   result('t6', 'done'),
   assistant([toolUse('t7', 'Edit', { file_path: `${REPO}/src/auth.ts`, old_string: 'b', new_string: 'c' })]),
   'not json',
+  line({ type: 'user', uuid: 'n1', sessionId: 's1', message: { role: 'user', content: '<task-notification>agent finished</task-notification>' } }),
+  line({ type: 'user', uuid: 'n2', sessionId: 's1', message: { role: 'user', content: '[SYSTEM NOTIFICATION - NOT USER INPUT]\nignored' } }),
 ];
 
 describe('createSessionParser', () => {

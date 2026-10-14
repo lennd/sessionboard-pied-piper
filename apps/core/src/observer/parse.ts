@@ -20,7 +20,7 @@ const MAX_PROMPT = 400;
 const READ_TOOLS = new Set(['Read', 'Grep', 'Glob', 'LS', 'ReadMcpResourceTool']);
 const GIT_VERB = /^\s*git\s+(?:-C\s+\S+\s+)?([a-z-]+)/;
 const GIT_SUBCOMMAND_PATTERN = /(?:^|&&|;|\|\|)\s*git\s+(?:-C\s+\S+\s+)?(commit|checkout|switch|merge|rebase|reset|stash|push|pull|rm|mv|revert|cherry-pick)\b/;
-const SYSTEM_PROMPT_PREFIX = /^<(command-name|local-command|system-reminder|command-message)/;
+const SYSTEM_PROMPT_PREFIX = /^(<(command-name|local-command|system-reminder|command-message|task-notification)|\[SYSTEM NOTIFICATION)/;
 const APP_MARKER = /^\[rdi:([a-z-]+)\]/;
 
 type Record_ = {
