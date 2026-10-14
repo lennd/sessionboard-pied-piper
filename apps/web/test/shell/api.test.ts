@@ -17,7 +17,12 @@ describe('apiFetch', () => {
 
   it('throws ApiError with the server code', async () => {
     respond(404, { error: { code: 'repo_not_found' } });
-    await expect(apiFetch('/repos/x')).rejects.toMatchObject({ status: 404, code: 'repo_not_found' });
+    await expect(apiFetch('/repos/x')).rejects.toMatchObject({ status: 404, code: 'repo_not_found', extra: {} });
+  });
+
+  it('keeps the detail and link the server attaches to an error', async () => {
+    respond(409, { error: { code: 'pending_review', detail: 'User can only have one pending review per pull request', url: 'https://github.com/acme/x/pull/7#pullrequestreview-12' } });
+    await expect(apiFetch('/repos/x')).rejects.toMatchObject({ status: 409, code: 'pending_review', extra: { detail: 'User can only have one pending review per pull request', url: 'https://github.com/acme/x/pull/7#pullrequestreview-12' } });
   });
 
   it('handles 204 and non-JSON errors', async () => {

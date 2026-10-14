@@ -32,7 +32,8 @@ let bin: string;
 let app: FastifyInstance;
 let repoId: string;
 
-const fakeGh = async (mode: 'ok' | 'missing' | 'logged_out') => {
+const PENDING_STDERR = `gh: Validation Failed (HTTP 422)\n{"message":"Validation Failed","errors":[{"resource":"PullRequestReview","code":"custom","field":"user_id","message":"User can only have one pending review per pull request"}],"documentation_url":"https://docs.github.com/rest/pulls/reviews#create-a-review-for-a-pull-request"}`;
+const fakeGh = async (mode: 'ok' | 'missing' | 'logged_out' | 'pending_review') => {
   const dir = await mkdtemp(join(tmpdir(), 'rdi-gh-'));
   const script = join(dir, 'gh');
   const body = mode === 'logged_out' ? 'echo "To get started with GitHub CLI, please run: gh auth login" >&2; exit 4' : `
@@ -49,12 +50,13 @@ JSON
 ${DIFF}
 DIFF
   ;;
-  "api --method POST repos/{owner}/{repo}/pulls/7/reviews --input -") cat > "$(dirname "$0")/review.json"; echo '{"id": 55, "html_url": "https://github.com/acme/x/pull/7#pullrequestreview-55"}';;
+  "api --method POST repos/{owner}/{repo}/pulls/7/reviews --input -") ${mode === 'pending_review' ? `cat > /dev/null; printf '%s\\n' '${PENDING_STDERR.replace(/\\n/g, "' '")}' >&2; exit 1` : `cat > "$(dirname "$0")/review.json"; echo '{"id": 55, "html_url": "https://github.com/acme/x/pull/7#pullrequestreview-55"}'`};;
+  "gist delete "*) echo "$@" > "$(dirname "$0")/gist-delete.txt";;
   "pr review 7 --approve --body"*) echo "$@" > "$(dirname "$0")/approve.txt"; echo "Approved pull request #7";;
   "pr review 7 --request-changes --body"*) echo "You can not request changes on your own pull request" >&2; exit 1;;
   "api user --jq .login") echo me;;
   "repo clone acme/x "*) mkdir -p "$4" && git -C "$4" init -q && touch "$4/README.md" && git -C "$4" -c user.email=a@b.c -c user.name=t add . && git -C "$4" -c user.email=a@b.c -c user.name=t commit -qm init;;
-  "api repos/{owner}/{repo}/pulls/7/reviews") echo '[{"id": 9, "html_url": "https://github.com/acme/x/pull/7#pullrequestreview-9", "state": "APPROVED"}]';;
+  "api repos/{owner}/{repo}/pulls/7/reviews") echo '[{"id": 9, "html_url": "https://github.com/acme/x/pull/7#pullrequestreview-9", "state": "APPROVED"}${mode === 'pending_review' ? ', {"id": 12, "html_url": "https://github.com/acme/x/pull/7#pullrequestreview-12", "state": "PENDING", "user": {"login": "me"}}' : ''}]';;
   "gist create --public --desc"*) ls "$6" "$7" "$8" 2>/dev/null | sed 's#.*/##' > "$(dirname "$0")/gist-files.txt"; echo "https://gist.github.com/ana/abc123def456";;
   *) echo "no pull requests found" >&2; exit 1;;
 esac`;
@@ -133,6 +135,22 @@ describe('pull requests', () => {
     expect((explained.find((e) => e.event === 'scene')!.data as { scene: { id: string } }).scene.id).toBe('impact-pr-7-explained');
     const branchExplained = parseSse((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/impact/explain`, payload: { pull: 'branch' } })).body);
     expect((branchExplained.find((e) => e.event === 'scene')!.data as { scene: { id: string } }).scene.id).toBe('impact-branch-explained');
+  });
+
+  it('reports a pending review on GitHub with its link and removes the evidence gist it had just created', async () => {
+    const pendingBin = await fakeGh('pending_review');
+    await app.close();
+    await boot(pendingBin);
+    const scene = {
+      ...fakeScene('en', 'Impact', 'impact'),
+      nodes: [{ id: 'api', label: 'API', role: 'compute', kind: 'k', summary: 's', code: { repo: 'r', path: 'apps/core/src/app.ts', startLine: 1, endLine: 1, language: 'ts' }, change: 'modified' }],
+      edges: [], steps: [],
+      risks: [{ id: 'r1', title: 'Breaks callers', category: 'reliability', severity: 'high', explanation: 'The handler changed.', nodeIds: ['api'] }],
+    };
+    const posted = await app.inject({ method: 'POST', url: `/api/repos/${repoId}/pulls/7/review`, payload: { scene, riskIds: ['r1'] } });
+    expect(posted.statusCode).toBe(409);
+    expect(posted.json()).toEqual({ error: { code: 'pending_review', detail: 'User can only have one pending review per pull request', url: 'https://github.com/acme/x/pull/7#pullrequestreview-12' } });
+    expect((await readFile(join(dirname(pendingBin), 'gist-delete.txt'), 'utf8')).trim()).toBe('gist delete abc123def456 --yes');
   });
 
   it('anchors the risks of an impact scene to the pull request diff and posts them as a review', async () => {

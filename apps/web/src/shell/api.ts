@@ -1,5 +1,7 @@
+export type ApiErrorExtra = { detail?: string; url?: string };
+
 export class ApiError extends Error {
-  constructor(public readonly status: number, public readonly code: string) {
+  constructor(public readonly status: number, public readonly code: string, public readonly extra: ApiErrorExtra = {}) {
     super(code);
   }
 }
@@ -15,8 +17,8 @@ export const apiFetch = async <T>(path: string, init: { method?: Method; body?: 
   if (response.status === NO_CONTENT) return undefined as T;
   const data: unknown = await response.json().catch(() => null);
   if (!response.ok) {
-    const code = (data as { error?: { code?: string } } | null)?.error?.code ?? 'unknown';
-    throw new ApiError(response.status, code);
+    const body = (data as { error?: { code?: string; detail?: string; url?: string } } | null)?.error;
+    throw new ApiError(response.status, body?.code ?? 'unknown', { ...(body?.detail ? { detail: body.detail } : {}), ...(body?.url ? { url: body.url } : {}) });
   }
   return data as T;
 };

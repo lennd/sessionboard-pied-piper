@@ -35,9 +35,15 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const map = await readSystemMap(repoDir(repo), (await gitInfo(repo.path)).head);
     return map ? overlayChanges(map, touched, { id, title }) : fail(reply, 404, 'no_system_map');
   };
-  const ghFail = (reply: FastifyReply, error: unknown) => {
-    if (error instanceof GhFailure) return fail(reply, error.code === 'gh_failed' ? 502 : 409, error.code);
-    throw error;
+  /** Maps a gh failure to the UI: 502 for unexplained failures, 409 for states the user can fix; `detail` carries GitHub's reason. */
+  const ghFail = async (reply: FastifyReply, error: unknown, repo?: RepoEntry, number?: number) => {
+    if (!(error instanceof GhFailure)) throw error;
+    const extra: Record<string, unknown> = error.detail ? { detail: error.detail } : {};
+    if (error.code === 'pending_review' && repo && number) {
+      const pending = await gh.pendingReview(repo.path, number, repo.remote).catch(() => null);
+      if (pending) extra.url = pending.url;
+    }
+    return fail(reply, error.code === 'gh_failed' ? 502 : 409, error.code, extra);
   };
 
   api.get('/repos/:repoId/pulls', { preHandler: withRepo }, async (req, reply) => {
@@ -97,7 +103,7 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
   });
 
   /** Publishes the mark (once) and one highlighted map per risk as a public gist; returns empty evidence when gh cannot. */
-  const publishEvidence = async (repo: RepoEntry, number: number, scene: Scene, entries: AnchoredRisk[]): Promise<Evidence & { gistUrl?: string }> => {
+  const publishEvidence = async (repo: RepoEntry, number: number, scene: Scene, entries: AnchoredRisk[]): Promise<Evidence & { gistUrl?: string; gistId?: string }> => {
     const stored = await readSignature(deps.config.home);
     let logoUrl = deps.config.signatureLogoUrl ?? stored.logoUrl;
     const files: Record<string, string> = {};
@@ -109,7 +115,7 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
         logoUrl = gist.rawUrl(MARK_FILE);
         await writeSignature(deps.config.home, { logoUrl });
       }
-      return { logoUrl, images: new Map(entries.map((e) => [e.risk.id, gist.rawUrl(`risk-${e.risk.id}.svg`)])), gistUrl: gist.url };
+      return { logoUrl, images: new Map(entries.map((e) => [e.risk.id, gist.rawUrl(`risk-${e.risk.id}.svg`)])), gistUrl: gist.url, gistId: gist.id };
     } catch (error) {
       req_log(error);
       return { logoUrl, images: new Map() };
@@ -126,12 +132,17 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
       const wanted = new Set(body.riskIds);
       const entries = anchorRisks(scene, diffLines(await gh.pullDiff(req.repo!.path, number, undefined, req.repo!.remote))).filter((e) => wanted.has(e.risk.id));
       if (entries.length === 0) return fail(reply, 404, 'unknown_risk');
-      const evidence = body.evidence === false ? { logoUrl: deps.config.signatureLogoUrl ?? (await readSignature(deps.config.home)).logoUrl, images: new Map<string, string>() } : await publishEvidence(req.repo!, number, scene, entries);
+      const evidence: Evidence & { gistUrl?: string; gistId?: string } = body.evidence === false ? { logoUrl: deps.config.signatureLogoUrl ?? (await readSignature(deps.config.home)).logoUrl, images: new Map<string, string>() } : await publishEvidence(req.repo!, number, scene, entries);
       const review = buildReview(entries, body.intro ?? null, evidence);
-      const result = await gh.createReview(req.repo!.path, number, review, req.repo!.remote);
-      return reply.code(201).send({ ...result, inline: review.comments.length, summary: entries.length - review.comments.length, images: evidence.images.size, logo: evidence.logoUrl !== null, ...('gistUrl' in evidence && evidence.gistUrl ? { gistUrl: evidence.gistUrl } : {}) });
+      try {
+        const result = await gh.createReview(req.repo!.path, number, review, req.repo!.remote);
+        return await reply.code(201).send({ ...result, inline: review.comments.length, summary: entries.length - review.comments.length, images: evidence.images.size, logo: evidence.logoUrl !== null, ...(evidence.gistUrl ? { gistUrl: evidence.gistUrl } : {}) });
+      } catch (error) {
+        if (evidence.gistId) await gh.deleteGist(req.repo!.path, evidence.gistId).catch((err: unknown) => api.log.warn({ err }, 'orphan evidence gist could not be deleted'));
+        throw error;
+      }
     } catch (error) {
-      return ghFail(reply, error);
+      return ghFail(reply, error, req.repo!, number);
     }
   });
 
@@ -164,7 +175,7 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
       gh.invalidate(req.repo!.path);
       return reply.code(201).send({ ...result, decision: body.decision });
     } catch (error) {
-      return ghFail(reply, error);
+      return ghFail(reply, error, req.repo!, number);
     }
   });
 

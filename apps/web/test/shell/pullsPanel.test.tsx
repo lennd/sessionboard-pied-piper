@@ -17,7 +17,7 @@ const dismissedPull = { ...pull, number: 9, title: 'Set aside', triage: { state:
 const branch = { branch: 'feature/x', base: 'main', ahead: 2, touched: [{ path: 'src/a.ts', change: 'modified' as const }] };
 const impact = (id: string) => ({ ...scene, id, risks: [{ id: 'r1', title: 'Breaks callers', category: 'reliability' as const, severity: 'high' as const, explanation: 'The handler changed.', mitigation: 'Run the suite.', nodeIds: [scene.nodes[0]!.id] }, { id: 'r2', title: 'Unclear', category: 'complexity' as const, severity: 'low' as const, explanation: 'No code.', nodeIds: [scene.nodes[1]!.id] }] });
 
-const mockApi = (options: { available?: boolean; reason?: string; branch?: typeof branch | null; map?: boolean } = {}) => {
+const mockApi = (options: { available?: boolean; reason?: string; branch?: typeof branch | null; map?: boolean; reviewError?: ApiError } = {}) => {
   explainMock.mockReset();
   explainMock.mockResolvedValue({ id: 'sc-explained', scene: impact('impact-pr-7-explained'), text: 'The **store** is rewritten.' });
   return api.mockImplementation(async (path, init) => {
@@ -30,7 +30,10 @@ const mockApi = (options: { available?: boolean; reason?: string; branch?: typeo
     }
     void init;
     if (p.endsWith('/pulls/7/risks') && init?.method === 'POST') return { risks: [{ id: 'r1', title: 'Breaks callers', severity: 'high', category: 'reliability', pieces: ['API'], anchor: { path: 'src/a.ts', line: 12 } }, { id: 'r2', title: 'Unclear', severity: 'low', category: 'complexity', pieces: [], anchor: null }] } as never;
-    if (p.endsWith('/pulls/7/review') && init?.method === 'POST') return { id: 55, url: 'https://github.com/acme/x/pull/7#pullrequestreview-55', inline: 1, summary: 0 } as never;
+    if (p.endsWith('/pulls/7/review') && init?.method === 'POST') {
+      if (options.reviewError) throw options.reviewError;
+      return { id: 55, url: 'https://github.com/acme/x/pull/7#pullrequestreview-55', inline: 1, summary: 0 } as never;
+    }
     if (p.endsWith('/pulls/7/decision') && init?.method === 'POST') return { id: 9, url: 'https://github.com/acme/x/pull/7#pullrequestreview-9', decision: 'approve' } as never;
     if (p.endsWith('/pulls/7/triage')) return (init?.method === 'DELETE' ? undefined : { number: 7, triage: { state: (init?.body as { state: string }).state, at: '2026-10-13T10:00:00Z', note: null } }) as never;
     throw new Error(`unexpected ${p}`);
@@ -104,6 +107,28 @@ describe('PullsPanel', () => {
     const open = vi.spyOn(window, 'open').mockImplementation(() => null);
     fireEvent.click(screen.getByTestId('pull-review-open'));
     expect(open).toHaveBeenCalledWith('https://github.com/acme/x/pull/7#pullrequestreview-55', '_blank', 'noopener,noreferrer');
+  });
+
+  it('explains a review blocked by a pending review in GitHub and links to it', async () => {
+    mockApi({ reviewError: new ApiError(409, 'pending_review', { detail: 'User can only have one pending review per pull request', url: 'https://github.com/acme/x/pull/7#pullrequestreview-12' }) });
+    render();
+    fireEvent.click(await screen.findByTestId('pull-7'));
+    await screen.findByTestId('pull-risk-r1');
+    fireEvent.click(screen.getByTestId('pull-comment'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('You already have an unsubmitted review on this pull request in GitHub.');
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    fireEvent.click(screen.getByTestId('pull-error-open'));
+    expect(open).toHaveBeenCalledWith('https://github.com/acme/x/pull/7#pullrequestreview-12', '_blank', 'noopener,noreferrer');
+  });
+
+  it('shows the reason GitHub gave when gh fails for no known cause', async () => {
+    mockApi({ reviewError: new ApiError(502, 'gh_failed', { detail: 'Validation Failed' }) });
+    render();
+    fireEvent.click(await screen.findByTestId('pull-7'));
+    await screen.findByTestId('pull-risk-r1');
+    fireEvent.click(screen.getByTestId('pull-comment'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('GitHub could not be reached. Validation Failed');
+    expect(screen.queryByTestId('pull-error-open')).toBeNull();
   });
 
   it('marks a pull request as reviewed or dismissed and keeps dismissed ones apart', async () => {

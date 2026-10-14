@@ -7,7 +7,7 @@ import { beginActivity } from '../../components/activity';
 import { ApiError } from '../api';
 import { Markdown } from '../chat/Markdown';
 import { desktop } from '../desktop';
-import { errorText } from '../errors';
+import { errorLink, errorText } from '../errors';
 import { formatRelative } from '../format';
 import { BRANCH, clearTriage, decidePull, explainPull, fetchPull, fetchPullImpact, fetchPulls, postReview, previewRisks, setTriage, type Decision, type PullDetail, type PullSummary, type ReviewPosted, type ReviewState, type RiskAnchor, type TriageState } from './pullsApi';
 import type { Scene } from '@rdi/scene';
@@ -38,6 +38,11 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
   const [explaining, setExplaining] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorUrl, setErrorUrl] = useState<string | null>(null);
+  const report = (err: unknown) => {
+    setError(errorText(t, err));
+    setErrorUrl(errorLink(err));
+  };
   const [scene, setScene] = useState<Scene | null>(null);
   const [risks, setRisks] = useState<RiskAnchor[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -60,7 +65,7 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
       setRisks(anchored);
       setSelected(new Set(anchored.map((r) => r.id)));
     } catch (err) {
-      setError(errorText(t, err));
+      report(err);
     }
   };
 
@@ -72,7 +77,7 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
       await loadRisks(target, next);
     } catch (err) {
       if (err instanceof ApiError && err.status === NOT_FOUND && err.code === 'no_system_map') setNoMap(true);
-      else setError(errorText(t, err));
+      else report(err);
     }
   };
   const refresh = async () => {
@@ -80,7 +85,7 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
     try {
       client.setQueryData(key, await fetchPulls(repoId, true));
     } catch (err) {
-      setError(errorText(t, err));
+      report(err);
     }
   };
   const open = async (target: Target) => {
@@ -96,7 +101,7 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
       setOpened({ target, detail: target === BRANCH ? null : await fetchPull(repoId, target) });
       await showImpact(target);
     } catch (err) {
-      setError(errorText(t, err));
+      report(err);
     } finally {
       setLoading(null);
     }
@@ -112,7 +117,7 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
       setExplanation(result.text);
       await loadRisks(opened.target, result.scene);
     } catch (err) {
-      setError(errorText(t, err));
+      report(err);
     } finally {
       end();
       setExplaining(false);
@@ -133,7 +138,7 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
       else await clearTriage(repoId, opened.target);
       await client.invalidateQueries({ queryKey: key });
     } catch (err) {
-      setError(errorText(t, err));
+      report(err);
     }
   };
   const approve = async () => {
@@ -146,7 +151,7 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
       setApproveNote('');
       void client.invalidateQueries({ queryKey: key });
     } catch (err) {
-      setError(errorText(t, err));
+      report(err);
     } finally {
       setDeciding(false);
     }
@@ -158,7 +163,7 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
     try {
       setPosted(await postReview(repoId, opened.target, scene, [...selected]));
     } catch (err) {
-      setError(errorText(t, err));
+      report(err);
     } finally {
       setPosting(false);
     }
@@ -221,7 +226,12 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
           </p>
         )}
         {noMap && <p className="chat-notice" data-testid="pull-no-map">{t('pulls.noMap')}</p>}
-        {error && <p className="alert error" role="alert">{error}</p>}
+        {error && (
+          <p className="alert error" role="alert">
+            {error}
+            {errorUrl && <> <button type="button" className="btn btn-small" data-testid="pull-error-open" onClick={() => openExternal(errorUrl)}>{t('pulls.openPending')} ↗</button></>}
+          </p>
+        )}
         {pull && scene && explanation && (() => {
           const verdict = verdictOf(scene, risks ?? []);
           const action = (a: VerdictAction) => (

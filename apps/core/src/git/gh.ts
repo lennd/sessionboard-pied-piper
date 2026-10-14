@@ -18,15 +18,35 @@ export type ReviewState = { decision: 'approved' | 'changes_requested' | 'pendin
 export type PullSummary = { number: number; title: string; author: string; draft: boolean; headRef: string; baseRef: string; updatedAt: string; url: string; additions: number; deletions: number; changedFiles: number; review: ReviewState };
 export type PullFile = { path: string; additions: number; deletions: number; change: TouchedFile['change'] };
 export type PullDetail = { pull: PullSummary & { body: string }; files: PullFile[] };
-export type GhError = 'gh_missing' | 'gh_not_logged_in' | 'no_remote' | 'gh_failed';
+export type GhError = 'gh_missing' | 'gh_not_logged_in' | 'no_remote' | 'pending_review' | 'gh_failed';
 export class GhFailure extends Error {
-  constructor(public readonly code: GhError, detail = '') {
+  constructor(public readonly code: GhError, public readonly detail = '') {
     super(`${code}${detail ? `: ${detail}` : ''}`);
   }
 }
 
 type RawReview = { author?: { login?: string }; state?: string };
+type RawApiReview = { id: number; html_url: string; state: string; user?: { login?: string } };
 type RawPull = { number: number; title: string; author: { login: string }; headRefName: string; baseRefName: string; isDraft: boolean; updatedAt: string; url: string; additions: number; deletions: number; changedFiles: number; reviewDecision?: string; latestReviews?: RawReview[] };
+
+type ApiErrorBody = { message?: string; errors?: ({ message?: string } | string)[] };
+
+/** Human-readable reason from gh's stderr: GitHub's own error messages when it printed the API body, the first line otherwise. */
+export const ghDetail = (stderr: string): string => {
+  const text = stderr.trim();
+  const json = text.indexOf('{');
+  if (json >= 0) {
+    try {
+      const body = JSON.parse(text.slice(json)) as ApiErrorBody;
+      const messages = (body.errors ?? []).map((e) => (typeof e === 'string' ? e : e.message ?? '')).filter(Boolean);
+      const reason = messages.length ? messages.join('; ') : body.message;
+      if (reason) return reason;
+    } catch {
+      // not a JSON body: fall through to the first line
+    }
+  }
+  return text.split('\n')[0] ?? '';
+};
 
 const classify = (error: unknown): GhFailure => {
   const e = error as NodeJS.ErrnoException & { stderr?: string };
@@ -34,7 +54,8 @@ const classify = (error: unknown): GhFailure => {
   const stderr = String(e.stderr ?? e.message ?? '');
   if (/not logged in|auth login|authentication/i.test(stderr)) return new GhFailure('gh_not_logged_in', stderr.trim());
   if (/no git remotes|could not determine|not a git repository|none of the git remotes/i.test(stderr)) return new GhFailure('no_remote', stderr.trim());
-  return new GhFailure('gh_failed', stderr.trim().split('\n')[0]);
+  if (/one pending review/i.test(stderr)) return new GhFailure('pending_review', ghDetail(stderr));
+  return new GhFailure('gh_failed', ghDetail(stderr));
 };
 
 const gh = async (bin: string, cwd: string, args: string[], stdin?: string): Promise<string> => {
@@ -135,10 +156,21 @@ export const createGh = (bin: string) => {
       await rm(dir, { recursive: true, force: true });
     }
   },
+  /** Removes a gist this app created (used to roll back evidence when the review itself could not be posted). */
+  deleteGist: async (cwd: string, id: string): Promise<void> => {
+    await gh(bin, cwd, ['gist', 'delete', id, '--yes']);
+  },
+  /** The gh user's unsubmitted (pending) review on the pull request, if GitHub holds one; it blocks any new review by the same user. */
+  pendingReview: async (cwd: string, number: number, remote?: string | null): Promise<ReviewResult | null> => {
+    const user = await me(cwd);
+    const reviews = JSON.parse(await gh(bin, cwd, ['api', `${apiBase(remote)}/pulls/${number}/reviews`])) as RawApiReview[];
+    const pending = reviews.find((r) => r.state === 'PENDING' && (user === null || r.user?.login === user));
+    return pending ? { id: pending.id, url: pending.html_url } : null;
+  },
   /** Submits an approving (or changes-requested) review with `gh pr review`; returns the review URL from the API. */
   reviewPull: async (cwd: string, number: number, decision: 'approve' | 'request_changes', body: string, remote?: string | null): Promise<ReviewResult> => {
     await gh(bin, cwd, ['pr', 'review', String(number), ...target(remote), decision === 'approve' ? '--approve' : '--request-changes', '--body', body]);
-    const reviews = JSON.parse(await gh(bin, cwd, ['api', `${apiBase(remote)}/pulls/${number}/reviews`])) as { id: number; html_url: string; state: string }[];
+    const reviews = JSON.parse(await gh(bin, cwd, ['api', `${apiBase(remote)}/pulls/${number}/reviews`])) as RawApiReview[];
     const latest = reviews.at(-1);
     return latest ? { id: latest.id, url: latest.html_url } : { id: 0, url: '' };
   },
