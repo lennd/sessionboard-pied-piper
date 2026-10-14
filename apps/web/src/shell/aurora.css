@@ -120,10 +120,22 @@
 .home-wordmark { font-family: var(--serif); font-size: 64px; font-weight: 600; letter-spacing: -.03em; line-height: 1; margin: 8px 0 0; color: #fff; }
 .home-tagline { color: var(--mint); max-width: 520px; font-size: 15px; line-height: 1.5; margin: 0; }
 .home-cards { display: grid; grid-template-columns: repeat(3, minmax(200px, 260px)); gap: 16px; width: 100%; max-width: 860px; }
-.home-card { display: flex; flex-direction: column; gap: 6px; padding: 22px 20px; color: #fff; text-decoration: none; transition: transform .15s, background .15s; }
+.home-card { display: flex; flex-direction: column; gap: 6px; padding: 14px 14px 18px; color: #fff; text-decoration: none; transition: transform .15s, background .15s; }
 .home-card:hover { transform: translateY(-2px); background: rgba(255, 255, 255, .14); }
 .home-card:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-.home-card-glyph { font-size: 26px; line-height: 1; }
+.home-card-picture { display: block; width: 100%; margin-bottom: 6px; border-radius: 12px; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); }
+.home-card-picture .piper-scene { display: block; width: 100%; height: auto; }
+.piper-scene .to-left .note { animation-name: piper-note-left; }
+.piper-scene .to-spark .note { animation-name: piper-note-spark; }
+.piper-scene .follower { animation: piper-follow 2.4s ease-in-out infinite; }
+.piper-scene .f2 { animation-delay: .3s; } .piper-scene .f3 { animation-delay: .6s; }
+.piper-scene .spark { transform-box: fill-box; transform-origin: center; animation: piper-spark 3s ease-in-out infinite; }
+.home-card:hover .piper-scene .spark { animation-duration: 1.2s; }
+@keyframes piper-note-left { 0% { opacity: 0; transform: translate(0, 0); } 15% { opacity: .9; } 100% { opacity: 0; transform: translate(-16px, -14px); } }
+@keyframes piper-note-spark { 0% { opacity: 0; transform: translate(0, 0); } 15% { opacity: .9; } 100% { opacity: 0; transform: translate(-30px, -12px); } }
+@keyframes piper-follow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes piper-spark { 0%, 100% { transform: scale(1); opacity: .9; } 50% { transform: scale(1.12); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .piper-scene .follower, .piper-scene .spark { animation: none; } }
 .home-card-title { font-family: var(--serif); font-size: 22px; font-weight: 600; }
 .home-card-hint { color: var(--mint); font-size: 13px; line-height: 1.4; }
 .home-link { display: inline-flex; color: inherit; text-decoration: none; }

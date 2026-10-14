@@ -15,6 +15,7 @@ describe('HomePage', () => {
     expect(screen.getByTestId('home-repos')).toHaveAttribute('href', '/repos');
     expect(screen.getByTestId('home-new-feature')).toHaveAttribute('href', '/features?new=1');
     expect(screen.getByTestId('home-settings')).toHaveAttribute('href', '/settings');
+    for (const variant of ['repos', 'feature', 'settings']) expect(screen.getByTestId(`home-picture-${variant}`).querySelector(`svg.piper-scene.is-${variant}`)).not.toBeNull();
     await waitFor(() => expect(screen.getByTestId('home-repos')).toHaveTextContent('2 registered'));
     expect(await screen.findByTestId('setup-card')).toBeInTheDocument();
     expect(screen.getByTestId('setup-claude')).toHaveTextContent('Not signed in');
