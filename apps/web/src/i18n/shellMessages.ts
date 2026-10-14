@@ -285,6 +285,13 @@ export const shellEn = {
   'repos.remoteOnly': 'pull requests only',
   'explore.remote': 'This repository is reviewed through GitHub only: open the Pull requests panel. Clone it from the repositories page to get the map and the chat.',
   'errors.invalid_remote': 'Write the repository as owner/name.',
+  'pulls.reviewedList': 'Reviewed, not approved',
+  'pulls.dismissedList': 'Dismissed',
+  'pulls.triage.reviewed': 'reviewed',
+  'pulls.triage.dismissed': 'dismissed',
+  'pulls.triage.markReviewed': 'Mark as reviewed',
+  'pulls.triage.dismiss': 'Dismiss',
+  'pulls.triage.clear': 'Undo mark',
 } as const;
 
 export type ShellKey = keyof typeof shellEn;
@@ -577,6 +584,13 @@ export const shellEs: ShellCatalog = {
   'repos.remoteOnly': 'solo pull requests',
   'explore.remote': 'Este repositorio se revisa solo por GitHub: abrí el panel de Pull requests. Clonalo desde la lista de repositorios para tener mapa y chat.',
   'errors.invalid_remote': 'Escribí el repositorio como owner/nombre.',
+  'pulls.reviewedList': 'Revisados sin aprobar',
+  'pulls.dismissedList': 'Descartados',
+  'pulls.triage.reviewed': 'revisado',
+  'pulls.triage.dismissed': 'descartado',
+  'pulls.triage.markReviewed': 'Marcar como revisado',
+  'pulls.triage.dismiss': 'Descartar',
+  'pulls.triage.clear': 'Quitar marca',
 };
 
 export const shellPt: ShellCatalog = {
@@ -866,4 +880,11 @@ export const shellPt: ShellCatalog = {
   'repos.remoteOnly': 'só pull requests',
   'explore.remote': 'Este repositório é revisado só pelo GitHub: abra o painel de Pull requests. Clone-o na lista de repositórios para ter mapa e chat.',
   'errors.invalid_remote': 'Escreva o repositório como owner/nome.',
+  'pulls.reviewedList': 'Revisados, não aprovados',
+  'pulls.dismissedList': 'Descartados',
+  'pulls.triage.reviewed': 'revisado',
+  'pulls.triage.dismissed': 'descartado',
+  'pulls.triage.markReviewed': 'Marcar como revisado',
+  'pulls.triage.dismiss': 'Descartar',
+  'pulls.triage.clear': 'Remover marca',
 };

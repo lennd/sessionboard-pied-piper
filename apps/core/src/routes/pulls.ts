@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { gitBranchCompare, gitInfo, gitRemoteUrl } from '../git/git';
 import { createGh, GhFailure } from '../git/gh';
 import { fail } from '../http/fail';
-import type { AppDeps } from '../http/deps';
+import { nowOf, type AppDeps } from '../http/deps';
 import { requireRepo } from '../http/repo';
 import { anchorRisks, buildReview, diffLines, signature, type AnchoredRisk, type Evidence } from '../impact/anchors';
 import { PIPER_MARK_SVG } from '../impact/mark';
@@ -13,6 +13,7 @@ import { overlayChanges } from '../impact/overlay';
 import type { TouchedFile } from '../observer/parse';
 import { repoDir, type RepoEntry } from '../store/repos';
 import { findScene, readSystemMap } from '../store/scenes';
+import { readTriage, setTriage } from '../store/pullTriage';
 import { validateScene, type Scene } from '@rdi/scene';
 
 const listQuery = z.object({ refresh: z.string().optional() });
@@ -20,6 +21,7 @@ const MAX_INTRO = 4000;
 const sceneBody = z.object({ sceneId: z.string().uuid().optional(), scene: z.unknown().optional() });
 const reviewBody = sceneBody.extend({ riskIds: z.array(z.string().min(1)).min(1).max(50), intro: z.string().trim().max(MAX_INTRO).optional(), evidence: z.boolean().optional() });
 const MARK_FILE = 'pied-piper-mark.svg';
+const triageBody = z.object({ state: z.enum(['reviewed', 'dismissed']), note: z.string().trim().max(2000).optional() });
 const decisionBody = z.object({ decision: z.enum(['approve', 'request_changes']).default('approve'), note: z.string().trim().max(MAX_INTRO).optional() });
 const numberParam = (params: unknown): number | null => {
   const n = Number((params as { number: string }).number);
@@ -45,7 +47,9 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
     const remote = repo.remote ?? (await gitRemoteUrl(repo.path));
     if (!remote) return { available: false, reason: 'no_remote', pulls: [], branch };
     try {
-      return { available: true, pulls: await gh.listPulls(repo.path, refresh === '1', repo.remote), branch };
+      const triage = await readTriage(repoDir(repo));
+      const pulls = (await gh.listPulls(repo.path, refresh === '1', repo.remote)).map((p) => ({ ...p, triage: triage[String(p.number)] ?? null }));
+      return { available: true, pulls, branch };
     } catch (error) {
       if (error instanceof GhFailure) return { available: false, reason: error.code, pulls: [], branch };
       return ghFail(reply, error);
@@ -129,6 +133,23 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
     } catch (error) {
       return ghFail(reply, error);
     }
+  });
+
+  /** Local bookkeeping: mark a pull request as reviewed or dismissed (or clear it); nothing is sent to GitHub. */
+  api.put('/repos/:repoId/pulls/:number/triage', { preHandler: withRepo }, async (req, reply) => {
+    const number = numberParam(req.params);
+    if (!number) return fail(reply, 404, 'not_found');
+    const body = triageBody.parse(req.body);
+    const entry = { state: body.state, at: nowOf(deps).toISOString(), note: body.note ?? null };
+    await setTriage(repoDir(req.repo!), number, entry);
+    return { number, triage: entry };
+  });
+
+  api.delete('/repos/:repoId/pulls/:number/triage', { preHandler: withRepo }, async (req, reply) => {
+    const number = numberParam(req.params);
+    if (!number) return fail(reply, 404, 'not_found');
+    await setTriage(repoDir(req.repo!), number, null);
+    return reply.code(204).send();
   });
 
   /** Approves (or requests changes on) the pull request as the gh user, signed by the app. */

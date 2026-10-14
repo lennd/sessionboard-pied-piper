@@ -274,3 +274,6 @@ button, select, input { font: inherit; color: inherit; }
 .ws-top .select { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
 .ws-top .seg button, .ws-top .tabs-inline button, .ws-top .btn { white-space: nowrap; }
 @media (max-width: 1500px) { .ws-top .ws-regenerate { display: none; } }
+
+.pull-item.is-dismissed { opacity: .5; }
+.pull-item.is-dismissed:hover { opacity: 1; }

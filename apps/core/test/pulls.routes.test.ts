@@ -207,6 +207,17 @@ describe('pull requests', () => {
     expect(cloned.json().path).toBe(join(home, 'clones', 'acme__x'));
   });
 
+  it('remembers which pull requests were reviewed or dismissed, on disk', async () => {
+    const marked = await app.inject({ method: 'PUT', url: `/api/repos/${repoId}/pulls/7/triage`, payload: { state: 'reviewed', note: 'looked at the store' } });
+    expect(marked.json()).toMatchObject({ number: 7, triage: { state: 'reviewed', note: 'looked at the store' } });
+    await app.inject({ method: 'PUT', url: `/api/repos/${repoId}/pulls/9/triage`, payload: { state: 'dismissed' } });
+    const list = (await app.inject({ method: 'GET', url: `/api/repos/${repoId}/pulls?refresh=1` })).json();
+    expect(list.pulls.map((p: { number: number; triage: { state: string } | null }) => [p.number, p.triage?.state ?? null])).toEqual([[7, 'reviewed'], [8, null], [9, 'dismissed']]);
+    expect(JSON.parse(await readFile(join(repoPath, '.rdi', 'pulls.json'), 'utf8'))['7'].state).toBe('reviewed');
+    expect((await app.inject({ method: 'DELETE', url: `/api/repos/${repoId}/pulls/7/triage` })).statusCode).toBe(204);
+    expect((await app.inject({ method: 'GET', url: `/api/repos/${repoId}/pulls?refresh=1` })).json().pulls[0].triage).toBeNull();
+  });
+
   it('reports why pull requests are unavailable instead of failing', async () => {
     await app.close();
     await boot(await fakeGh('logged_out'));

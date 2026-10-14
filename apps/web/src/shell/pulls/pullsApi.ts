@@ -5,7 +5,9 @@ import { explainToScene } from '../chat/chatApi';
 import type { FileChange } from '../sessions/sessionsApi';
 
 export type ReviewState = { decision: 'approved' | 'changes_requested' | 'pending'; approvedByMe: boolean; approvals: number; changesRequested: number };
-export type PullSummary = { number: number; title: string; author: string; draft: boolean; headRef: string; baseRef: string; updatedAt: string; url: string; additions: number; deletions: number; changedFiles: number; review: ReviewState };
+export type TriageState = 'reviewed' | 'dismissed';
+export type Triage = { state: TriageState; at: string; note: string | null } | null;
+export type PullSummary = { number: number; title: string; author: string; draft: boolean; headRef: string; baseRef: string; updatedAt: string; url: string; additions: number; deletions: number; changedFiles: number; review: ReviewState; triage?: Triage };
 export type PullFile = { path: string; additions: number; deletions: number; change: FileChange };
 export type PullDetail = { pull: PullSummary & { body: string }; files: PullFile[] };
 export type BranchCompare = { branch: string; base: string; ahead: number; touched: { path: string; change: FileChange }[] };
@@ -38,3 +40,6 @@ export const postReview = (repoId: string, number: number, scene: Scene, riskIds
 export type Decision = { id: number; url: string; decision: 'approve' | 'request_changes' };
 export const decidePull = (repoId: string, number: number, decision: 'approve' | 'request_changes', note: string) =>
   apiFetch<Decision>(`/repos/${repoId}/pulls/${number}/decision`, { method: 'POST', body: { decision, ...(note.trim() ? { note: note.trim() } : {}) } });
+
+export const setTriage = (repoId: string, number: number, state: TriageState) => apiFetch<{ number: number; triage: Triage }>(`/repos/${repoId}/pulls/${number}/triage`, { method: 'PUT', body: { state } });
+export const clearTriage = (repoId: string, number: number) => apiFetch<void>(`/repos/${repoId}/pulls/${number}/triage`, { method: 'DELETE' });

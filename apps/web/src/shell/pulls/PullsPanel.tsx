@@ -9,7 +9,7 @@ import { Markdown } from '../chat/Markdown';
 import { desktop } from '../desktop';
 import { errorText } from '../errors';
 import { formatRelative } from '../format';
-import { BRANCH, decidePull, explainPull, fetchPull, fetchPullImpact, fetchPulls, postReview, previewRisks, type Decision, type PullDetail, type PullSummary, type ReviewPosted, type ReviewState, type RiskAnchor } from './pullsApi';
+import { BRANCH, clearTriage, decidePull, explainPull, fetchPull, fetchPullImpact, fetchPulls, postReview, previewRisks, setTriage, type Decision, type PullDetail, type PullSummary, type ReviewPosted, type ReviewState, type RiskAnchor, type TriageState } from './pullsApi';
 import type { Scene } from '@rdi/scene';
 import { verdictOf, type VerdictAction } from './verdict';
 
@@ -125,6 +125,17 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
       else next.add(id);
       return next;
     });
+  const triage = async (state: TriageState | null) => {
+    if (!opened || opened.target === BRANCH) return;
+    setError(null);
+    try {
+      if (state) await setTriage(repoId, opened.target, state);
+      else await clearTriage(repoId, opened.target);
+      await client.invalidateQueries({ queryKey: key });
+    } catch (err) {
+      setError(errorText(t, err));
+    }
+  };
   const approve = async () => {
     if (!opened || opened.target === BRANCH) return;
     setDeciding(true);
@@ -175,6 +186,24 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
           {pull && <button type="button" className="btn btn-small" data-testid="pull-github" onClick={() => openExternal(pull.url)}>{t('pulls.openGithub')} ↗</button>}
           {pull && !approved && !pull.review.approvedByMe && <button type="button" className="btn btn-small btn-accent" data-testid="pull-approve" onClick={() => setApproving((v) => !v)}>✓ {t('pulls.approve')}</button>}
         </div>
+        {pull && (() => {
+          const current = pulls.data?.pulls.find((p) => p.number === pull.number)?.triage ?? null;
+          return (
+            <div className="row pulls-actions" data-testid="pull-triage">
+              {current ? (
+                <>
+                  <span className={`tag status-${current.state === 'reviewed' ? 'in_progress' : 'draft'}`} data-testid="pull-triage-state">{t(`pulls.triage.${current.state}`)} · {formatRelative(current.at, language)}</span>
+                  <button type="button" className="btn btn-small" data-testid="pull-triage-clear" onClick={() => void triage(null)}>{t('pulls.triage.clear')}</button>
+                </>
+              ) : (
+                <>
+                  <button type="button" className="btn btn-small" data-testid="pull-triage-reviewed" onClick={() => void triage('reviewed')}>◉ {t('pulls.triage.markReviewed')}</button>
+                  <button type="button" className="btn btn-small" data-testid="pull-triage-dismissed" onClick={() => void triage('dismissed')}>⌀ {t('pulls.triage.dismiss')}</button>
+                </>
+              )}
+            </div>
+          );
+        })()}
         {pull && approving && !approved && (
           <div className="chat-notice" data-testid="pull-approve-form">
             <p className="muted">{t('pulls.approveHint')}</p>
@@ -296,14 +325,16 @@ export const PullsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContext }
       {data && !data.available && <p className="chat-notice" data-testid="pulls-unavailable">{t(`pulls.unavailable.${data.reason ?? 'gh_failed'}` as MessageKey)}</p>}
       {data?.available && data.pulls.length === 0 && <p className="muted" data-testid="pulls-empty">{t('pulls.empty')}</p>}
       {data?.available && ([
-        { key: 'pending', title: t('pulls.pending'), items: data.pulls.filter((p) => p.review.decision !== 'approved') },
-        { key: 'approved', title: t('pulls.approvedList'), items: data.pulls.filter((p) => p.review.decision === 'approved') },
+        { key: 'pending', title: t('pulls.pending'), items: data.pulls.filter((p) => p.review.decision !== 'approved' && !p.triage) },
+        { key: 'reviewed', title: t('pulls.reviewedList'), items: data.pulls.filter((p) => p.review.decision !== 'approved' && p.triage?.state === 'reviewed') },
+        { key: 'approved', title: t('pulls.approvedList'), items: data.pulls.filter((p) => p.review.decision === 'approved' && p.triage?.state !== 'dismissed') },
+        { key: 'dismissed', title: t('pulls.dismissedList'), items: data.pulls.filter((p) => p.triage?.state === 'dismissed') },
       ] as { key: string; title: string; items: PullSummary[] }[]).filter((g) => g.items.length > 0).map((group) => (
         <div key={group.key} data-testid={`pulls-group-${group.key}`}>
           <div className="sec-title">{group.title} · {group.items.length}</div>
           {group.items.map((p) => (
-            <button key={p.number} type="button" className={`pull-item${p.review.decision === 'approved' ? ' is-approved' : ''}`} data-testid={`pull-${p.number}`} disabled={loading !== null} onClick={() => void open(p.number)}>
-              <span className="pull-item-title">#{p.number} {p.title}{p.draft && <span className="tag pull-draft">{t('pulls.draft')}</span>} <ReviewTag review={p.review} t={t} /></span>
+            <button key={p.number} type="button" className={`pull-item${p.review.decision === 'approved' ? ' is-approved' : ''}${p.triage ? ` is-${p.triage.state}` : ''}`} data-testid={`pull-${p.number}`} disabled={loading !== null} onClick={() => void open(p.number)}>
+              <span className="pull-item-title">#{p.number} {p.title}{p.draft && <span className="tag pull-draft">{t('pulls.draft')}</span>} <ReviewTag review={p.review} t={t} />{p.triage && <span className="tag" data-testid={`triage-tag-${p.number}`}>{p.triage.state === 'reviewed' ? '◉' : '⌀'} {t(`pulls.triage.${p.triage.state}`)}</span>}</span>
               <span className="muted">{p.headRef} → {p.baseRef} · {p.author} · {formatRelative(p.updatedAt, language)}</span>
               {loading === p.number && <span className="muted">{t('pulls.opening')}</span>}
             </button>

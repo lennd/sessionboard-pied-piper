@@ -13,6 +13,7 @@ const scene = sampleRegistry['iot-telemetry']!;
 const pending = { decision: 'pending' as const, approvedByMe: false, approvals: 0, changesRequested: 0 };
 const pull = { number: 7, title: 'Store rewrite', author: 'ana', draft: false, headRef: 'feature/store', baseRef: 'main', updatedAt: '2026-10-13T10:00:00Z', url: 'https://github.com/acme/x/pull/7', additions: 3, deletions: 2, changedFiles: 2, review: pending };
 const approvedPull = { ...pull, number: 8, title: 'Already approved', review: { decision: 'approved' as const, approvedByMe: true, approvals: 1, changesRequested: 0 } };
+const dismissedPull = { ...pull, number: 9, title: 'Set aside', triage: { state: 'dismissed' as const, at: '2026-10-13T10:00:00Z', note: null } };
 const branch = { branch: 'feature/x', base: 'main', ahead: 2, touched: [{ path: 'src/a.ts', change: 'modified' as const }] };
 const impact = (id: string) => ({ ...scene, id, risks: [{ id: 'r1', title: 'Breaks callers', category: 'reliability' as const, severity: 'high' as const, explanation: 'The handler changed.', mitigation: 'Run the suite.', nodeIds: [scene.nodes[0]!.id] }, { id: 'r2', title: 'Unclear', category: 'complexity' as const, severity: 'low' as const, explanation: 'No code.', nodeIds: [scene.nodes[1]!.id] }] });
 
@@ -21,7 +22,7 @@ const mockApi = (options: { available?: boolean; reason?: string; branch?: typeo
   explainMock.mockResolvedValue({ id: 'sc-explained', scene: impact('impact-pr-7-explained'), text: 'The **store** is rewritten.' });
   return api.mockImplementation(async (path, init) => {
     const p = String(path);
-    if (p.includes('/pulls?refresh=1') || p.endsWith('/pulls')) return { available: options.available ?? true, reason: options.reason, pulls: options.available === false ? [] : [pull, approvedPull], branch: options.branch === undefined ? branch : options.branch } as never;
+    if (p.includes('/pulls?refresh=1') || p.endsWith('/pulls')) return { available: options.available ?? true, reason: options.reason, pulls: options.available === false ? [] : [pull, approvedPull, dismissedPull], branch: options.branch === undefined ? branch : options.branch } as never;
     if (p.endsWith('/pulls/7')) return { pull: { ...pull, body: 'Rewrites the **store**.' }, files: [{ path: 'src/a.ts', additions: 2, deletions: 1, change: 'modified' }, { path: 'src/new.ts', additions: 1, deletions: 0, change: 'added' }] } as never;
     if (p.endsWith('/impact')) {
       if (options.map === false) throw new ApiError(404, 'no_system_map');
@@ -31,6 +32,7 @@ const mockApi = (options: { available?: boolean; reason?: string; branch?: typeo
     if (p.endsWith('/pulls/7/risks') && init?.method === 'POST') return { risks: [{ id: 'r1', title: 'Breaks callers', severity: 'high', category: 'reliability', pieces: ['API'], anchor: { path: 'src/a.ts', line: 12 } }, { id: 'r2', title: 'Unclear', severity: 'low', category: 'complexity', pieces: [], anchor: null }] } as never;
     if (p.endsWith('/pulls/7/review') && init?.method === 'POST') return { id: 55, url: 'https://github.com/acme/x/pull/7#pullrequestreview-55', inline: 1, summary: 0 } as never;
     if (p.endsWith('/pulls/7/decision') && init?.method === 'POST') return { id: 9, url: 'https://github.com/acme/x/pull/7#pullrequestreview-9', decision: 'approve' } as never;
+    if (p.endsWith('/pulls/7/triage')) return (init?.method === 'DELETE' ? undefined : { number: 7, triage: { state: (init?.body as { state: string }).state, at: '2026-10-13T10:00:00Z', note: null } }) as never;
     throw new Error(`unexpected ${p}`);
   });
 };
@@ -102,6 +104,16 @@ describe('PullsPanel', () => {
     const open = vi.spyOn(window, 'open').mockImplementation(() => null);
     fireEvent.click(screen.getByTestId('pull-review-open'));
     expect(open).toHaveBeenCalledWith('https://github.com/acme/x/pull/7#pullrequestreview-55', '_blank', 'noopener,noreferrer');
+  });
+
+  it('marks a pull request as reviewed or dismissed and keeps dismissed ones apart', async () => {
+    mockApi();
+    render();
+    expect(await screen.findByTestId('pulls-group-dismissed')).toHaveTextContent('#9 Set aside');
+    expect(screen.getByTestId('triage-tag-9')).toHaveTextContent('dismissed');
+    fireEvent.click(screen.getByTestId('pull-7'));
+    fireEvent.click(await screen.findByTestId('pull-triage-reviewed'));
+    await waitFor(() => expect(api).toHaveBeenCalledWith('/repos/r1/pulls/7/triage', { method: 'PUT', body: { state: 'reviewed' } }));
   });
 
   it('approves the pull request from the app with an optional note', async () => {
