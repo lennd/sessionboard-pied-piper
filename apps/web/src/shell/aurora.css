@@ -26,26 +26,12 @@
 .rise { animation: aurora-rise .8s cubic-bezier(.2, .8, .2, 1) both; }
 @keyframes aurora-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
 
-.auth-grid { display: grid; grid-template-columns: 1.1fr 1fr; min-height: 100vh; }
-.auth-pitch { padding: 40px 48px; display: flex; flex-direction: column; gap: 18px; }
-.auth-pitch h1 { font-size: 40px; line-height: 1.08; letter-spacing: -.03em; margin: 36px 0 0; max-width: 520px; }
-.auth-lead { color: var(--mint); max-width: 440px; line-height: 1.55; font-size: 15px; }
-.auth-footer { margin-top: auto; color: var(--mint-soft); font-size: 12px; }
-.auth-panel { display: flex; align-items: center; justify-content: center; padding: 32px; }
-.auth-card { width: 100%; max-width: 380px; padding: 28px; }
-.auth-card-top { display: flex; justify-content: flex-end; margin-bottom: 4px; }
-.auth-form h2 { margin: 0 0 4px; font-size: 20px; letter-spacing: -.01em; }
-.auth-links { display: flex; justify-content: space-between; gap: 8px; margin-top: 16px; font-size: 12px; }
-.auth-links a, .aurora a.link { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
 .muted-a { color: var(--mint-soft); font-size: 12px; }
 
 .field { display: block; margin-top: 14px; }
 .field-label { display: block; font-size: 12px; color: var(--mint); margin-bottom: 6px; }
 .input, .aurora select { width: 100%; padding: 11px 12px; border-radius: 12px; background: rgba(0, 0, 0, .22); border: 1px solid rgba(255, 255, 255, .22); color: #fff; font: inherit; outline: none; transition: border-color .2s, box-shadow .2s; }
 .input:focus, .aurora select:focus { border-color: #fff; box-shadow: 0 0 0 4px rgba(255, 255, 255, .18); }
-.input.has-error { border-color: #ff5d73; }
-.field-hint { display: block; font-size: 11px; color: var(--mint-soft); margin-top: 5px; }
-.field-error { display: block; font-size: 12px; color: #ff8a9a; margin-top: 5px; }
 
 .btn-primary { display: inline-flex; justify-content: center; align-items: center; gap: 6px; width: 100%; margin-top: 18px; padding: 12px 16px; border: 0; border-radius: 12px; font: inherit; font-weight: 600; color: var(--green-deep); cursor: pointer; text-decoration: none;
   background: #fff; box-shadow: 0 10px 30px rgba(3, 30, 17, .35); transition: transform .15s, background .15s; }
@@ -58,21 +44,11 @@
 .btn-ghost:disabled { opacity: .5; cursor: default; }
 .btn-danger { color: #ff8a9a; }
 
-.pills { display: inline-flex; gap: 4px; }
-.pills button { font: inherit; font-size: 11px; padding: 3px 9px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .3); background: transparent; color: #fff; cursor: pointer; }
-.pills button[aria-pressed='true'] { background: #fff; color: var(--green-deep); }
 
 .alert { margin: 14px 0 0; padding: 10px 12px; border-radius: 12px; font-size: 13px; line-height: 1.4; }
 .alert.error { background: rgba(255, 93, 115, .12); border: 1px solid rgba(255, 93, 115, .35); color: #ffc2cb; }
 .alert.ok { background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .3); color: #fff; }
 
-.mini-flow { position: relative; height: 150px; width: 420px; max-width: 100%; margin-top: 10px; }
-.mini-flow svg { position: absolute; left: 0; top: 0; width: 420px; height: 150px; }
-.mini-flow .flow { stroke-dasharray: 6 8; animation: flow-dash 1.2s linear infinite; }
-.mini-flow .pill { position: absolute; padding: 8px 12px; border-radius: 12px; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .12); backdrop-filter: blur(8px); font-size: 12px; animation: pill-bob 4s ease-in-out infinite; }
-.mini-flow .pill:nth-of-type(2) { animation-delay: -1s; } .mini-flow .pill:nth-of-type(3) { animation-delay: -2s; }
-@keyframes flow-dash { to { stroke-dashoffset: -28; } }
-@keyframes pill-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 
 .segmented { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 12px; background: rgba(0, 0, 0, .2); border: 1px solid rgba(255, 255, 255, .16); }
 .segmented button { font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 9px; border: 0; background: transparent; color: var(--mint); cursor: pointer; }

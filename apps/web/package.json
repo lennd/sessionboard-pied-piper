@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json",
-    "e2e": "playwright test"
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@rdi/scene": "*",
