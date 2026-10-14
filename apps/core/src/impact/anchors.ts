@@ -57,7 +57,7 @@ export const anchorRisks = (scene: Scene, lines: DiffLines): AnchoredRisk[] => {
 };
 
 const SEVERITY_GLYPH: Record<string, string> = { critical: '🔴', high: '🟠', medium: '🟡', low: '🟢' };
-export const SIGNATURE = '_Posted from Repository Designer_';
+export const SIGNATURE = '_Posted from Pied Pieper_';
 
 export const commentBody = (entry: AnchoredRisk): string =>
   [
@@ -73,7 +73,7 @@ export const buildReview = (entries: AnchoredRisk[], intro: string | null) => {
   const inline = entries.filter((e): e is AnchoredRisk & { anchor: { path: string; line: number } } => e.anchor !== null);
   const unanchored = entries.filter((e) => e.anchor === null);
   const body = [
-    intro ?? `Impact review: ${entries.length} risk${entries.length === 1 ? '' : 's'} found by Repository Designer.`,
+    intro ?? `Impact review: ${entries.length} risk${entries.length === 1 ? '' : 's'} found by Pied Pieper.`,
     ...unanchored.map((e) => `- ${commentBody(e).replace(SIGNATURE, '').trim().replace(/\n\n/g, ' — ')}`),
     SIGNATURE,
   ].join('\n\n');

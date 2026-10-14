@@ -1,5 +1,5 @@
 {
-  "name": "repository-designer-ide",
+  "name": "pied-pieper",
   "private": true,
   "packageManager": "npm@11.13.0",
   "workspaces": [

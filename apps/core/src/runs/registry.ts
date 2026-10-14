@@ -12,7 +12,7 @@ export type RunEvent =
 export type Run = { id: string; repoId: string; solutionId: string; status: RunStatus; startedAt: string; endedAt: string | null; sdkSessionId: string | null; usage: RunUsage; events: RunEvent[]; pending: string[] };
 export type StartInput = { repoId: string; repoPath: string; solutionId: string; queryFn: QueryFn; agent: Config['agent']; mcpHttpUrl: string; now: () => Date };
 
-const DENIED_MESSAGE = 'The user denied this action in Repository Designer.';
+const DENIED_MESSAGE = 'The user denied this action in Pied Pieper.';
 const CANCELLED_MESSAGE = 'The run was stopped by the user.';
 const MAX_RUNS_PER_REPO = 20;
 

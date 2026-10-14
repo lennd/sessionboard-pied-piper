@@ -12,7 +12,7 @@ const wrap = (ui: React.ReactElement) => render(<I18nProvider initialLanguage="e
 describe('Aurora components', () => {
   it('renders the animated logo with the product name', () => {
     wrap(<AnimatedLogo />);
-    expect(screen.getByTestId('animated-logo')).toHaveTextContent('Repository Designer');
+    expect(screen.getByTestId('animated-logo')).toHaveTextContent('Pied Pieper');
     expect(screen.getByTestId('animated-logo').querySelectorAll('circle.nd')).toHaveLength(3);
   });
 

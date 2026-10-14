@@ -48,7 +48,7 @@ const startCore = (): Promise<number> =>
   });
 
 const createWindow = async (port: number) => {
-  const window = new BrowserWindow({ ...WINDOW, title: 'Repository Designer', webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false } });
+  const window = new BrowserWindow({ ...WINDOW, title: 'Pied Pieper', webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false } });
   window.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url);
     return { action: 'deny' };
@@ -71,7 +71,7 @@ app.whenReady().then(async () => {
       if (BrowserWindow.getAllWindows().length === 0) void createWindow(port);
     });
   } catch (error) {
-    dialog.showErrorBox('Repository Designer', error instanceof Error ? error.message : String(error));
+    dialog.showErrorBox('Pied Pieper', error instanceof Error ? error.message : String(error));
     app.quit();
   }
 });

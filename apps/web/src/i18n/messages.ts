@@ -6,7 +6,7 @@ export type UiLanguage = (typeof UI_LANGUAGES)[number];
 const workspaceEn = {
   'canvas.resetLayout': 'Reset layout',
   'code.loading': 'Loading code…',
-  'app.name': 'Repository Designer',
+  'app.name': 'Pied Pieper',
   'scene.label': 'Scene',
   'scene.regenerate': 'Regenerate in {language}',
   'scene.regenerateSoon': 'Available once the agent is connected',
@@ -102,7 +102,7 @@ type Catalog = Partial<Record<MessageKey, string>>;
 const esWorkspace: Catalog = {
   'canvas.resetLayout': 'Restablecer diseño',
   'code.loading': 'Cargando código…',
-  'app.name': 'Repository Designer',
+  'app.name': 'Pied Pieper',
   'scene.label': 'Escena',
   'scene.regenerate': 'Regenerar en {language}',
   'scene.regenerateSoon': 'Disponible cuando el agente esté conectado',
@@ -195,7 +195,7 @@ const es: Catalog = { ...esWorkspace, ...shellEs };
 const ptWorkspace: Catalog = {
   'canvas.resetLayout': 'Restaurar layout',
   'code.loading': 'Carregando código…',
-  'app.name': 'Repository Designer',
+  'app.name': 'Pied Pieper',
   'scene.label': 'Cena',
   'scene.regenerate': 'Regenerar em {language}',
   'scene.regenerateSoon': 'Disponível quando o agente estiver conectado',

@@ -8,7 +8,7 @@ export const RUN_MARKER = '[rdi:run-solution]';
 const MAX_MAP_PIECES = 25;
 
 export const SYSTEM_PROMPT = [
-  'You are the guide inside Repository Designer, a desktop companion where people understand a software repository and the changes made to it without reading code.',
+  'You are the guide inside Pied Pieper, a desktop companion where people understand a software repository and the changes made to it without reading code.',
   'Only help with the repository open in the current working directory: understanding or reviewing what exists, explaining changes, and planning changes to it. If a message asks for anything else, reply in one sentence that you can only help with this repository, and stop.',
   '',
   'How to work:',
