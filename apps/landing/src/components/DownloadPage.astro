@@ -4,6 +4,7 @@ import { formatDate, formatSize, installerOf, latestOf, type Manifest } from '~/
 import { fill, STORAGE_KEY, STRINGS, type Lang } from '~/lib/strings';
 import FeatureGrid from './FeatureGrid.astro';
 import LangSwitch from './LangSwitch.astro';
+import StarCall from './StarCall.astro';
 import '~/styles/global.css';
 
 const { lang } = Astro.props as { lang: Lang };
@@ -58,6 +59,8 @@ const releasesUrl = import.meta.env.PUBLIC_RELEASES_URL ?? 'https://github.com/l
         <h2 id="features-title">{s.featuresTitle}</h2>
         <FeatureGrid lang={lang} />
       </section>
+
+      <StarCall lang={lang} />
 
       <section class="install" aria-labelledby="install-title">
         <h2 id="install-title">{s.installTitle}</h2>
