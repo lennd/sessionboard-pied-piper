@@ -33,13 +33,18 @@ jobs:
       - name: Checksums
         working-directory: apps/desktop/release
         run: shasum -a 256 *.dmg *.zip > checksums.txt && cat checksums.txt
-      - name: Create the release with the installers
+      - name: Create or refresh the release with the installers
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           notes="$(git tag -l --format='%(contents)' "${GITHUB_REF_NAME}")"
-          gh release create "${GITHUB_REF_NAME}" apps/desktop/release/*.dmg apps/desktop/release/*.zip apps/desktop/release/checksums.txt \
-            --title "Pied Piper ${GITHUB_REF_NAME#v}" --notes "${notes:-Pied Piper ${GITHUB_REF_NAME#v}}" --verify-tag
+          files=(apps/desktop/release/*.dmg apps/desktop/release/*.zip apps/desktop/release/checksums.txt)
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" "${files[@]}" --clobber
+            gh release edit "${GITHUB_REF_NAME}" --target "${GITHUB_SHA}" --title "Pied Piper ${GITHUB_REF_NAME#v}" --notes "${notes:-Pied Piper ${GITHUB_REF_NAME#v}}"
+          else
+            gh release create "${GITHUB_REF_NAME}" "${files[@]}" --title "Pied Piper ${GITHUB_REF_NAME#v}" --notes "${notes:-Pied Piper ${GITHUB_REF_NAME#v}}" --verify-tag
+          fi
       - name: Refresh the download page
         env:
           GH_TOKEN: ${{ github.token }}
