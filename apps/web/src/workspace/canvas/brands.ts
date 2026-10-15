@@ -1,4 +1,8 @@
-import * as si from 'simple-icons';
+import { siAngular, siAnthropic, siApacheairflow, siApachekafka, siAuth0, siCloudflare, siDatadog, siDocker, siDuckdb, siElasticsearch, siElectron, siElevenlabs, siExpress, siFastify, siFirebase, siGithub, siGo, siGooglecloud, siGrafana, siGraphql, siHubspot, siIntercom, siJira, siKeycloak, siKubernetes, siMailchimp, siMongodb, siMysql, siNeo4j, siNestjs, siNextdotjs, siNginx, siNodedotjs, siOkta, siOpentelemetry, siPaypal, siPostgresql, siPrisma, siPrometheus, siPython, siRabbitmq, siReact, siRedis, siRubyonrails, siRust, siSentry, siSequelize, siSnowflake, siSocketdotio, siSpring, siSqlite, siStripe, siSupabase, siSvelte, siTerraform, siVercel, siVuedotjs, siZendesk, siZoom } from 'simple-icons';
+
+type SimpleIcon = { title: string; slug: string; path: string };
+/** Only the marks the rules below can produce are bundled; `simple-icons` as a whole weighs several megabytes. */
+const LIBRARY: Record<string, SimpleIcon> = { siAngular, siAnthropic, siApacheairflow, siApachekafka, siAuth0, siCloudflare, siDatadog, siDocker, siDuckdb, siElasticsearch, siElectron, siElevenlabs, siExpress, siFastify, siFirebase, siGithub, siGo, siGooglecloud, siGrafana, siGraphql, siHubspot, siIntercom, siJira, siKeycloak, siKubernetes, siMailchimp, siMongodb, siMysql, siNeo4j, siNestjs, siNextdotjs, siNginx, siNodedotjs, siOkta, siOpentelemetry, siPaypal, siPostgresql, siPrisma, siPrometheus, siPython, siRabbitmq, siReact, siRedis, siRubyonrails, siRust, siSentry, siSequelize, siSnowflake, siSocketdotio, siSpring, siSqlite, siStripe, siSupabase, siSvelte, siTerraform, siVercel, siVuedotjs, siZendesk, siZoom };
 
 export type Brand = { slug: string; title: string; path: string };
 
@@ -20,9 +24,8 @@ const CUSTOM: Record<string, Brand> = {
   websocket: { slug: 'websocket', title: 'WebSocket', path: 'M3 12 7 8v3h10V8l4 4-4 4v-3H7v3z' },
 };
 
-type Rule = { test: RegExp; brand: Brand | null; icon?: keyof typeof si };
 const fromSi = (key: string): Brand | null => {
-  const icon = (si as unknown as Record<string, { title: string; slug: string; path: string } | undefined>)[key];
+  const icon = LIBRARY[key];
   return icon ? { slug: icon.slug, title: icon.title, path: icon.path } : null;
 };
 
@@ -121,6 +124,6 @@ export const brandsFor = (text: string, max = MAX_BRANDS): Brand[] => {
 export const brandBySlug = (slug: string): Brand | null => {
   const custom = Object.values(CUSTOM).find((b) => b.slug === slug);
   if (custom) return custom;
-  const key = Object.keys(si).find((k) => (si as unknown as Record<string, { slug?: string }>)[k]?.slug === slug);
+  const key = Object.keys(LIBRARY).find((k) => LIBRARY[k]?.slug === slug);
   return key ? fromSi(key) : null;
 };
