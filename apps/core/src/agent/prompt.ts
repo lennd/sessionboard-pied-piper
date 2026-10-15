@@ -112,6 +112,24 @@ export const explainPrompt = (input: { language: string; repoName: string; sourc
     'You have about 10 steps; the diff above is usually enough, so read at most a handful of files with Read or Grep (do not use the shell for that) and call emit_scene before the budget runs out — a partial scene beats none. Call emit_scene once with an impact scene (id "impact"): the pieces that changed with change added, modified or removed, the pieces that depend on them, a walkthrough of the main flow that goes through the change, and the risks the change introduces with concrete mitigations. Every changed piece must carry code {path, startLine, endLine} pointing at the exact changed lines (paths relative to the repository root, line numbers of the new version), and each risk must list in nodeIds the changed piece where it is introduced and carry code {path, startLine, endLine} with the tightest range of changed lines where the problem lives (a few lines: the statement, call or block, never the whole file), so the risk is commented exactly on that code in the pull request. Read only the changed files if the diff is not enough. Then answer with a short summary of what changed and what could break.',
   ].filter(Boolean).join('\n\n');
 
+export type ReviewPart = { repoName: string; repoPath: string; source: string; touched: { path: string; change: string }[]; diff: string; rules: string[] };
+
+/** Explains a change that spans several repositories at once: each part is one pull request or branch; the map is the combined one. */
+export const explainReviewPrompt = (input: { language: string; parts: ReviewPart[]; systemMap: unknown | null }): string =>
+  [
+    EXPLAIN_MARKER,
+    languageLine(input.language),
+    `Explain the impact of one change that spans ${input.parts.length} repositories. Each repository is listed with its absolute path; use that path when you read files.`,
+    ...input.parts.map((part) => [
+      `Repository "${part.repoName}" (${part.repoPath}): ${part.source}.`,
+      ...(part.rules.length > 0 ? [rulesBlock(part.rules).replace('The team wants', `In "${part.repoName}" the team wants`)] : []),
+      `Changed files:\n${part.touched.map((t) => `- ${t.path} (${t.change})`).join('\n') || '- (none detected)'}`,
+      `Diff:\n\`\`\`diff\n${part.diff}\n\`\`\``,
+    ].join('\n\n')),
+    input.systemMap ? `The combined architecture map of these repositories, drawn earlier (piece ids are prefixed with the repository name; reuse them and their code paths where they apply):\n${JSON.stringify(input.systemMap)}` : '',
+    'Call emit_scene once with an impact scene (id "impact") that shows the repositories as one system: the pieces that changed in each repository with change added, modified or removed, the pieces that depend on them across repositories, a walkthrough of the main flow that crosses the repositories, and the risks. Give every piece repo = the repository name and code {repo, path, startLine, endLine} with the path relative to that repository. Pay special attention to the contracts between repositories: request and response shapes, event payloads, field names, versions, feature flags and error codes that one side changes and the other side still expects; each such mismatch is a risk with the pieces on both sides in nodeIds and code pointing at the exact lines of the side that must change. You have about 12 steps; the diffs above are usually enough, read at most a handful of files with Read or Grep. Then answer with a short summary: what the change does end to end, what each repository contributes and what could break between them.',
+  ].filter(Boolean).join('\n\n');
+
 /** Asks Claude Code to implement a Solution through the rdi MCP server. */
 export const runSolutionPrompt = (solutionId: string, toolkit = ''): string =>
   [

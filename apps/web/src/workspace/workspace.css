@@ -218,6 +218,11 @@ button, select, input { font: inherit; color: inherit; }
 .pull-item-title { font-weight: 600; font-size: 13px; }
 .pull-draft { margin-left: 6px; font-size: 10px; }
 .pulls-back { align-self: flex-start; }
+.review-parts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.review-part { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--radius); }
+.review-part-repo { font-weight: 600; }
+.review-risk-group { margin-bottom: 8px; }
+.review-risk-repo { font-size: 11px; color: var(--muted); margin: 6px 0 2px; }
 .pull-chat { height: 440px; margin-top: 6px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; }
 .pull-chat .chat { height: 100%; }
 .chat-about { padding: 8px 10px 0; font-weight: 600; }

@@ -17,6 +17,7 @@ export const HomePage = () => {
   const cards: { to: string; testid: string; picture: PiperSceneVariant; title: string; hint: string }[] = [
     { to: '/repos', testid: 'home-repos', picture: 'repos', title: t('nav.repositories'), hint: repos.data ? t('home.reposHint', { count: repos.data.length }) : t('repos.subtitle') },
     { to: '/features?new=1', testid: 'home-new-feature', picture: 'feature', title: t('features.new'), hint: features.data ? t('home.featuresHint', { count: features.data.length }) : t('features.subtitle') },
+    { to: '/reviews?new=1', testid: 'home-new-review', picture: 'review', title: t('reviews.new'), hint: t('home.reviewsHint') },
     { to: '/settings', testid: 'home-settings', picture: 'settings', title: t('nav.settings'), hint: t('home.settingsHint') },
   ];
   return (

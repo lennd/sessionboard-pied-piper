@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export type PiperSceneVariant = 'repos' | 'feature' | 'settings';
+export type PiperSceneVariant = 'repos' | 'feature' | 'review' | 'settings';
 
 /** The piper silhouette shared by the mark and the scenes, drawn in a 40×40 box. */
 const Piper = ({ transform }: { transform: string }) => (
@@ -51,6 +51,21 @@ const FeatureScene = () => (
   </>
 );
 
+/** Two repositories, one tune: the piper's notes join two blocks into a single system. */
+const ReviewScene = () => (
+  <>
+    <Piper transform="translate(60 12) scale(1.25)" />
+    <Notes x={63} y={39} className="to-left" />
+    <g fill="#fff" className="review-blocks">
+      <rect x="14" y="20" width="22" height="22" rx="5" /><circle cx="25" cy="31" r="3.2" fill={HOLE} />
+      <rect x="14" y="48" width="22" height="16" rx="5" /><circle cx="25" cy="56" r="2.6" fill={HOLE} />
+      <path d="M36 31 C44 31 44 56 36 56" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" opacity=".8" />
+      <rect x="120" y="30" width="26" height="18" rx="5" opacity=".9" /><circle cx="133" cy="39" r="2.8" fill={HOLE} />
+      <path d="M110 39h10" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeDasharray="3 3" />
+    </g>
+  </>
+);
+
 /** The piper tunes the instrument: three sliders set the levels. */
 const SettingsScene = () => (
   <>
@@ -64,7 +79,7 @@ const SettingsScene = () => (
   </>
 );
 
-const SCENES: Record<PiperSceneVariant, () => ReactNode> = { repos: ReposScene, feature: FeatureScene, settings: SettingsScene };
+const SCENES: Record<PiperSceneVariant, () => ReactNode> = { repos: ReposScene, feature: FeatureScene, review: ReviewScene, settings: SettingsScene };
 
 /** A small picture of the piper for the front door: one version of the mark per place to go, drawn straight on the card. */
 export const PiperScene = ({ variant, title }: { variant: PiperSceneVariant; title?: string }) => {

@@ -1,6 +1,8 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { Shell } from './guards';
 import { FeaturePage } from './features/FeaturePage';
+import { ReviewPage } from './reviews/ReviewPage';
+import { ReviewsPage } from './reviews/ReviewsPage';
 import { FeaturesPage } from './features/FeaturesPage';
 import { ExplorePage } from './pages/ExplorePage';
 import { HomePage } from './pages/HomePage';
@@ -21,6 +23,8 @@ export const router = createBrowserRouter([
       { path: '/settings', element: <SettingsLayout />, children: [{ index: true, element: <Navigate to="preferences" replace /> }, { path: 'preferences', element: <PreferencesPage /> }] },
       { path: '/features', element: <FeaturesPage /> },
       { path: '/features/:featureId', element: <FeaturePage /> },
+      { path: '/reviews', element: <ReviewsPage /> },
+      { path: '/reviews/:reviewId', element: <ReviewPage /> },
       { path: '/repos/:repoId/explore', element: <ExplorePage /> },
       { path: '/repos/:repoId/solutions/:solutionId', element: <SolutionPage /> },
       {

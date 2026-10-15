@@ -7,6 +7,7 @@ import { mcpRoutes } from './mcp/route';
 import { agentRoutes } from './routes/agent';
 import { codeRoutes } from './routes/code';
 import { featureRoutes } from './routes/features';
+import { reviewRoutes } from './routes/reviews';
 import { prefsRoutes } from './routes/prefs';
 import { pullRoutes } from './routes/pulls';
 import { repoRoutes } from './routes/repos';
@@ -43,6 +44,7 @@ export const buildApp = (deps: AppDeps): FastifyInstance => {
       agentRoutes(api, deps);
       solutionRoutes(api, deps);
       featureRoutes(api, deps);
+      reviewRoutes(api, deps);
       agentRoutes(api, deps, '/features/:featureId');
       solutionRoutes(api, deps, '/features/:featureId');
       sessionRoutes(api, deps);

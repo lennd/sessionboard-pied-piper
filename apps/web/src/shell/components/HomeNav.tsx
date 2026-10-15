@@ -9,6 +9,7 @@ export const HomeNav = () => {
     <nav className="home-nav" aria-label={t('nav.repositories')}>
       <NavLink to="/repos" className={cls} data-testid="home-nav-repos">{t('nav.repositories')}</NavLink>
       <NavLink to="/features" className={cls} data-testid="home-nav-features">{t('nav.features')}</NavLink>
+      <NavLink to="/reviews" className={cls} data-testid="home-nav-reviews">{t('nav.reviews')}</NavLink>
       <NavLink to="/settings" className={cls} data-testid="home-nav-settings">{t('nav.settings')}</NavLink>
     </nav>
   );
