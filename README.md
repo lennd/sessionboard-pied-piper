@@ -57,3 +57,23 @@ Configuration is read from the environment (see `.env.example`): `RDI_PORT`,
 `AGENT_MAX_TURNS`, `AGENT_MAX_BUDGET_USD`, `CLAUDE_EXECUTABLE`.
 
 Design notes: `docs/superpowers/specs/2026-10-13-rdi-desktop-design.md`.
+
+## Releases
+
+The download page (`apps/landing`) is a static site that reads `releases.json`
+next to it; both live in an S3 bucket served through CloudFront. Preview it
+locally with `npm run landing:dev` (http://localhost:5180, sample manifest).
+
+- **Infrastructure** — `infra/releases` (Terraform) creates the private bucket,
+  the CloudFront distribution and the IAM role GitHub Actions assumes through
+  OIDC. Copy `terraform.tfvars.example`, apply, and set in the GitHub repo the
+  variables `RELEASES_BUCKET`, `AWS_REGION`, `CLOUDFRONT_DISTRIBUTION_ID`
+  (optional `RELEASES_PREFIX`) and the secret `AWS_RELEASES_ROLE_ARN`.
+- **Publishing from CI** — bump `apps/desktop/package.json`, commit, tag
+  `vX.Y.Z` (the tag message becomes the release notes) and push the tag. The
+  `Release` workflow builds the macOS app, uploads `releases/X.Y.Z/*.dmg|zip`,
+  merges the manifest and refreshes the page. Pushes to `main` that touch
+  `apps/landing` redeploy the page alone.
+- **Publishing from a laptop** — with AWS credentials in the shell:
+  `RELEASES_BUCKET=<bucket> npm run release:publish -- --notes "what changed"`
+  (add `--skip-build` to reuse `apps/desktop/release`).

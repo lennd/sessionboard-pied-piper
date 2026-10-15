@@ -1,0 +1,17 @@
+{
+  "name": "@rdi/landing",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Static download page for Pied Piper releases, published to S3 next to the artifacts.",
+  "scripts": {
+    "dev": "node ./serve.mjs",
+    "build": "node ./build.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.2",
+    "@types/node": "^26.6.3"
+  }
+}

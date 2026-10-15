@@ -1,0 +1,30 @@
+{
+  "product": "Pied Piper",
+  "platform": "darwin-arm64",
+  "releases": [
+    {
+      "version": "0.2.0",
+      "date": "2026-10-15T15:11:44.275Z",
+      "notes": "Canvas rediseñado, chat dentro de cada pull request, pedir cambios desde la app y comentarios sobre el código exacto.",
+      "files": [
+        {
+          "name": "Pied Piper-0.2.0-arm64.dmg",
+          "url": "https://github.com/OWNER/pied-piper/releases/download/v0.2.0/Pied%20Piper-0.2.0-arm64.dmg",
+          "kind": "dmg",
+          "arch": "arm64",
+          "size": 217564710,
+          "sha256": "6c09435837a9101c65abbf6de99b7151cd3c588ab16f8d8b751b6e4b709a4be8"
+        },
+        {
+          "name": "Pied Piper-0.2.0-arm64.zip",
+          "url": "https://github.com/OWNER/pied-piper/releases/download/v0.2.0/Pied%20Piper-0.2.0-arm64.zip",
+          "kind": "zip",
+          "arch": "arm64",
+          "size": 216855802,
+          "sha256": "d51dd43950b5795db3e764f635857e79f892ccacb7247beedbe1632554a58000"
+        }
+      ]
+    }
+  ],
+  "generatedAt": "2026-10-15T15:11:44.276Z"
+}

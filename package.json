@@ -12,7 +12,9 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "desktop:dev": "npm run dev -w @rdi/web & npm run dev -w @rdi/desktop; kill %1",
-    "desktop:build": "npm run build -w @rdi/desktop"
+    "desktop:build": "npm run build -w @rdi/desktop",
+    "release:manifest": "node scripts/release/manifest.mjs",
+    "landing:dev": "npm run dev -w @rdi/landing"
   },
   "devDependencies": {
     "turbo": "^2.11.5",

@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build the macOS app and publish a GitHub Release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Check that the tag matches the desktop version
+        run: |
+          version="$(node -p "require('./apps/desktop/package.json').version")"
+          [ "v$version" = "${GITHUB_REF_NAME}" ] || { echo "tag ${GITHUB_REF_NAME} does not match apps/desktop version $version" >&2; exit 1; }
+      - run: npm ci
+      - run: npm test
+      - name: Build the desktop app
+        run: npm run dist -w @rdi/desktop
+      - name: Checksums
+        working-directory: apps/desktop/release
+        run: shasum -a 256 *.dmg *.zip > checksums.txt && cat checksums.txt
+      - name: Create the release with the installers
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="$(git tag -l --format='%(contents)' "${GITHUB_REF_NAME}")"
+          gh release create "${GITHUB_REF_NAME}" apps/desktop/release/*.dmg apps/desktop/release/*.zip apps/desktop/release/checksums.txt \
+            --title "Pied Piper ${GITHUB_REF_NAME#v}" --notes "${notes:-Pied Piper ${GITHUB_REF_NAME#v}}" --verify-tag
+      - name: Refresh the download page
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref "${{ github.event.repository.default_branch }}"
