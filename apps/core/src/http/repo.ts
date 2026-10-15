@@ -1,7 +1,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { fail } from './fail';
 import type { AppDeps } from './deps';
-import { findRepo, type RepoEntry } from '../store/repos';
+import { ensureRepoDir, findRepo, type RepoEntry } from '../store/repos';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -14,6 +14,7 @@ export const requireRepo = (deps: AppDeps) => async (req: FastifyRequest, reply:
   const { repoId } = req.params as { repoId?: string };
   const repo = repoId ? await findRepo(deps.config.home, repoId) : null;
   if (!repo) return fail(reply, 404, 'repo_not_found');
+  await ensureRepoDir(repo.path);
   req.repo = repo;
   return undefined;
 };

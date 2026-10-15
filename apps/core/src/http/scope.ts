@@ -2,7 +2,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { fail } from './fail';
 import type { AppDeps } from './deps';
 import { featureDir, findFeature, type FeatureFile } from '../store/features';
-import { findRepo, listRepos, repoDir, type RepoEntry } from '../store/repos';
+import { findRepo, listRepos, repoDir, type RepoEntry, ensureRepoDir } from '../store/repos';
 import { featureMcpUrl, mcpUrl } from '../mcp/route';
 
 /** A directory the agent may read: one registered repository. */
@@ -38,6 +38,7 @@ export const requireScope = (deps: AppDeps) => async (req: FastifyRequest, reply
   if (repoId) {
     const repo = await findRepo(deps.config.home, repoId);
     if (!repo) return fail(reply, 404, 'repo_not_found');
+    await ensureRepoDir(repo.path);
     req.repo = repo;
     req.scope = repoScope(deps, repo);
     return undefined;

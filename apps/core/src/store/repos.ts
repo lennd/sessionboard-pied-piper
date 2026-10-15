@@ -26,8 +26,8 @@ export class RepoError extends Error {
 export const repoIdFor = (path: string): string => createHash('sha1').update(resolve(path)).digest('hex').slice(0, ID_LENGTH);
 export const repoDir = (repo: RepoEntry): string => join(repo.path, RDI_DIR);
 
-/** Creates `<repo>/.rdi` with a .gitignore that ignores itself, so the host repository never sees our files. */
-const ensureRepoDir = async (path: string): Promise<void> => {
+/** Creates `<repo>/.rdi` with a .gitignore that ignores itself, so the host repository never sees our files. Idempotent: also run on every request, so folders registered by older versions get the file. */
+export const ensureRepoDir = async (path: string): Promise<void> => {
   const dir = join(path, RDI_DIR);
   await mkdir(dir, { recursive: true });
   await writeFile(join(dir, '.gitignore'), SELF_IGNORE, { flag: 'wx' }).catch((error: NodeJS.ErrnoException) => {
