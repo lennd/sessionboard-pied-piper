@@ -9,13 +9,24 @@ export type TriageState = 'reviewed' | 'dismissed';
 export type Triage = { state: TriageState; at: string; note: string | null } | null;
 export type PullSummary = { number: number; title: string; author: string; draft: boolean; headRef: string; baseRef: string; updatedAt: string; url: string; additions: number; deletions: number; changedFiles: number; review: ReviewState; triage?: Triage };
 export type PullFile = { path: string; additions: number; deletions: number; change: FileChange };
-export type PullDetail = { pull: PullSummary & { body: string }; files: PullFile[] };
+export type CachedExplanation = { sceneId: string; text: string; at: string; scene: unknown };
+export type PullDetail = { pull: PullSummary & { body: string }; files: PullFile[]; explanation?: CachedExplanation | null };
 export type BranchCompare = { branch: string; base: string; ahead: number; touched: { path: string; change: FileChange }[] };
 export type PullsList = { available: boolean; reason?: string; pulls: PullSummary[]; branch: BranchCompare | null };
 export const BRANCH = 'branch';
 
 export const fetchPulls = (repoId: string, refresh = false) => apiFetch<PullsList>(`/repos/${repoId}/pulls${refresh ? '?refresh=1' : ''}`);
 export const fetchPull = (repoId: string, number: number) => apiFetch<PullDetail>(`/repos/${repoId}/pulls/${number}`);
+/** The explanation already stored for a scope (`pr-<n>`, `branch`, a session id or `worktree`), or null when there is none. */
+export const fetchExplanation = async (repoId: string, scope: string): Promise<{ text: string; at: string; scene: Scene } | null> => {
+  try {
+    const cached = await apiFetch<CachedExplanation>(`/repos/${repoId}/explanations/${encodeURIComponent(scope)}`);
+    const valid = validateScene(cached.scene);
+    return valid.ok ? { text: cached.text, at: cached.at, scene: valid.scene } : null;
+  } catch {
+    return null;
+  }
+};
 
 const scene = async (path: string): Promise<Scene> => {
   const result = validateScene(await apiFetch<unknown>(path));

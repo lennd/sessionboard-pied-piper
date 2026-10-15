@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { validateScene, type Scene } from '@rdi/scene';
 import { useI18n } from '../../i18n/I18nProvider';
 import type { MessageKey } from '../../i18n/messages';
 import type { ChatContext } from '../../workspace/Workspace';
@@ -10,8 +11,7 @@ import { Markdown } from '../chat/Markdown';
 import { desktop } from '../desktop';
 import { errorLink, errorText } from '../errors';
 import { formatRelative } from '../format';
-import { BRANCH, clearTriage, decidePull, explainPull, fetchPull, fetchPullImpact, fetchPulls, postReview, previewRisks, setTriage, type Decision, type PullDetail, type PullSummary, type ReviewPosted, type ReviewState, type RiskAnchor, type TriageState } from './pullsApi';
-import type { Scene } from '@rdi/scene';
+import { BRANCH, clearTriage, decidePull, explainPull, fetchExplanation, fetchPull, fetchPullImpact, fetchPulls, postReview, previewRisks, setTriage, type Decision, type PullDetail, type PullSummary, type ReviewPosted, type ReviewState, type RiskAnchor, type TriageState } from './pullsApi';
 import { whereOf, verdictOf, type VerdictAction } from './verdict';
 
 const STATUS_GLYPH: Record<string, string> = { added: '+', removed: '−', modified: '~' };
@@ -27,6 +27,11 @@ const ReviewTag = ({ review, t }: { review: ReviewState; t: (key: MessageKey) =>
   return <span className="tag review-chip is-pending" data-testid="review-tag-pending">○ {t('pulls.review.pending')}</span>;
 };
 type DecisionKind = 'approve' | 'request_changes';
+/** A stored explanation is only reused when its scene still validates against the current schema. */
+const validCached = (cached: { text: string; at: string; scene: unknown }): { text: string; at: string; scene: Scene } | null => {
+  const valid = validateScene(cached.scene);
+  return valid.ok ? { text: cached.text, at: cached.at, scene: valid.scene } : null;
+};
 /** Review state as it looks right after this user decided from the app, before the list refreshes. */
 const afterDecision = (review: ReviewState, decision: DecisionKind): ReviewState =>
   decision === 'approve' ? { ...review, approvedByMe: true, changesByMe: false, decision: 'approved' } : { ...review, approvedByMe: false, changesByMe: true, decision: 'changes_requested' };
@@ -43,6 +48,7 @@ export const PullsPanel = ({ repoId, ctx, chatLanguage }: { repoId: string; ctx:
   const [noMap, setNoMap] = useState(false);
   const [explaining, setExplaining] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
+  const [explainedAt, setExplainedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorUrl, setErrorUrl] = useState<string | null>(null);
   const report = (err: unknown) => {
@@ -97,6 +103,7 @@ export const PullsPanel = ({ repoId, ctx, chatLanguage }: { repoId: string; ctx:
   const open = async (target: Target) => {
     setError(null);
     setExplanation(null);
+    setExplainedAt(null);
     setScene(null);
     setRisks(null);
     setPosted(null);
@@ -104,8 +111,17 @@ export const PullsPanel = ({ repoId, ctx, chatLanguage }: { repoId: string; ctx:
     setApproving(null);
     setLoading(target);
     try {
-      setOpened({ target, detail: target === BRANCH ? null : await fetchPull(repoId, target) });
-      await showImpact(target);
+      const detail = target === BRANCH ? null : await fetchPull(repoId, target);
+      setOpened({ target, detail });
+      const cached = target === BRANCH ? await fetchExplanation(repoId, 'branch') : detail?.explanation ? validCached(detail.explanation) : null;
+      if (cached) {
+        setExplainedAt(cached.at);
+        setExplanation(cached.text);
+        ctx.openScene(cached.scene, 'changes');
+        await loadRisks(target, cached.scene);
+      } else {
+        await showImpact(target);
+      }
     } catch (err) {
       report(err);
     } finally {
@@ -121,6 +137,7 @@ export const PullsPanel = ({ repoId, ctx, chatLanguage }: { repoId: string; ctx:
       const result = await explainPull(repoId, opened.target);
       ctx.openScene(result.scene, 'changes');
       setExplanation(result.text);
+      setExplainedAt(new Date().toISOString());
       await loadRisks(opened.target, result.scene);
     } catch (err) {
       report(err);
@@ -192,7 +209,8 @@ export const PullsPanel = ({ repoId, ctx, chatLanguage }: { repoId: string; ctx:
         {pull && <div className="pull-size"><span className="add">+{pull.additions}</span> <span className="del">−{pull.deletions}</span> · {t('pulls.files', { count: pull.changedFiles })}</div>}
         {!pull && branch && <div className="muted">{t('pulls.branchHint', { count: branch.ahead, files: branch.touched.length })}</div>}
         <div className="row pulls-actions">
-          <button type="button" className="btn-primary btn-small" data-testid="pull-explain" disabled={explaining} onClick={() => void explain()}>✦ {explaining ? t('pulls.explaining') : t('pulls.explain')}</button>
+          <button type="button" className="btn-primary btn-small" data-testid="pull-explain" disabled={explaining} onClick={() => void explain()}>✦ {explaining ? t('pulls.explaining') : explanation ? t('pulls.reexplain') : t('pulls.explain')}</button>
+          {explainedAt && !explaining && <span className="muted" data-testid="pull-explained-at">{t('pulls.explainedAt', { when: formatRelative(explainedAt, language) ?? '' })}</span>}
           <button type="button" className="btn btn-small" data-testid="pull-impact" onClick={() => void showImpact(opened.target)}>{t('pulls.impact')}</button>
           {pull && <button type="button" className="btn btn-small" data-testid="pull-github" onClick={() => openExternal(pull.url)}>{t('pulls.openGithub')} ↗</button>}
           {pull && !approved && !pull.review.approvedByMe && <button type="button" className="btn btn-small btn-accent" data-testid="pull-approve" aria-pressed={approving === 'approve'} onClick={() => setApproving((v) => (v === 'approve' ? null : 'approve'))}>✓ {t('pulls.approve')}</button>}

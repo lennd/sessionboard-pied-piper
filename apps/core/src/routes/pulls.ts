@@ -13,6 +13,7 @@ import { overlayChanges } from '../impact/overlay';
 import type { TouchedFile } from '../observer/parse';
 import { repoDir, type RepoEntry } from '../store/repos';
 import { findScene, readSystemMap } from '../store/scenes';
+import { readExplanation } from '../store/explanations';
 import { readTriage, setTriage } from '../store/pullTriage';
 import { validateScene, type Scene } from '@rdi/scene';
 
@@ -67,7 +68,9 @@ export const pullRoutes = (api: FastifyInstance, deps: AppDeps) => {
     if (!number) return fail(reply, 404, 'not_found');
     try {
       const detail = await gh.pullDetail(req.repo!.path, number, req.repo!.remote);
-      return { ...detail, touched: detail.files.map((f) => ({ path: f.path, change: f.change })) };
+      const entry = await readExplanation(repoDir(req.repo!), `pr-${number}`);
+      const row = entry ? await findScene(repoDir(req.repo!), entry.sceneId) : null;
+      return { ...detail, touched: detail.files.map((f) => ({ path: f.path, change: f.change })), explanation: entry && row ? { ...entry, scene: row.scene } : null };
     } catch (error) {
       return ghFail(reply, error);
     }

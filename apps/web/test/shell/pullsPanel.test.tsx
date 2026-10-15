@@ -18,13 +18,14 @@ const dismissedPull = { ...pull, number: 9, title: 'Set aside', triage: { state:
 const branch = { branch: 'feature/x', base: 'main', ahead: 2, touched: [{ path: 'src/a.ts', change: 'modified' as const }] };
 const impact = (id: string) => ({ ...scene, id, risks: [{ id: 'r1', title: 'Breaks callers', category: 'reliability' as const, severity: 'high' as const, explanation: 'The handler changed.', mitigation: 'Run the suite.', nodeIds: [scene.nodes[0]!.id] }, { id: 'r2', title: 'Unclear', category: 'complexity' as const, severity: 'low' as const, explanation: 'No code.', nodeIds: [scene.nodes[1]!.id] }] });
 
-const mockApi = (options: { available?: boolean; reason?: string; branch?: typeof branch | null; map?: boolean; reviewError?: ApiError } = {}) => {
+const mockApi = (options: { available?: boolean; reason?: string; branch?: typeof branch | null; map?: boolean; reviewError?: ApiError; cached?: boolean } = {}) => {
   explainMock.mockReset();
   explainMock.mockResolvedValue({ id: 'sc-explained', scene: impact('impact-pr-7-explained'), text: 'The **store** is rewritten.' });
   return api.mockImplementation(async (path, init) => {
     const p = String(path);
     if (p.includes('/pulls?refresh=1') || p.endsWith('/pulls')) return { available: options.available ?? true, reason: options.reason, pulls: options.available === false ? [] : [pull, approvedPull, dismissedPull], branch: options.branch === undefined ? branch : options.branch } as never;
-    if (p.endsWith('/pulls/7')) return { pull: { ...pull, body: 'Rewrites the **store**.' }, files: [{ path: 'src/a.ts', additions: 2, deletions: 1, change: 'modified' }, { path: 'src/new.ts', additions: 1, deletions: 0, change: 'added' }] } as never;
+    if (p.endsWith('/pulls/7')) return { pull: { ...pull, body: 'Rewrites the **store**.' }, files: [{ path: 'src/a.ts', additions: 2, deletions: 1, change: 'modified' }, { path: 'src/new.ts', additions: 1, deletions: 0, change: 'added' }], explanation: options.cached ? { sceneId: 'sc-cached', text: 'Cached: the **store** moved.', at: '2026-10-14T10:00:00Z', scene: impact('impact-pr-7-cached') } : null } as never;
+    if (p.includes('/explanations/')) throw new ApiError(404, 'not_found');
     if (p.endsWith('/impact')) {
       if (options.map === false) throw new ApiError(404, 'no_system_map');
       return impact(p.includes('/branch/') ? 'impact-branch' : 'impact-pr-7') as never;
@@ -151,6 +152,18 @@ describe('PullsPanel', () => {
     await waitFor(() => expect(api).toHaveBeenCalledWith('/repos/r1/conversations', { method: 'POST', body: { title: '#7 · Store rewrite' } }));
     await waitFor(() => expect(streamMock).toHaveBeenCalled());
     expect(streamMock.mock.calls[0]![2]).toMatchObject({ text: 'What does it change?', pull: 7 });
+  });
+
+  it('reuses the stored explanation of a pull request instead of asking Claude again', async () => {
+    mockApi({ cached: true });
+    const { openScene } = render();
+    fireEvent.click(await screen.findByTestId('pull-7'));
+    expect(await screen.findByTestId('pull-explanation')).toHaveTextContent('Cached: the store moved.');
+    expect(openScene).toHaveBeenCalledWith(expect.objectContaining({ id: 'impact-pr-7-cached' }), 'changes');
+    expect(explainMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId('pull-explain')).toHaveTextContent('Explain again');
+    expect(screen.getByTestId('pull-explained-at')).toHaveTextContent('Explained');
+    await screen.findByTestId('pull-risk-r1');
   });
 
   it('marks a pull request as reviewed or dismissed and keeps dismissed ones apart', async () => {

@@ -11,10 +11,11 @@ import { requireRepo } from '../http/repo';
 import { overlayChanges } from '../impact/overlay';
 import { createSessionParser, touchedFiles, type TouchedFile } from '../observer/parse';
 import { listSessions, readSession, tailSession } from '../observer/transcripts';
+import { readExplanation, setExplanation } from '../store/explanations';
 import { readPrefs } from '../store/prefs';
 import { readRules, ruleLines } from '../store/rules';
 import { repoDir, type RepoEntry } from '../store/repos';
-import { insertScene, readSystemMap } from '../store/scenes';
+import { insertScene, readSystemMap, findScene } from '../store/scenes';
 
 const HEARTBEAT_MS = 15_000;
 const LANGUAGE_TAG = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
@@ -33,6 +34,12 @@ const sse = (reply: FastifyReply) => {
 };
 
 export const sessionRoutes = (api: FastifyInstance, deps: AppDeps) => {
+  const cachedExplanation = async (repo: RepoEntry, scope: string) => {
+    const entry = await readExplanation(repoDir(repo), scope);
+    if (!entry) return null;
+    const row = await findScene(repoDir(repo), entry.sceneId);
+    return row ? { ...entry, scene: row.scene } : null;
+  };
   const withRepo = [requireRepo(deps)];
   const claudeHome = deps.config.claudeHome;
   const gh = createGh(deps.config.ghBin);
@@ -86,6 +93,13 @@ export const sessionRoutes = (api: FastifyInstance, deps: AppDeps) => {
 
   api.get('/repos/:repoId/changes/impact', { preHandler: withRepo }, async (req, reply) =>
     impactOf(req.repo!, await gitChanges(req.repo!.path), `${IMPACT_ID}-${WORKTREE_ID}`, 'Working tree changes', reply));
+
+  /** The explanation already given for a scope, with its scene, so reopening a pull request or a session costs no tokens. */
+  api.get('/repos/:repoId/explanations/:scope', { preHandler: withRepo }, async (req, reply) => {
+    const { scope } = req.params as { scope: string };
+    const found = await cachedExplanation(req.repo!, scope);
+    return found ?? fail(reply, 404, 'not_found');
+  });
 
   api.post('/repos/:repoId/impact/explain', { preHandler: withRepo }, async (req, reply) => {
     const body = explainBody.parse(req.body ?? {});
@@ -148,6 +162,7 @@ export const sessionRoutes = (api: FastifyInstance, deps: AppDeps) => {
         send('done', { usage: result.usage });
       } else {
         const row = await insertScene(repoDir(repo), nowOf(deps), { conversationId: null, sourceSceneId: null, turn: 0, scene: { ...scene, id: `${IMPACT_ID}-${scope}-explained` } });
+        await setExplanation(repoDir(repo), scope, { sceneId: row.id, text: result.text, at: nowOf(deps).toISOString() });
         send('scene', { id: row.id, scene: row.scene });
         send('done', { id: row.id, text: result.text, usage: result.usage });
       }

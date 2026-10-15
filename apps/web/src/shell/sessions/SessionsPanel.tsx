@@ -5,6 +5,7 @@ import type { ChatContext } from '../../workspace/Workspace';
 import { PayloadDiff } from '../../workspace/panels/PayloadDiff';
 import { beginActivity } from '../../components/activity';
 import { ApiError } from '../api';
+import { fetchExplanation } from '../pulls/pullsApi';
 import { Markdown } from '../chat/Markdown';
 import { errorText } from '../errors';
 import { formatRelative } from '../format';
@@ -108,7 +109,18 @@ export const SessionsPanel = ({ repoId, ctx }: { repoId: string; ctx: ChatContex
     setExplanation(null);
     rememberSessions(repoId, { scene: null });
     setError(null);
-    void showImpact(id);
+    void restoreOrShow(id);
+  };
+  /** A stored explanation wins over the plain overlay: the person already paid for it. */
+  const restoreOrShow = async (id: string) => {
+    const cached = await fetchExplanation(repoId, id);
+    if (cached) {
+      setExplanation(cached.text);
+      rememberSessions(repoId, { scene: cached.scene });
+      ctx.openScene(cached.scene, 'changes');
+      return;
+    }
+    await showImpact(id);
   };
 
   const explain = async () => {

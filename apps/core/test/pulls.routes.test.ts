@@ -136,6 +136,11 @@ describe('pull requests', () => {
     const explained = parseSse((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/impact/explain`, payload: { pull: 7 } })).body);
     expect((explained.find((e) => e.event === 'scene')!.data as { scene: { id: string } }).scene.id).toBe('impact-pr-7-explained');
     const branchExplained = parseSse((await app.inject({ method: 'POST', url: `/api/repos/${repoId}/impact/explain`, payload: { pull: 'branch' } })).body);
+    const explainedId = (explained.at(-1)!.data as { id: string }).id;
+    const detail = await app.inject({ method: 'GET', url: `/api/repos/${repoId}/pulls/7` });
+    expect(detail.json().explanation).toMatchObject({ sceneId: explainedId, text: expect.any(String), scene: { id: 'impact-pr-7-explained' } });
+    expect((await app.inject({ method: 'GET', url: `/api/repos/${repoId}/explanations/branch` })).json()).toMatchObject({ scene: { id: 'impact-branch-explained' } });
+    expect((await app.inject({ method: 'GET', url: `/api/repos/${repoId}/explanations/nope` })).statusCode).toBe(404);
     expect((branchExplained.find((e) => e.event === 'scene')!.data as { scene: { id: string } }).scene.id).toBe('impact-branch-explained');
   });
 
