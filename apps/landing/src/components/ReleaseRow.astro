@@ -1,0 +1,18 @@
+---
+import { formatDate, formatSize, type Release } from '~/lib/releases';
+import type { Strings } from '~/lib/strings';
+const { release, s } = Astro.props as { release: Release; s: Strings };
+---
+<li class="release" data-version={release.version}>
+  <div>
+    <div class="release-head">
+      <span class="release-version">{release.version}</span>
+      {release.prerelease && <span class="release-pre">{s.prerelease}</span>}
+      <span class="release-date">{formatDate(release.date, s.locale)}</span>
+    </div>
+    {release.notes && <p class="release-notes">{release.notes}</p>}
+  </div>
+  <div class="release-files">
+    {release.files.map((f) => <a href={f.url} download title={`sha256 ${f.sha256}`}>{s[f.kind]} <small>{formatSize(f.size)}</small></a>)}
+  </div>
+</li>

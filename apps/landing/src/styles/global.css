@@ -24,6 +24,11 @@ h2 { font-family: var(--serif); font-size: 28px; font-weight: 600; letter-spacin
 .release-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .release-version { font-family: var(--serif); font-size: 22px; font-weight: 600; }
 .release-date { color: var(--mint); font-size: 14px; }
+.release-pre { font-size: 12px; color: var(--green-deep); background: var(--mint); border-radius: 999px; padding: 1px 8px; }
+.lang-switch { position: fixed; top: 16px; right: 16px; display: inline-flex; border: 1px solid rgba(255, 255, 255, .3); border-radius: 999px; overflow: hidden; backdrop-filter: blur(6px); }
+.lang-switch a { color: var(--mint); text-decoration: none; font-size: 13px; font-weight: 600; padding: 6px 12px; }
+.lang-switch a[aria-current="page"] { background: var(--white); color: var(--green-deep); }
+.lang-switch a:focus-visible { outline: 2px solid var(--white); outline-offset: -2px; }
 .release-notes { margin: 0; color: var(--white); font-size: 14px; white-space: pre-wrap; }
 .release-notes:empty { display: none; }
 .release-files { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }

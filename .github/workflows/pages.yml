@@ -29,12 +29,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test -w @rdi/landing
-      - run: npm run build -w @rdi/landing
       - name: Manifest from GitHub Releases
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh api "repos/${{ github.repository }}/releases?per_page=100" | node scripts/release/manifest.mjs --out apps/landing/dist/releases.json
-      - uses: actions/configure-pages@v5
+        run: gh api "repos/${{ github.repository }}/releases?per_page=100" | node scripts/release/manifest.mjs --out apps/landing/src/data/releases.json
+      - id: pages
+        uses: actions/configure-pages@v5
+      - name: Build the site for its Pages URL
+        env:
+          ASTRO_SITE: ${{ steps.pages.outputs.origin }}
+          ASTRO_BASE: ${{ steps.pages.outputs.base_path }}
+        run: npm run build -w @rdi/landing
       - uses: actions/upload-pages-artifact@v4
         with:
           path: apps/landing/dist

@@ -5,13 +5,18 @@
   "type": "module",
   "description": "Static download page for Pied Piper releases, published to S3 next to the artifacts.",
   "scripts": {
-    "dev": "node ./serve.mjs",
-    "build": "node ./build.mjs",
+    "dev": "astro dev --port 5180",
+    "build": "astro build",
+    "preview": "astro preview --port 5180",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {
     "vitest": "^5.0.2",
-    "@types/node": "^26.6.3"
+    "@types/node": "^26.6.3",
+    "typescript": "~5.9.3"
+  },
+  "dependencies": {
+    "astro": "^7"
   }
 }

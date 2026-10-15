@@ -1,0 +1,9 @@
+---
+import { LANGS, STRINGS, type Lang } from '~/lib/strings';
+const { lang } = Astro.props as { lang: Lang };
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const hrefOf = (target: Lang) => (target === 'en' ? `${base}/` : `${base}/${target}/`);
+---
+<nav class="lang-switch" aria-label={STRINGS[lang].language}>
+  {LANGS.map((target) => <a href={hrefOf(target)} data-lang={target} aria-current={target === lang ? 'page' : undefined} hreflang={target}>{target.toUpperCase()}</a>)}
+</nav>
