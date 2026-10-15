@@ -21,11 +21,14 @@ const args = (argv) => {
   return out;
 };
 
-/** `sha256  file name` lines → map by file name. */
+/** GitHub stores asset names with dots where the file had spaces; compare names with both folded. */
+export const assetKey = (name) => name.replace(/[\s.]+/g, '.');
+
+/** `sha256  file name` lines → map by folded file name. */
 export const parseChecksums = (text) =>
   new Map(text.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
     const [hash, ...name] = line.split(/\s+/);
-    return [name.join(' ').replace(/^\*/, ''), hash];
+    return [assetKey(name.join(' ').replace(/^\*/, '')), hash];
   }));
 
 /** One manifest release per published GitHub release whose tag is a version; drafts and prereleases without assets are skipped. */
@@ -37,7 +40,7 @@ export const fromGithubReleases = (releases, checksumsByTag = new Map()) =>
       const sums = checksumsByTag.get(r.tag_name) ?? new Map();
       const files = (r.assets ?? [])
         .filter((a) => Object.keys(KINDS).some((ext) => a.name.endsWith(ext)))
-        .map((a) => ({ name: a.name, url: a.browser_download_url, kind: KINDS[Object.keys(KINDS).find((ext) => a.name.endsWith(ext))], arch: ARCH.exec(a.name)?.[1] ?? 'arm64', size: a.size, sha256: sums.get(a.name) ?? '' }));
+        .map((a) => ({ name: a.name, url: a.browser_download_url, kind: KINDS[Object.keys(KINDS).find((ext) => a.name.endsWith(ext))], arch: ARCH.exec(a.name)?.[1] ?? 'arm64', size: a.size, sha256: sums.get(assetKey(a.name)) ?? '' }));
       return { version, date: r.published_at ?? r.created_at, ...(r.body?.trim() ? { notes: r.body.trim() } : {}), ...(r.prerelease ? { prerelease: true } : {}), files };
     })
     .filter((r) => r.files.length > 0);
