@@ -1,0 +1,22 @@
+---
+import { FEATURES, type Feature, type Lang } from '~/lib/strings';
+const { lang } = Astro.props as { lang: Lang };
+const ICONS: Record<Feature['icon'], string> = {
+  map: 'M4 6h6v6H4z M14 12h6v6h-6z M10 9h4 M14 15h-2a2 2 0 0 1-2-2v-1',
+  walk: 'M4 12h12 M12 8l4 4-4 4 M19 6v12',
+  pull: 'M7 5v14 M7 5a2 2 0 1 0 0 4 M7 19a2 2 0 1 0 0-4 M17 9a2 2 0 1 0 0-4 M17 9v2a4 4 0 0 1-4 4h-2',
+  sessions: 'M4 6h16 M4 12h10 M4 18h13 M18 11l2 2-2 2',
+  chat: 'M5 5h14v10H9l-4 4z M8 9h8 M8 12h5',
+  feature: 'M12 3l2.4 5.2L20 9l-4 3.9.9 5.6L12 15.8 7.1 18.5 8 12.9 4 9l5.6-.8z',
+  local: 'M5 10V8a7 7 0 0 1 14 0v2 M5 10h14v9H5z M12 13v3',
+};
+---
+<ul class="features">
+  {FEATURES[lang].map((f) => (
+    <li class="feature">
+      <svg class="feature-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d={ICONS[f.icon]} /></svg>
+      <h3>{f.title}</h3>
+      <p>{f.text}</p>
+    </li>
+  ))}
+</ul>

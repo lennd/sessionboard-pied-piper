@@ -1,19 +1,19 @@
 ---
 import manifest from '~/data/releases.json';
-import { formatDate, formatSize, installerOf, latestOf, sortReleases, type Manifest } from '~/lib/releases';
+import { formatDate, formatSize, installerOf, latestOf, type Manifest } from '~/lib/releases';
 import { fill, STORAGE_KEY, STRINGS, type Lang } from '~/lib/strings';
+import FeatureGrid from './FeatureGrid.astro';
 import LangSwitch from './LangSwitch.astro';
-import ReleaseRow from './ReleaseRow.astro';
 import '~/styles/global.css';
 
 const { lang } = Astro.props as { lang: Lang };
 const s = STRINGS[lang];
 const data = manifest as Manifest;
-const releases = sortReleases(data.releases);
-const latest = latestOf(releases);
+const latest = latestOf(data.releases);
 const installer = latest ? installerOf(latest) : null;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const alternates: { lang: Lang; href: string }[] = [{ lang: 'en', href: `${base}/` }, { lang: 'es', href: `${base}/es/` }];
+const releasesUrl = import.meta.env.PUBLIC_RELEASES_URL ?? 'https://github.com/lennd/sessionboard-pied-piper/releases';
 ---
 <!doctype html>
 <html lang={lang}>
@@ -54,9 +54,9 @@ const alternates: { lang: Lang; href: string }[] = [{ lang: 'en', href: `${base}
         </div>
       </header>
 
-      <section class="releases" aria-labelledby="releases-title">
-        <h2 id="releases-title">{s.allVersions}</h2>
-        {releases.length > 0 ? <ol class="release-list">{releases.map((release) => <ReleaseRow release={release} s={s} />)}</ol> : <p class="muted">{s.noVersions}</p>}
+      <section class="features-section" aria-labelledby="features-title">
+        <h2 id="features-title">{s.featuresTitle}</h2>
+        <FeatureGrid lang={lang} />
       </section>
 
       <section class="install" aria-labelledby="install-title">
@@ -70,6 +70,7 @@ const alternates: { lang: Lang; href: string }[] = [{ lang: 'en', href: `${base}
     </main>
     <footer class="foot">
       <span>{s.onlyMac}</span>
+      <a class="foot-link" href={releasesUrl}>{s.allVersions} ↗</a>
       {data.generatedAt && <span class="muted">{fill(s.updated, { date: formatDate(data.generatedAt, s.locale) })}</span>}
     </footer>
   </body>

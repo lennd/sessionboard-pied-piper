@@ -37,6 +37,15 @@ h2 { font-family: var(--serif); font-size: 28px; font-weight: 600; letter-spacin
 .release a:hover { background: rgba(255, 255, 255, .12); }
 .release small { color: var(--mint); font-size: 12px; }
 .steps { padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.features { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.feature { padding: 18px 18px 16px; border-radius: 16px; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .12); display: flex; flex-direction: column; gap: 8px; }
+.feature:first-child { grid-column: 1 / -1; }
+.feature-icon { color: var(--mint); }
+.feature h3 { font-family: var(--serif); font-size: 20px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
+.feature p { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--white); }
+.foot-link { color: var(--white); text-decoration: none; border-bottom: 1px solid rgba(255, 255, 255, .35); }
+.foot-link:hover { border-bottom-color: var(--white); }
+@media (max-width: 640px) { .features { grid-template-columns: 1fr; } }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em; background: rgba(0, 0, 0, .22); padding: 1px 6px; border-radius: 6px; }
 .foot { display: flex; justify-content: center; gap: 12px; padding: 0 24px 40px; color: var(--mint); font-size: 13px; flex-wrap: wrap; }
 @media (max-width: 640px) { .page { padding-top: 48px; } .wordmark { font-size: 44px; } .release { grid-template-columns: 1fr; } .release-files { align-items: flex-start; flex-direction: row; flex-wrap: wrap; } }
