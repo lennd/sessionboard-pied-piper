@@ -48,7 +48,16 @@ describe('Workspace panels', () => {
     render(<I18nProvider initialLanguage="en"><Workspace panels={[{ id: 'p', glyph: 'P', title: 'P', render: (ctx) => { captured = ctx; return null; } }]} /></I18nProvider>);
     const base = captured!.scene;
     act(() => captured!.openScene({ ...base, id: 'changed', title: 'Changed', nodes: base.nodes.map((n, i) => (i === 0 ? { ...n, change: 'modified' as const } : n)) }, 'changes'));
-    expect(screen.getByTestId('mode-changes')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('activity-changes')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('pressing play or stepping enters the walkthrough from any mode', () => {
+    render(<I18nProvider initialLanguage="en"><Workspace /></I18nProvider>);
+    fireEvent.click(screen.getByTestId('activity-risks'));
+    expect(screen.getByTestId('activity-risks')).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByTestId('player-next'));
+    expect(screen.getByTestId('activity-walkthrough')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('activity-risks')).toHaveAttribute('aria-pressed', 'false');
   });
 });
 

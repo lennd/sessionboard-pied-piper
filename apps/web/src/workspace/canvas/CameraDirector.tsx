@@ -9,14 +9,15 @@ const MAX_ZOOM = 1.05;
 
 const reducedMotion = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** Moves the camera when the shot changes: zooms onto the pieces of the current step or risk, pulls back when nothing is focused. */
-export const CameraDirector = ({ shot, ready }: { shot: CameraShot; ready: boolean }) => {
+/** Moves the camera when the shot changes (or when `nudge` ticks, e.g. on play): zooms onto the pieces of the current step or risk, pulls back when nothing is focused. */
+export const CameraDirector = ({ shot, ready, nudge = 0 }: { shot: CameraShot; ready: boolean; nudge?: number }) => {
   const { fitView } = useReactFlow();
   const last = useRef<string | null>(null);
   useEffect(() => {
-    if (!ready || last.current === shot.key) return;
+    const key = `${shot.key}#${nudge}`;
+    if (!ready || last.current === key) return;
     const first = last.current === null;
-    last.current = shot.key;
+    last.current = key;
     if (first && shot.nodeIds.length === 0) return;
     const duration = reducedMotion() ? 0 : DURATION_MS;
     const frame = () => {
@@ -25,6 +26,6 @@ export const CameraDirector = ({ shot, ready }: { shot: CameraShot; ready: boole
     };
     const timer = window.setTimeout(frame, 0);
     return () => window.clearTimeout(timer);
-  }, [shot, ready, fitView]);
+  }, [shot, ready, nudge, fitView]);
   return null;
 };

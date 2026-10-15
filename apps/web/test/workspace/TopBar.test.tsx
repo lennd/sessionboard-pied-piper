@@ -6,10 +6,10 @@ import { fixtureScene } from './fixture';
 
 const scene = fixtureScene();
 const renderBar = (props: Partial<Parameters<typeof TopBar>[0]> = {}, language: 'en' | 'es' | 'pt' = 'en') => {
-  const handlers = { onSceneChange: vi.fn(), onLevel: vi.fn(), onMode: vi.fn(), onToggleOverlay: vi.fn(), onTheme: vi.fn() };
+  const handlers = { onSceneChange: vi.fn(), onLevel: vi.fn(), onToggleOverlay: vi.fn(), onTheme: vi.fn() };
   render(
     <I18nProvider initialLanguage={language}>
-      <TopBar scenes={sampleScenes} scene={scene} level="architecture" mode="walkthrough" scaleOverlay={false} theme="mission" {...handlers} {...props} />
+      <TopBar scenes={sampleScenes} scene={scene} level="architecture" scaleOverlay={false} theme="mission" {...handlers} {...props} />
     </I18nProvider>,
   );
   return handlers;
@@ -23,23 +23,21 @@ describe('TopBar', () => {
     expect(hasScale({ ...scene, nodes: scene.nodes.map((n) => ({ ...n, scale: undefined })) })).toBe(false);
   });
 
-  it('switches level, mode, overlay and theme', () => {
+  it('switches level, overlay and theme; modes live in the rail, not here', () => {
     const h = renderBar();
     expect(screen.getByTestId('level-architecture')).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(screen.getByTestId('level-detail'));
-    fireEvent.click(screen.getByTestId('mode-risks'));
     fireEvent.click(screen.getByTestId('scale-overlay'));
     fireEvent.change(screen.getByTestId('theme-select'), { target: { value: 'paper' } });
     expect(h.onLevel).toHaveBeenCalledWith('detail');
-    expect(h.onMode).toHaveBeenCalledWith('risks');
     expect(h.onToggleOverlay).toHaveBeenCalled();
     expect(h.onTheme).toHaveBeenCalledWith('paper');
+    expect(screen.queryByTestId('mode-walkthrough')).toBeNull();
+    expect(screen.queryByTestId('mode-risks')).toBeNull();
   });
 
-  it('hides modes and overlay the scene does not support', () => {
+  it('hides the overlay when the scene has no scale data', () => {
     renderBar({ scene: { ...scene, risks: [], nodes: scene.nodes.map((n) => ({ ...n, scale: undefined, change: undefined })) } });
-    expect(screen.queryByTestId('mode-risks')).toBeNull();
-    expect(screen.queryByTestId('mode-changes')).toBeNull();
     expect(screen.queryByTestId('scale-overlay')).toBeNull();
   });
 

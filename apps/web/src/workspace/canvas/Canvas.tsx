@@ -28,7 +28,7 @@ const MAX_ZOOM = 2;
 
 type CanvasProps = {
   scene: Scene; index: SceneIndex; model: VisibleModel; projected: ProjectedEdges; frame: Frame; phase: Phase;
-  explorer: ExplorerState; byNode: Map<string, SceneRisk[]>; hoverRiskId?: string | null;
+  explorer: ExplorerState; byNode: Map<string, SceneRisk[]>; hoverRiskId?: string | null; cameraNudge?: number;
   onSelect: (id: string) => void; onToggleExpand: (id: string) => void; onOpenCode: (id: string) => void;
   onOpenStep: (stepId: string) => void; onSelectRisk: (riskId: string) => void;
 };
@@ -114,7 +114,7 @@ export const Canvas = (props: CanvasProps) => {
         nodesConnectable={false}
         fitView
       >
-        <CameraDirector shot={shot} ready={rfNodes.length > 0} />
+        <CameraDirector shot={shot} ready={rfNodes.length > 0} nudge={props.cameraNudge ?? 0} />
         <Background gap={22} color="transparent" />
         <Controls showInteractive={false} />
         {Object.keys(moved).length > 0 && (

@@ -14,8 +14,8 @@ export const availableModes = (scene: Scene): Mode[] => [
 export const hasScale = (scene: Scene): boolean => scene.nodes.some((n) => n.scale);
 
 type TopBarProps = {
-  scenes: Scene[]; scene: Scene; level: Level; mode: Mode; scaleOverlay: boolean; theme: ThemeId;
-  onSceneChange: (id: string) => void; onLevel: (level: Level) => void; onMode: (mode: Mode) => void;
+  scenes: Scene[]; scene: Scene; level: Level; scaleOverlay: boolean; theme: ThemeId;
+  onSceneChange: (id: string) => void; onLevel: (level: Level) => void;
   onToggleOverlay: () => void; onTheme: (theme: ThemeId) => void;
   onLanguage?: (language: UiLanguage) => void; homeHref?: string; context?: { title: string; detail?: string | null; href?: string };
 };
@@ -38,13 +38,6 @@ export const TopBar = (p: TopBarProps) => {
         {LEVELS.map((level) => (
           <button key={level} type="button" data-testid={`level-${level}`} aria-pressed={p.level === level} onClick={() => p.onLevel(level)}>
             {t(`level.${level}`)}
-          </button>
-        ))}
-      </div>
-      <div className="tabs-inline" role="tablist">
-        {availableModes(p.scene).map((mode) => (
-          <button key={mode} type="button" role="tab" data-testid={`mode-${mode}`} aria-selected={p.mode === mode} onClick={() => p.onMode(mode)}>
-            {t(`mode.${mode}`)}
           </button>
         ))}
       </div>

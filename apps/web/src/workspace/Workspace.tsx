@@ -25,6 +25,9 @@ const DEFAULT_LEVEL: Level = 'architecture';
 const sceneFor = (language: string): Scene => sampleRegistry[`checkout-${language}`] ?? sampleRegistry['checkout-en'] ?? (sampleScenes[0] as Scene);
 
 const NO_SCENES: Scene[] = [];
+const STEP_ACTIONS = new Set<PlayerAction['type']>(['play', 'next', 'prev', 'seek']);
+/** Playing or moving through steps always means "show me the walkthrough": the mode follows and the camera frames the step. */
+export const movesThroughSteps = (action: PlayerAction): boolean => STEP_ACTIONS.has(action.type);
 
 export type ChatMode = 'analyze' | 'plan';
 export type PendingQuestion = { id: number; text: string; mode: ChatMode };
@@ -84,7 +87,14 @@ export const Workspace = ({ chat, panels, initialPanel, loadCode, extraScenes = 
   const numbering = useMemo(() => numberSteps(scene.steps), [scene]);
   const byNode = useMemo(() => risksByNode(scene), [scene]);
 
-  const dispatchPlayer = useCallback((action: PlayerAction) => dispatchPlayerRaw({ ...action, count: flat.length }), [flat.length]);
+  const [cameraNudge, setCameraNudge] = useState(0);
+  const dispatchPlayer = useCallback((action: PlayerAction) => {
+    dispatchPlayerRaw({ ...action, count: flat.length });
+    if (movesThroughSteps(action)) {
+      dispatchRaw({ type: 'setMode', mode: 'walkthrough' });
+      setCameraNudge((n) => n + 1);
+    }
+  }, [flat.length]);
   usePlaybackClock(player.playing, (deltaMs) => dispatchPlayer({ type: 'tick', deltaMs }));
 
   const previousFlat = useRef(flat);
@@ -136,8 +146,8 @@ export const Workspace = ({ chat, panels, initialPanel, loadCode, extraScenes = 
   return (
     <div className="ws">
       <TopBar
-        scenes={scenes} scene={scene} level={explorer.level} mode={explorer.mode} scaleOverlay={explorer.scaleOverlay} theme={theme}
-        onSceneChange={loadScene} onLevel={(level) => dispatchRaw({ type: 'setLevel', level })} onMode={(mode) => dispatchRaw({ type: 'setMode', mode })}
+        scenes={scenes} scene={scene} level={explorer.level} scaleOverlay={explorer.scaleOverlay} theme={theme}
+        onSceneChange={loadScene} onLevel={(level) => dispatchRaw({ type: 'setLevel', level })}
         onToggleOverlay={() => dispatchRaw({ type: 'toggleScaleOverlay' })} onTheme={setTheme}
         onLanguage={onLanguage} homeHref={homeHref} context={context}
       />
@@ -151,7 +161,7 @@ export const Workspace = ({ chat, panels, initialPanel, loadCode, extraScenes = 
         />
         <main className="ws-canvas">
           <Canvas
-            scene={scene} index={index} model={model} projected={projected} frame={frame} phase={phase} explorer={explorer} byNode={byNode} hoverRiskId={hoverRiskId}
+            scene={scene} index={index} model={model} projected={projected} frame={frame} phase={phase} explorer={explorer} byNode={byNode} hoverRiskId={hoverRiskId} cameraNudge={cameraNudge}
             onSelect={(id) => dispatchRaw({ type: 'selectNode', nodeId: id })} onToggleExpand={(id) => dispatchRaw({ type: 'toggleExpand', nodeId: id })}
             onOpenCode={(id) => dispatchRaw({ type: 'openCode', nodeId: id })} onOpenStep={(id) => dispatchRaw({ type: 'toggleStep', stepId: id })}
             onSelectRisk={(id) => dispatchRaw({ type: 'selectRisk', riskId: id })}
