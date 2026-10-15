@@ -7,7 +7,6 @@ import type { CodeRef } from '../../workspace/panels/CodeDrawer';
 import { Workspace } from '../../workspace/Workspace';
 import { beginActivity } from '../../components/activity';
 import { ApiError, apiFetch } from '../api';
-import { ChatPanel } from '../chat/ChatPanel';
 import { Splash } from '../components/Splash';
 import { errorText } from '../errors';
 import { repoKey, usePrefs, useRepo, useUpdatePrefs } from '../local';
@@ -87,7 +86,6 @@ export const ExplorePage = () => {
           { id: 'sessions', glyph: '⏱', title: t('sessions.title'), render: (ctx) => <SessionsPanel repoId={repoId} ctx={ctx} /> },
           { id: 'pulls', glyph: '⇄', title: t('pulls.title'), render: (ctx) => <PullsPanel repoId={repoId} ctx={ctx} chatLanguage={explanationLanguage} /> },
         ]}
-        chat={(ctx) => <ChatPanel base={`/repos/${repoId}`} ctx={ctx} language={explanationLanguage} />}
         extraScenes={systemMap.data ? [systemMap.data] : []}
         theme={effectiveTheme(prefs)}
         onTheme={(theme) => updatePrefs.mutate({ theme })}
