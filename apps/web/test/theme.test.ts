@@ -11,7 +11,7 @@ describe('themes', () => {
   it('defines every token for every theme', () => {
     const keys = Object.keys(themeTokens.piper).sort();
     THEMES.forEach((id) => expect(Object.keys(themeTokens[id]).sort()).toEqual(keys));
-    expect(keys).toHaveLength(14);
+    expect(keys).toHaveLength(18);
   });
 
   it('applies tokens, data-theme and color-scheme to an element', () => {
